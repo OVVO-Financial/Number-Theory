@@ -14,6 +14,8 @@ The method is best described with an example:
     > * `mod(6767,101) == 0`. 
 
 There are minimal division operations (one per seed group) performed, rather elementary doubling and halving rules resulting in significantly reduced `mod` checks versus the original number `n`.
+
+## Examples
 ``` julia
 @time NG(798607)
 1×2 Array{Float64,2}:
@@ -28,7 +30,8 @@ There are minimal division operations (one per seed group) performed, rather ele
 0.030094 seconds (7 allocations: 288 bytes)
 ```
 
-Below is the `julia` code:
+## Julia code
+Below is the `julia` code.  I'm sure it can be optimized further!
 ``` julia
 function NG(n)
 r = ceil(sqrt(n))
