@@ -6,10 +6,12 @@ One of 3 known seed groups resides below `0.5*sqrt(n)`.
 The method is best described with an example:
 
 1. For `n = 798,607` if we start with a seed group of **59**, we would have **17** groups of **13,535** and **42** groups of **13,536**.
-    > * The group counts (e.g., 13,535 and 13,536 generated from `798607/59 = 13535.71`) are to have a maximum difference of 1 (hence naive grouping!).  
+    > * The group counts (e.g., 13,535 and 13,536 generated from `798607/59 = 13535.71`) are to have a maximum difference of 1 (hence naive grouping!).
+    > * Checking our total: `17 * 13535 + 42 * 13536 = 798607`
 2. Neither the **17** nor the **42** will evenly parse the other grouping counts so we double the seed group and halve the counts.
     > * `mod(13535,42) > 1` and `mod(13536,17) > 1`.  
-3. Now we have **118** groups in total, **17** groups of **6,767** and **101** groups of **6,768**. 
+3. Now we have **118** groups in total, **17** groups of **6,767** and **101** groups of **6,768**.
+    > * Checking our total: `17 * 6767 + 101 * 6768 = 798607`
 4. The **6,767** can be distributed among the **101** groups, resulting in factors of **101** groups of **7,907**.
     > * `mod(6767,101) == 0`. 
 
@@ -112,11 +114,15 @@ end
   end
 
   if(group_ceiling2>1 && group_floor2>1)
+  if(group_ceiling2>1)
     if(mod(count_floor2,group_ceiling2)==0)
       return [group_ceiling2 n/group_ceiling2]
       end
+      end
+  if(group_floor2>1)
       if(mod(count_ceiling2,group_floor2)==0)
         return [group_floor2 n/group_floor2]
+      end
       end
   end
 
