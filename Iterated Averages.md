@@ -1,6 +1,6 @@
 # Iterated Averages
 The iterated averages routine takes advantage of a Fermat property originally described in [this paper](https://www.scribd.com/doc/298822749/Complex-Space-Factorization).
-We are familiar with the Fermat factorization of the form `N = a^2 + b^2` resulting in the factors `(a-b),(a+b)`.
+We are familiar with the Fermat factorization of the form `N = a^2 - b^2` resulting in the factors `(a-b),(a+b)`.
 Usually `a` is the variable being tested, however, the iterated averages routine searches for `b`.
 
 A brief example will illustrate:
