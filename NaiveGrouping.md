@@ -47,10 +47,14 @@ i = rr
 k = i+2
 
 while true
-  count_floor = div(n,i); count_ceiling = count_floor+1
+  count_floor = div(n,i)
+  if count_floor*i==n return (i, count_floor) end
+  count_ceiling = count_floor+1
   group_ceiling = mod(n,i)
   group_floor = i - group_ceiling
-  count_floor2 = div(n,k); count_ceiling2 = count_floor2+1
+  count_floor2 = div(n,k)
+  if count_floor2*k==n return (k, count_floor) end
+  count_ceiling2 = count_floor2+1
   group_ceiling2 = mod(n,k)
   group_floor2 = k - group_ceiling2
 
@@ -71,13 +75,17 @@ while true
     count_ceiling=div(count_ceiling,2)
   end
 
+  if ((count_floor < group_ceiling) | (count_ceiling < group_floor)) 
+      break
+  end
+
   if (count_floor2 & 1)==0
     group_floor2=(2*group_floor2)+group_ceiling2
   end
   if (count_ceiling2 & 1)==0
     group_ceiling2=(2*group_ceiling2)+group_floor2
   end
-  if count_floor2 < count_ceiling2
+  if count_floor2< count_ceiling2
     count_floor2=div(count_floor2,2)
     count_ceiling2=cld(count_ceiling2,2)
   else
@@ -85,14 +93,11 @@ while true
     count_ceiling2=div(count_ceiling2,2)
   end
 
-if ((count_floor < group_ceiling) | (count_ceiling < group_floor)) & ((count_floor2 < group_ceiling2) | (count_ceiling2 < group_floor2))
-  break
-end
-
   if(group_ceiling>1 && group_floor>1)
     if(div(count_floor,group_ceiling)*group_ceiling==count_floor)
         return (group_ceiling , div(n,group_ceiling))
         end
+
         if(div(count_ceiling,group_floor)*group_floor==count_ceiling)
           return (group_floor , div(n,group_floor))
           end
@@ -101,10 +106,10 @@ end
   if(group_ceiling2>1 && group_floor2>1)
     if(div(count_floor2,group_ceiling2)*group_ceiling2==count_floor2)
         return (group_ceiling2 , div(n,group_ceiling2))
-        end
-        if(div(count_ceiling2,group_floor2)*group_floor2==count_ceiling2)
-          return (group_floor2 , div(n,group_floor2))
-          end
+      end
+      if(div(count_ceiling2,group_floor2)*group_floor2==count_ceiling2)
+        return (group_floor2 , div(n,group_floor2))
+      end
   end
 
 end #inner while for i, k expansion
