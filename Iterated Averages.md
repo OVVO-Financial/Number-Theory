@@ -59,18 +59,55 @@ The `Actual diff=` is the final value of `b` while the `true diff=` is the Ferma
 
 ``` julia
 @time VF(798607,5)
-Actual diff=35  true diff=3903.0  Iter=4  Iterated Average=748713  FACTORS=101 7907.0
-  0.000885 seconds (76 allocations: 3.156 KB)
+0.000029 seconds (29 allocations: 2.188 KB)
+Dict{String,Int64} with 6 entries:
+  "Realized (b)"     => 35
+  "Iter"             => 4
+  "Iterated Average" => 748713
+  "True (b)"         => 3903
+  "FACTOR 1"         => 101
+  "FACTOR 2"         => 7907
 ```
 ```julia
 @time VF(978508015703,5)
-Actual diff=50745  true diff=273421.0  Iter=6  Iterated Average=963218792667  FACTORS=752867 1.299709e6
-  0.014069 seconds (40.66 k allocations: 637.797 KB)
+0.010549 seconds (30 allocations: 2.719 KB)
+Dict{String,Int64} with 6 entries:
+  "Realized (b)"     => 50745
+  "Iter"             => 6
+  "Iterated Average" => 963218792667
+  "True (b)"         => 273421
+  "FACTOR 1"         => 752867
+  "FACTOR 2"         => 1299709
 ```
 
 
 ## Julia code
 Below is the `julia` code.  I'm sure it can be optimized further!
+
+One optimization step was to use a binary `gcd` function discussed [here](https://github.com/JuliaLang/julia/blob/master/base/intfuncs.jl).
+### `gcd1`
+``` julia
+function gcd1{T<:Union{Int64,UInt64,Int128,UInt128}}(a::T, b::T)
+    a == 0 && return abs(b)
+    b == 0 && return abs(a)
+    za = trailing_zeros(a)
+    zb = trailing_zeros(b)
+    k = min(za, zb)
+    u = unsigned(abs(a >> za))
+    v = unsigned(abs(b >> zb))
+    while u != v
+        if u > v
+            u, v = v, u
+        end
+        v -= u
+        v >>= trailing_zeros(v)
+    end
+    r = u << k
+    # T(r) would throw InexactError; we want OverflowError instead
+    r > typemax(T) && throw(OverflowError())
+    r % T
+end
+```
 
 ``` julia
 function VF(n,step_size)
@@ -81,7 +118,7 @@ last_digit = mod(n,10)
 
 iterated_average = [3, (min_real+n)/2]
 
-#Create Iterated Average for log2(n) number of points
+#Create Iterated Average for log2(max imaginary value) number of points
 for i in 1:log2(max_im)
   push!(iterated_average,(iterated_average[end]+n)/2)
 end
@@ -90,44 +127,48 @@ deleteat!(iterated_average,1) #Drop the 3 from the initial assignment
 cut=ceil(log2(length(iterated_average)))  #Use only the first few, relationship breaks at higher iterated average points
 cut=convert(Int,cut)
 resize!(iterated_average,cut)
-likely_point = findmax(mod(iterated_average,1))[2] #Highest decimal iterated average is most likely...
+likely_point = findmax(rem(iterated_average,1))[2] #Highest decimal remainder iterated average is most likely...
 likely_point = max(likely_point,2)  #Can always decrease steps from first iterated average...
-ascending_iterations = ceil(iterated_average)
-descending_iterations = floor(iterated_average)
+ascending_iterations = ceil(Int,iterated_average)
+descending_iterations = floor(Int,iterated_average)
 
 j=0
 while true
 
 i = likely_point     # use [for i in (cut:-1:1)] to sequentially check over all iterated average points
 
-    d=descending_iterations[i]-j; d=convert(Int,d)
-    gcd_d=gcd(d,n)
+#for i in (cut:-1:1)
+
+    d=descending_iterations[i]-j
+    gcd_d=gcd1(d,n)
     if(gcd_d>1)
-    return(println("Actual diff=", j, "  true diff=", (gcd_d+n/gcd_d)/2 - gcd_d, "  Iter=", i, "  Iterated Average=", d , "  FACTORS=", gcd_d,  " ",n/gcd_d))
+    return(Dict("Realized (b)" => j, "True (b)" => convert(Int,(gcd_d+n/gcd_d)/2 - gcd_d), "Iter" => i, "Iterated Average" => d, "FACTOR 1" => gcd_d, "FACTOR 2" => div(n,gcd_d)))
     end
-    a=ascending_iterations[i]+j; a=convert(Int,a)
-    gcd_a=gcd(a,n)
+    a=ascending_iterations[i]+j
+    gcd_a=gcd1(a,n)
     if(gcd_a>1)
-    return(println("Actual diff=", j, "  true diff=", (gcd_a+n/gcd_a)/2 - gcd_a, "  Iter=", i, "  Iterated Average=", a , "  FACTORS=", gcd_a, " ",n/gcd_a))
+    return(Dict("Realized (b)" => j, "True (b)" => convert(Int,(gcd_a+n/gcd_a)/2 - gcd_a), "Iter" => i, "Iterated Average" => a, "FACTOR 1" => gcd_a, "FACTOR 2" => div(n,gcd_a)))
     end
-    gcd_d1=gcd(d-1,n)
+    gcd_d1=gcd1(d-1,n)
     if(gcd_d1>1)
-      return(println("Actual diff=", j, "  true diff=", (gcd_d1+n/gcd_d1)/2 - gcd_d1, "  Iter=", i, "  Iterated Average=", d-1 , "  FACTORS=", gcd_d1, " ", n/gcd_d1))
-    end
-    gcd_a1=gcd(a+1,n)
+      return(Dict("Realized (b)" => j, "True (b)" => convert(Int,(gcd_d1+n/gcd_d1)/2 - gcd_d1), "Iter" => i, "Iterated Average" => d-1, "FACTOR 1" => gcd_d1, "FACTOR 2" => div(n,gcd_d1)))
+      end
+    gcd_a1=gcd1(a+1,n)
     if(gcd_a1>1)
-      return(println("Actual diff=", j, "  true diff=", (gcd_a1+n/gcd_a1)/2 - gcd_a1, "  Iter=", i, "  Iterated Average=", a+1 , "  FACTORS=", gcd_a1, " ", n/gcd_a1))
-    end
+    return(Dict("Realized (b)" => j, "True (b)" => convert(Int,(gcd_a1+n/gcd_a1)/2 - gcd_a1), "Iter" => i, "Iterated Average" => a+1, "FACTOR 1" => gcd_a1, "FACTOR 2" => div(n,gcd_a1)))
+        end
     if last_digit==1 | last_digit==9
-    gcd_d2=gcd(d-2,n)
+    gcd_d2=gcd1(d-2,n)
     if(gcd_d2>1)
-      return(println("Actual diff=", j, "  true diff=", (gcd_d2+n/gcd_d2)/2 - gcd_d2, "  Iter=", i, "  Iterated Average=", d-2 , "  FACTORS=", gcd_d2, " ",n/gcd_d2))
-    end
-    gcd_a2=gcd(a+2,n)
+    return(Dict("Realized (b)" => j, "True (b)" => convert(Int,(gcd_d2+n/gcd_d2)/2 - gcd_d2), "Iter" => i, "Iterated Average" => d-2, "FACTOR 1" => gcd_d2, "FACTOR 2" => div(n,gcd_d2)))
+        end
+    gcd_a2=gcd1(a+2,n)
     if(gcd_a2>1)
-      return(println("Actual diff=", j, "  true diff=", (gcd_a2+n/gcd_a2)/2 - gcd_a2, "  Iter=", i, "  Iterated Average=", a+2 , "  FACTORS=", gcd_a2, " ",n/gcd_a2))
-    end
+    return(Dict("Realized (b)" => j, "True (b)" => convert(Int,(gcd_a2+n/gcd_a2)/2 - gcd_a2), "Iter" => i, "Iterated Average" => a+2, "FACTOR 1" => gcd_a2, "FACTOR 2" => div(n,gcd_a2)))
+        end
     end #last digit Fermat sieve for additional +- 2 gcd check
+    
+#end #iff using for i in (cut:-1:1) loop
 
 j += step_size  # Deterministic step_size setting should be j+= 5...Haven't run into many issues with j+= 10...
 end #while
