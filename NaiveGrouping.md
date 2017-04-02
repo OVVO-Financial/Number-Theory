@@ -91,22 +91,22 @@ end
 
   if(group_ceiling>1 && group_floor>1)
   if(group_ceiling>1)
-    if(mod(count_floor,group_ceiling)==0)
+    if(div(count_floor,group_ceiling)*group_ceiling==count_floor)
         return (group_ceiling , div(n,group_ceiling))
         end
         end
   if(group_floor>1)
-        if(mod(count_ceiling,group_floor)==0)
+        if(div(count_ceiling,group_floor)*group_floor==count_ceiling)
           return (group_floor , div(n,group_floor))
           end
           end
   end
 
   if(group_ceiling2>1 && group_floor2>1)
-    if(mod(count_floor2,group_ceiling2)==0)
+    if(div(count_floor2,group_ceiling2)*group_ceiling2==count_floor2)
         return (group_ceiling2 , div(n,group_ceiling2))
       end
-      if(mod(count_ceiling2,group_floor2)==0)
+      if(div(count_ceiling2,group_floor2)*group_floor2==count_ceiling2)
         return (group_floor2 , div(n,group_floor2))
       end
   end
