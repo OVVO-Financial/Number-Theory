@@ -85,7 +85,7 @@ Dict{String,Int64} with 6 entries:
 Below is the `julia` code.  I'm sure it can be optimized further!
 
 One optimization step was to use a binary `gcd` function discussed [here](https://github.com/JuliaLang/julia/blob/master/base/intfuncs.jl).
-### `gcd1`
+### binary gcd: `gcd1()`
 ``` julia
 function gcd1{T<:Union{Int64,UInt64,Int128,UInt128}}(a::T, b::T)
     a == 0 && return abs(b)
@@ -108,7 +108,7 @@ function gcd1{T<:Union{Int64,UInt64,Int128,UInt128}}(a::T, b::T)
     r % T
 end
 ```
-
+### iterated averages: `VF()`
 ``` julia
 function VF(n,step_size)
 min_real=ceil(sqrt(n))
