@@ -124,8 +124,7 @@ for i in 1:log2(max_im)
 end
 
 deleteat!(iterated_average,1) #Drop the 3 from the initial assignment
-cut=ceil(log2(length(iterated_average)))  #Use only the first few, relationship breaks at higher iterated average points
-cut=convert(Int,cut)
+cut=ceil(Int,log2(length(iterated_average)))  #Use only the first few, relationship breaks at higher iterated average points
 resize!(iterated_average,cut)
 likely_point = findmax(rem(iterated_average,1))[2] #Highest decimal remainder iterated average is most likely...
 likely_point = max(likely_point,2)  #Can always decrease steps from first iterated average...
