@@ -20,16 +20,14 @@ There are minimal division operations (one per seed group) performed, rather ele
 ## Examples
 ``` julia
 @time NG(798607)
-1×2 Array{Float64,2}:
- 101.0  7907.0
-0.000044 seconds (7 allocations: 288 bytes)
+  0.000025 seconds (5 allocations: 192 bytes)
+  (101,7907)
 ```
 
 ``` julia
 @time NG(978508015703)
-1×2 Array{Float64,2}:
- 752867.0  1.29971e6
-0.030094 seconds (7 allocations: 288 bytes)
+  0.008523 seconds (5 allocations: 192 bytes)
+  (752867,1299709)
 ```
 
 ## Julia code
@@ -37,63 +35,54 @@ Below is the `julia` code.  I'm sure it can be optimized further!
 ``` julia
 function NG(n)
 r = ceil(sqrt(n))
-limit = floor(r/2)
-  if mod(limit,2)==0
+limit = floor(Int, r/2)
+  if (limit & 1)==0
     limit = limit - 1
   end
-rr = floor(limit/2)
-  if mod(rr,2)==0
+rr = floor(Int, limit/2)
+  if (rr & 1)==0
     rr = rr -1
   end
 i = rr
 k = i+2
 
 while true
-  z= n/i
-  z2= n/k
-  count_ceiling = ceil(z)
-  count_floor = floor(z)
+  count_floor = div(n,i); count_ceiling = count_floor+1
   group_ceiling = mod(n,i)
   group_floor = i - group_ceiling
-  count_ceiling2 = ceil(z2)
-  count_floor2 = floor(z2)
+  count_floor2 = div(n,k); count_ceiling2 = count_floor2+1
   group_ceiling2 = mod(n,k)
   group_floor2 = k - group_ceiling2
 
   while true
-      if count_ceiling==count_floor
-        return ([i n/i])
-        end
-      if count_ceiling2==count_floor2
-        return ([k n/k])
-        end
-
-  if mod(count_floor,2)==0
+  if (count_floor & 1)==0
     group_floor=(2*group_floor)+group_ceiling
   end
-  if mod(count_ceiling,2)==0
+
+  if (count_ceiling & 1)==0
     group_ceiling=(2*group_ceiling)+group_floor
   end
+  
   if count_floor < count_ceiling
-    count_floor=floor(count_floor/2)
-    count_ceiling=ceil(count_ceiling/2)
+    count_floor=div(count_floor,2) 
+    count_ceiling=cld(count_ceiling,2)
   else
-    count_floor=ceil(count_floor/2)
-    count_ceiling=floor(count_ceiling/2)
+    count_floor=cld(count_floor,2)
+    count_ceiling=div(count_ceiling,2)
   end
 
-  if mod(count_floor2,2)==0
+  if (count_floor2 & 1)==0
     group_floor2=(2*group_floor2)+group_ceiling2
   end
-  if mod(count_ceiling2,2)==0
+  if (count_ceiling2 & 1)==0
     group_ceiling2=(2*group_ceiling2)+group_floor2
   end
   if count_floor2< count_ceiling2
-    count_floor2=floor(count_floor2/2)
-    count_ceiling2=ceil(count_ceiling2/2)
+    count_floor2=div(count_floor2,2)
+    count_ceiling2=cld(count_ceiling2,2)
   else
-    count_floor2=ceil(count_floor2/2)
-    count_ceiling2=floor(count_ceiling2/2)
+    count_floor2=cld(count_floor2,2)
+    count_ceiling2=div(count_ceiling2,2)
   end
 
 if ((count_floor < group_ceiling) | (count_ceiling < group_floor)) &((count_floor2 < group_ceiling2) | (count_ceiling2 < group_floor2))
@@ -103,26 +92,22 @@ end
   if(group_ceiling>1 && group_floor>1)
   if(group_ceiling>1)
     if(mod(count_floor,group_ceiling)==0)
-        return [group_ceiling n/group_ceiling]
+        return (group_ceiling , div(n,group_ceiling))
         end
         end
   if(group_floor>1)
         if(mod(count_ceiling,group_floor)==0)
-          return [group_floor n/group_floor]
+          return (group_floor , div(n,group_floor))
           end
           end
   end
 
   if(group_ceiling2>1 && group_floor2>1)
-  if(group_ceiling2>1)
     if(mod(count_floor2,group_ceiling2)==0)
-      return [group_ceiling2 n/group_ceiling2]
+        return (group_ceiling2 , div(n,group_ceiling2))
       end
-      end
-  if(group_floor2>1)
       if(mod(count_ceiling2,group_floor2)==0)
-        return [group_floor2 n/group_floor2]
-      end
+        return (group_floor2 , div(n,group_floor2))
       end
   end
 
