@@ -77,7 +77,7 @@ while true
   if (count_ceiling2 & 1)==0
     group_ceiling2=(2*group_ceiling2)+group_floor2
   end
-  if count_floor2< count_ceiling2
+  if count_floor2 < count_ceiling2
     count_floor2=div(count_floor2,2)
     count_ceiling2=cld(count_ceiling2,2)
   else
@@ -85,34 +85,26 @@ while true
     count_ceiling2=div(count_ceiling2,2)
   end
 
-if ((count_floor < group_ceiling) | (count_ceiling < group_floor)) &((count_floor2 < group_ceiling2) | (count_ceiling2 < group_floor2))
+if ((count_floor < group_ceiling) | (count_ceiling < group_floor)) & ((count_floor2 < group_ceiling2) | (count_ceiling2 < group_floor2))
   break
 end
 
   if(group_ceiling>1 && group_floor>1)
-  if(group_ceiling>1)
     if(div(count_floor,group_ceiling)*group_ceiling==count_floor)
         return (group_ceiling , div(n,group_ceiling))
         end
-        end
-  if(group_floor>1)
         if(div(count_ceiling,group_floor)*group_floor==count_ceiling)
           return (group_floor , div(n,group_floor))
-          end
           end
   end
 
   if(group_ceiling2>1 && group_floor2>1)
-  if(group_ceiling2>1)
     if(div(count_floor2,group_ceiling2)*group_ceiling2==count_floor2)
         return (group_ceiling2 , div(n,group_ceiling2))
-      end
-      end
-  if(group_floor2>1)
-      if(div(count_ceiling2,group_floor2)*group_floor2==count_ceiling2)
-        return (group_floor2 , div(n,group_floor2))
-      end
-      end
+        end
+        if(div(count_ceiling2,group_floor2)*group_floor2==count_ceiling2)
+          return (group_floor2 , div(n,group_floor2))
+          end
   end
 
 end #inner while for i, k expansion
