@@ -103,11 +103,15 @@ end
   end
 
   if(group_ceiling2>1 && group_floor2>1)
+  if(group_ceiling2>1)
     if(div(count_floor2,group_ceiling2)*group_ceiling2==count_floor2)
         return (group_ceiling2 , div(n,group_ceiling2))
       end
+      end
+  if(group_floor2>1)
       if(div(count_ceiling2,group_floor2)*group_floor2==count_ceiling2)
         return (group_floor2 , div(n,group_floor2))
+      end
       end
   end
 
