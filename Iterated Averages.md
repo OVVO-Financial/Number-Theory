@@ -53,7 +53,7 @@ gcd(8051,(7055.875-0.875)) = 83
 `VF(n,step_size)` is the iterated averages function call.  `step_size = 5` is the deterministic setting.  Other `step_sizes` multiples of 5 will also yield results (significantly more quickly), but runs the risk of failing. 
 
 ### Output
-The `Actual diff=` is the final value of `b` while the `true diff=` is the Fermat value of `b`.
+The `Realized (b)` is the final value of `b` while the `True (b)` is the Fermat value of `b`.
 
 `Iter` is the iterated average position used in the test and `Iterated Average` is the value (after difference) used in the `gcd`.
 
