@@ -53,7 +53,7 @@ while true
   group_ceiling = mod(n,i)
   group_floor = i - group_ceiling
   count_floor2 = div(n,k)
-  if count_floor2*k==n return (k, count_floor) end
+  if count_floor2*k==n return (k, count_floor2) end
   count_ceiling2 = count_floor2+1
   group_ceiling2 = mod(n,k)
   group_floor2 = k - group_ceiling2
