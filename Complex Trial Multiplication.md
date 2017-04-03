@@ -24,7 +24,7 @@ define the sequences for `p` and `q` via their complex mapping.
 ```
 
 ## Julia code
-Below is the `julia` code.  The steps can be substantially reduced by restricting `p` or `q` within its repective sieve.  However, adding this array check seemed to severely diminish performance...
+Below is the `julia` code.  The steps can be substantially reduced by restricting `p` or `q` within its repective sieve.  However, adding this array check seemed to severely diminish performance versus naively increasing each by 2...
 
 ``` julia
 function CTM(n)
@@ -94,10 +94,10 @@ function CTM(n)
       
       if (N > n)
         imaginary = imaginary + 2
-        # possible array check to verify any(imaginary!=imaginary_sieve) else increase imaginary
+        # possible array check to verify any(imaginary!=imaginary_sieve) else increase imaginary % 10 to next [imaginary_sieve] instead of 2
       else
         real = real + 2
-        # possible array check to verify any(real!=real_sieve) else increase real
+        # possible array check to verify any(real!=real_sieve) else increase real % 10 to next [real_sieve] instead of 2
       end
 end
 
