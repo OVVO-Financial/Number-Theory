@@ -1,26 +1,29 @@
 # Factors in the complex space
 
-Below is the complex space associated with `n=309`.  Each triangle represents a complex number whose corresponding real numbers lie within the interval `[3,sqrt(n)]`.
+Below is the complex space associated with `n=309`.  Each triangle represents a complex number whose [corresponding real numbers](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/i.pdf) lie within the interval `[3,sqrt(n)]`.
 
-Blue triangles are complex numbers whose real product is less than `n`.
+Blue triangles are complex numbers whose corresponding real product is less than `n`.
 
-Red triangles are complex numbers whose real product is greater than `n`.
+Red triangles are complex numbers whose corresponding real product is greater than `n`.
 
 The green triangle represents the complex number associated with the factors of `n=309`, `53+50i` which has corresponding real numbers `[3,103]`.
 
 ![Complex Space](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Complex%20plane.png)
 
 ## Possible complex factors
-All possible factors reside along the intersection of red & blue triangles.  We can highlight this strip in green.  The question becomes, **_how do we best navigate this strip?**_
+All possible factors reside along the intersection of red & blue triangles.  We can highlight this strip in green.  The question becomes, ***how do we best navigate this strip?***
 
 ![Factor Strip](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Factor%20Strip%20in%20Green.jpeg)
 
 ### Trial Division
-Trial division diagonally checks all complex points as illuastrated below, where all of the highlighted complex numbers have a lower real number = 3.
+Trial division diagonally checks all complex points as illuastrated below, where all of the highlighted complex numbers have a lower real number = 3.  We can see its effectiveness for the upper part of the green strip which becomes closer to 45 degrees.
 
 ![Trial Div](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Trial%20Division%20by%203.jpeg)
 
 ### Fermat
-Fermat's difference of squares `N = a^2 - b^2` vertically checks all complex points illustrated below, where all of the highlighted complex numbers are equal to `a` in `b^2 = a^2 - N`.
+Fermat's difference of squares `N = a^2 - b^2` vertically checks all complex points illustrated below, where all of the highlighted complex numbers are equal to `a` in `b^2 = a^2 - N`.  Fermat is most effective for the lower part of the green strip which is more vertical at its base near `sqrt(n)`.
 
 ![Fermat](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Vertical%20Fermat.jpeg)
+
+### Combined methods
+The above images explain why combining trial division and Fermat's method is more effective than either on its own.  However, we are still left with the middle section of the strip to navigate.  [Complex trial multiplication](https://github.com/OVVO-Financial/Number-Theory/blob/Prime-Factorization/Complex%20Trial%20Multiplication.md) is most effective in this area, permitting us to combine all 3 methods to simultaneously navigate their most effective part of the factor strip.
