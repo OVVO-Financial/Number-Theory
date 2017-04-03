@@ -31,7 +31,7 @@ There are minimal division operations (one per seed group) performed, rather ele
 ```
 
 ## Julia code
-Below is the `julia` code.  I'm sure it can be optimized further!
+Below is the `julia` code.  I'm sure it can be optimized further / parallelized!
 ``` julia
 function NG(n)
 r = ceil(sqrt(n))
@@ -43,7 +43,7 @@ rr = floor(Int, limit/2)
   if (rr & 1)==0
     rr = rr -1
   end
-i = rr
+i = rr   # Possible distribution / parallelization, using multiple "Seed groups".  "rr" is worst case point for single "Seed group".
 k = i+2
 
 while true
@@ -119,8 +119,8 @@ k = k + 2
     return ("PRIME")
   end
   if k>limit
-    return("PRIME")
+    return ("PRIME")
   end
-end #outer while for i, k values
+end #outer while for i, k sequence
 end
 ```
