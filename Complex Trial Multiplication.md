@@ -1,7 +1,12 @@
 # Complex Trial Multiplication
 This method of factorization involves no division, rather tests products `p*q==n` and adjusts `p` or `q` accordingly.
 
-The essence of the method is if `pq<n`, raise `q`. If `pq>n`, lower `p` while continuing where the last `p` and the last `q` left off.
+The basis of the method is: 
+
+   > * if `p*q<n`, raise `q`. 
+   > * If `p*q>n`, lower `p`.
+    
+   > * All while continuing where the last `p` and the last `q` left off.
 
 The complex Fermat sieves, [described here](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/Fermat%20Sieve%20Using%20Complex%20Numbers.pdf)
 define the sequences for `p` and `q` via their complex mapping.
