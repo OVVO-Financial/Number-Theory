@@ -4,5 +4,5 @@ Using the definition of the imaginary number (i) as a set of simultaneous real n
 
 The [papers](https://github.com/OVVO-Financial/Number-Theory/tree/master/Number%20Theory%20Papers) provide details on how the complex space maps to real numbers and factor properties.
 
-Please see the Prime-Factorization branch [here](https://github.com/OVVO-Financial/Number-Theory/tree/Prime-Factorization) for factorization routines based on these insights.
+Please see the [Prime-Factorization branch](https://github.com/OVVO-Financial/Number-Theory/tree/Prime-Factorization) for factorization routines based on these insights.
 
