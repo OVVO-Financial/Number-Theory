@@ -82,7 +82,7 @@ Dict{String,Int64} with 6 entries:
 
 
 ## Julia code
-Below is the `julia` code.  I'm sure it can be optimized further!
+Below is the `julia` code.  I'm sure it can be optimized further / parallelized!
 
 One optimization step was to use a binary `gcd` function discussed [here](https://github.com/JuliaLang/julia/blob/master/base/intfuncs.jl).
 ### binary gcd: `gcd1()`
@@ -134,9 +134,9 @@ descending_iterations = floor(Int,iterated_average)
 j=0
 while true
 
-i = likely_point     # use [for i in (cut:-1:1)] to sequentially check over all iterated average points
+i = likely_point     # use [for i in (cut:-1:1)] to sequentially check over all iterated average points...much slower.
 
-#for i in (cut:-1:1)
+#for i in (cut:-1:1)  # Possible distributed / parallelization from all "iterated_average" points
 
     d=descending_iterations[i]-j
       gcd_d=gcd1(d,n)
@@ -181,8 +181,8 @@ i = likely_point     # use [for i in (cut:-1:1)] to sequentially check over all 
         true_b=abs(gcd_a2 - factor_2)/2
         return(Dict("Realized (b)" => j, "True (b)" => convert(Int,true_b), "Iter" => i, "Iterated Average" => a+2, "FACTOR 1" => gcd_a2, "FACTOR 2" => factor_2))
         end
-      end
-    end #last digit Fermat sieve for additional +- 2 gcd check
+      end #last digit Fermat sieve for additional +- 2 gcd check
+    end # n < limit condition
     
 #end #iff using for i in (cut:-1:1) loop
 
