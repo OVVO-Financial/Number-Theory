@@ -27,7 +27,7 @@ Complex.Space.Generator <- function(N){
   plot(plane,pch = 17,
           col = ifelse((plane[,1]-plane[,2])*(plane[,1]+plane[,2]) < N,'blue',
           ifelse((plane[,1]-plane[,2])*(plane[,1]+plane[,2]) == N,'green', 
-          ifelse(plane[,1]==top && plane[,2]==(top-3),'orange' ,                       'red') )),
+          ifelse(plane[,1]==top && plane[,2]==(top-3),'orange' , 'red') )),
           xlab = "Real",ylab="Imaginary",main=paste("N= ",N,sep = "")
           )
   
