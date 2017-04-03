@@ -11,7 +11,7 @@ The green triangle represents the complex number associated with the factors of 
 ![Complex Space](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Complex%20plane.png)
 
 ## Possible complex factors
-All possible factors reside along the intersection of red & blue triangles.  We can highlight this strip in green.  The question becomes how do we best navigate this strip?
+All possible factors reside along the intersection of red & blue triangles.  We can highlight this strip in green.  The question becomes, **_how do we best navigate this strip?**_
 
 ![Factor Strip](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Factor%20Strip%20in%20Green.jpeg)
 
@@ -21,6 +21,6 @@ Trial division diagonally checks all complex points as illuastrated below, where
 ![Trial Div](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Trial%20Division%20by%203.jpeg)
 
 ### Fermat
-Fermat's difference of squares vertically checks all complex points illustrated below, where all of the highlighted complex numbers are equal to `a` in `N - a^2 = b^2`.
+Fermat's difference of squares `N = a^2 - b^2` vertically checks all complex points illustrated below, where all of the highlighted complex numbers are equal to `a` in `b^2 = a^2 - N`.
 
 ![Fermat](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Vertical%20Fermat.jpeg)
