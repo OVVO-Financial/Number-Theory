@@ -19,3 +19,8 @@ All possible factors reside along the intersection of red & blue triangles.  We 
 Trial division diagonally checks all complex points as illuastrated below, where all of the highlighted complex numbers have a lower real number = 3.
 
 ![Trial Div](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Trial%20Division%20by%203.jpeg)
+
+### Fermat
+Fermat's difference of squares vertically checks all complex points illustrated below, where all of the highlighted complex numbers are equal to `a` in `N - a^2 = b^2`.
+
+![Fermat](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Vertical%20Fermat.jpeg)
