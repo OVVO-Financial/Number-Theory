@@ -1,12 +1,12 @@
 # Complex Trial Multiplication
 This method of factorization involves no division, rather tests products `p*q==n` and adjusts `p` or `q` accordingly.
 
-The basis of the method is: 
+The basis of the method is simply: 
 
-   > * if `p*q<n`, raise `q`. 
-   > * If `p*q>n`, lower `p`.
+   * if `p*q<n`, raise `q`. 
+   * If `p*q>n`, lower `p`.
     
-   > * All while continuing where the last `p` and the last `q` left off.
+   * All while continuing where the last `p` and the last `q` left off.
 
 The complex Fermat sieves, [described here](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/Fermat%20Sieve%20Using%20Complex%20Numbers.pdf)
 define the sequences for `p` and `q` via their complex mapping.
@@ -24,7 +24,7 @@ define the sequences for `p` and `q` via their complex mapping.
 ```
 
 ## Julia code
-Below is the `julia` code.  The steps can be substantially reduced by restricting `p` or `q` within its repective sieve.  However, adding this array check seemed to severely diminish performance.
+Below is the `julia` code.  The steps can be substantially reduced by restricting `p` or `q` within its repective sieve.  However, adding this array check seemed to severely diminish performance...
 
 ``` julia
 function CTM(n)
@@ -89,9 +89,10 @@ function CTM(n)
       p = real - imaginary
       q = real + imaginary
    
-      if (p * q == n) return(p, q) end
+      N = p*q
+      if (N == n) return(p, q) end
       
-      if (p*q > n)
+      if (N > n)
         imaginary = imaginary + 2
         # possible array check to verify any(imaginary!=imaginary_sieve) else increase imaginary
       else
