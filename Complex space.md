@@ -13,6 +13,8 @@ The green triangle represents the complex number associated with the factors of 
 ## Possible complex factors
 All possible factors reside along the intersection of red & blue triangles.  We can highlight this strip in green.  The question becomes, ***how do we best navigate this strip?***
 
+If we could define this green strip, we could search only the integer complex numbers along the strip.  Objectively, it looks like a rotated logarithmic function, but, along with every other [prime function appearing logarithmic](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/On%20the%20Distribution%20of%20Prime%20Numbers.pdf), it defies fitting!
+
 ![Factor Strip](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Factor%20Strip%20in%20Green.jpeg)
 
 ### Trial Division
