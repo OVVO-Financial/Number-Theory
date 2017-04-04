@@ -7,3 +7,5 @@ This section presents the methods of factorization derived from the complex spac
 * The method of [Iterated Averages](https://github.com/OVVO-Financial/Number-Theory/blob/Prime-Factorization/Iterated%20Averages.md)
 
 * The method of [Naive Grouping](https://github.com/OVVO-Financial/Number-Theory/blob/Prime-Factorization/NaiveGrouping.md)
+
+* The method of [Simultaneous Complex Factorization](https://github.com/OVVO-Financial/Number-Theory/blob/master/Complex%20space.md)
