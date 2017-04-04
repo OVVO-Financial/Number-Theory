@@ -1,3 +1,4 @@
+# INTEGER NEWTON SQUARE ROOT APPROXIMATOR FOR FAST SQUARE NUMBER TEST
 function Newton_sqrt(N)
     a = 1
     b = N
@@ -10,7 +11,7 @@ end
 
 
 
-
+# SIMULTANEOUS COMPLEX FACTORIZATION --- NEEDS PARALLELIZATION FOR 3 METHODS WITHIN SAME WHILE LOOP
 function SCF(n)
     r = sqrt(n)
     max_im= (n-9)/6
