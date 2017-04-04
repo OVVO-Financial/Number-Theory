@@ -25,12 +25,13 @@ Trial division diagonally checks all complex points as illuastrated below, where
 ### Fermat
 Fermat's difference of squares `N = a^2 - b^2` vertically checks all complex points illustrated below, where all of the highlighted complex numbers are equal to `a` in `b^2 = a^2 - N`.  Fermat is most effective for the lower part of the green strip which is more vertical at its base near `sqrt(n)`.
 
-Fermat's range extends horizontally such that all values of `b` are considered below the corresponding horizontal line.
+Fermat's range extends horizontally such that all values of `b` are considered below the corresponding horizontal line (hence the squares!).
+
 #### Vertical Fermat
 ![Fermat](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Vertical%20Fermat.jpeg)
 
 #### Horizontal Fermat
-![H Fermat](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Fermat%20Horizontal.jpeg)
+![H Fermat](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Horizontal%20Fermat.jpeg)
 
 
 ### Combined methods
