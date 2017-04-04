@@ -65,7 +65,7 @@ function SCF(n)
 
 
 # SYNC COMPLEX TRIAL MULTIPLICATION IMAGINARY TO SIEVE STARTING POINT
-    TM_imaginary = div((max_im+Fermat_real),2)
+    TM_imaginary = div((max_im+Fermat_real),2); TM_imaginary=convert(Int,TM_imaginary)
     last_digit_im = TM_imaginary % 10
     if any(last_digit_im!=imaginary_sieve)
       im_init_diff = imaginary_sieve - last_digit_im
@@ -74,13 +74,14 @@ function SCF(n)
     end
 
 # FIND & SYNC COMPLEX TRIAL MULTIPLICATION REAL
-      TM_real=Newton_sqrt(n+(TM_imaginary*TM_imaginary))
+      TM_real=Newton_sqrt(n+(TM_imaginary*TM_imaginary)); TM_real=convert(Int,TM_real)
       last_digit_real = TM_real % 10
       if any(last_digit_real!=real_sieve)
         real_init_diff = real_sieve - last_digit_real
         real_init_diff = real_init_diff[real_init_diff.>=0][1]
         TM_real = TM_real + real_init_diff
       end
+
 # DESCENDING COMPLEX TRIAL MULTIPLICATION
         TM_imaginary_desc=TM_imaginary;TM_real_desc=TM_real
 
@@ -92,7 +93,8 @@ function SCF(n)
       Fermat_real = Fermat_real + real_init_diff
     end
 
-while (TM_imaginary <= max_real-TD)
+
+while (TM_imaginary_desc >= Fermat_real-3)
 #COMPLEX TRIAL MULTIPLICATION
       p = TM_real - TM_imaginary
       q = TM_real + TM_imaginary
@@ -104,7 +106,6 @@ while (TM_imaginary <= max_real-TD)
         TM_real = TM_real + 2
       end
 
-   # DESCENDING COMPLEX TRIAL MULTIPLICATION
       p_desc = TM_real_desc - TM_imaginary_desc
       q_desc = TM_real_desc + TM_imaginary_desc
       N_desc = p_desc*q_desc
@@ -125,6 +126,7 @@ while (TM_imaginary <= max_real-TD)
       end
       end
       Fermat_real=Fermat_real+2
+
 
 # TRIAL DIVISION
       if div(n,TD)*TD==n
