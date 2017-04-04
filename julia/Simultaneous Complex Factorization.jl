@@ -21,7 +21,7 @@ function SCF(n)
 
     Fermat_real = ceil(Int,r)
 
-    TM_imaginary = Fermat_real - 3
+    TM_imaginary = Fermat_real - 2
 
 # FIND TM REAL
     TM_real=Newton_sqrt(n+(TM_imaginary*TM_imaginary))
