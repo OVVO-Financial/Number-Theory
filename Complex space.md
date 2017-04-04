@@ -26,6 +26,6 @@ Fermat's difference of squares `N = a^2 - b^2` vertically checks all complex poi
 ![Fermat](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Vertical%20Fermat.jpeg)
 
 ### Combined methods
-The above images explain why combining trial division and Fermat's method is more effective than either on its own.  However, we are still left with the middle section of the strip to navigate.  [Complex trial multiplication](https://github.com/OVVO-Financial/Number-Theory/blob/Prime-Factorization/Complex%20Trial%20Multiplication.md) is most effective in this area, permitting us to combine all 3 methods to simultaneously navigate their most effective part of the factor strip.
+The above images explain why combining trial division and Fermat's method is more effective than either on its own (while each has the ability to be sieved, namely primes only for trial division and the [Fermat sieve here](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/Fermat%20Sieve%20Using%20Complex%20Numbers.pdf)).  However, we are still left with the middle section of the strip to navigate.  [Complex trial multiplication](https://github.com/OVVO-Financial/Number-Theory/blob/Prime-Factorization/Complex%20Trial%20Multiplication.md) is most effective in this area, permitting us to combine all 3 methods to simultaneously navigate their most effective part of the factor strip.
 
 The above plots were generated with the [complex space generator](https://github.com/OVVO-Financial/Number-Theory/blob/master/R/Complex%20Space%20Generator.R) in R.
