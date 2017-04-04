@@ -11,7 +11,7 @@ end
 
 
 
-# SIMULTANEOUS COMPLEX FACTORIZATION --- NEEDS PARALLELIZATION FOR 3 METHODS WITHIN SAME WHILE LOOP
+# SIMULTANEOUS COMPLEX FACTORIZATION --- NEEDS PARALLELIZATION FOR 3 METHODS (4 TESTS) WITHIN SAME WHILE LOOP
 function SCF(n)
     r = sqrt(n)
     max_im= (n-9)/6
@@ -20,11 +20,6 @@ function SCF(n)
     TD = 3
 
     Fermat_real = ceil(Int,r)
-
-    TM_imaginary = Fermat_real - 2
-
-# FIND TM REAL
-    TM_real=Newton_sqrt(n+(TM_imaginary*TM_imaginary))
 
 # FERMAT SIEVES
     last_digit = n % 10
@@ -69,20 +64,25 @@ function SCF(n)
     is_square_sieve = unique((imaginary_sieve.*imaginary_sieve) % 10)
 
 
-# SYNC COMPLEX TRIAL MULTIPLICATION REAL TO SIEVE STARTING POINT
-    last_digit_real = TM_real % 10
-    if any(last_digit_real!=real_sieve)
-      real_init_diff = real_sieve - last_digit_real
-      real_init_diff = real_init_diff[real_init_diff.>=0][1]
-      TM_real = TM_real + real_init_diff
-    end
-
+# SYNC COMPLEX TRIAL MULTIPLICATION IMAGINARY TO SIEVE STARTING POINT
+    TM_imaginary = div((max_im+Fermat_real),2)
     last_digit_im = TM_imaginary % 10
     if any(last_digit_im!=imaginary_sieve)
       im_init_diff = imaginary_sieve - last_digit_im
       im_init_diff = im_init_diff[im_init_diff.>=0][1]
       TM_imaginary = TM_imaginary + im_init_diff
     end
+
+# FIND & SYNC COMPLEX TRIAL MULTIPLICATION REAL
+      TM_real=Newton_sqrt(n+(TM_imaginary*TM_imaginary))
+      last_digit_real = TM_real % 10
+      if any(last_digit_real!=real_sieve)
+        real_init_diff = real_sieve - last_digit_real
+        real_init_diff = real_init_diff[real_init_diff.>=0][1]
+        TM_real = TM_real + real_init_diff
+      end
+# DESCENDING COMPLEX TRIAL MULTIPLICATION
+        TM_imaginary_desc=TM_imaginary;TM_real_desc=TM_real
 
 # SYNC FERMAT REAL TO SIEVE STARTING POINT
     last_digit_real = Fermat_real % 10
@@ -103,6 +103,18 @@ while (TM_imaginary <= max_real-TD)
       else
         TM_real = TM_real + 2
       end
+
+   # DESCENDING COMPLEX TRIAL MULTIPLICATION
+      p_desc = TM_real_desc - TM_imaginary_desc
+      q_desc = TM_real_desc + TM_imaginary_desc
+      N_desc = p_desc*q_desc
+      if (N_desc == n) return("TM_descending",p_desc, q_desc) end
+      if (N_desc > n)
+        TM_real_desc = TM_real_desc -2
+      else
+        TM_imaginary_desc = TM_imaginary_desc - 2
+      end
+
 
 # FERMAT DIFF OF SQUARES
       b2 = (Fermat_real*Fermat_real)-n
