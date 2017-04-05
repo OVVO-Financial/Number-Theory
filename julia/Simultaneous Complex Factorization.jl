@@ -201,13 +201,13 @@ end #4th MULTIPLICATION CONDITION
       
       if any((b2s%10).!=[is_square_sieve])
       z= ((b2s%10).!=[is_square_sieve])
-      b2s=b2s[z]
+      b2s=b2s[z]; Factor_real = F_realS[b2s.>0]
       b2s=b2s[b2s.>0]
       if length(b2s)>0
         for i in 1:length(b2s)
           b_test = Newton_sqrt(b2s[i])
           if b_test*b_test == b2s[i]
-            return("Fermat",Fermat_real-b_test, Fermat_real+b_test)
+            return("Fermat",Factor_real[i]-b_test, Factor_real[i]+b_test)
           end
         end #for
         end
