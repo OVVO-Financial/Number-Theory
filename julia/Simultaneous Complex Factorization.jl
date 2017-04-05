@@ -13,13 +13,13 @@ end
 
 # SIMULTANEOUS COMPLEX FACTORIZATION --- NEEDS PARALLELIZATION FOR 3 METHODS (4 TESTS) WITHIN SAME WHILE LOOP
 function SCF(n)
-    r = sqrt(n)
+    r = Newton_sqrt(n)
     max_im= (n-9)/6
     max_real= max_im + 3
 
     TD = 3
 
-    Fermat_real = ceil(Int,r)
+    Fermat_real = r + 1
 
 # FERMAT SIEVES
     last_digit = n % 10
