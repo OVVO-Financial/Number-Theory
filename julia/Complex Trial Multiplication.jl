@@ -58,69 +58,28 @@ function CTM(n)
 real_sieve = real_sieve[real_sieve.<=9]
 
 # ALIGN ALL REALS TO SYNCHED POSITIONS
-realS = (real+(real_sieve - real%10))
-lrS = length(realS)
+TMRS = (real+(real_sieve - real%10))
+lTMRS = length(TMRS)
 
 # MAKE SURE 0 IMAGINARY STARTS AT 10
 imaginary_sieve[imaginary_sieve.==0] = 10
+TMIS = imaginary_sieve
 
-while (imaginary_sieve[1] <= max_im)
-      p1 = realS[1] - imaginary_sieve[1]
-      q1 = realS[1] + imaginary_sieve[1]
-      N1 = p1*q1
+while (TMIS[1] <= max_im)
+for i in 1:lTMRS
+  p = TMRS[i] - TMIS[i]
+  q = TMRS[i] + TMIS[i]
+  N = p*q
+  
+  if (N == n) return(p, q) end
 
-      if (N1 == n) return(p1, q1) end
+  if (N > n)
+    TMIS[i] = TMIS[i] + 10
+  else
+    TMRS[i] = TMRS[i] + 10
+  end
 
-      if (N1 > n)
-        imaginary_sieve[1] = imaginary_sieve[1] + 10
-      else
-        realS[1] = realS[1] + 10
-      end
-
-# 2nd MULTIPLICATION
-    p2 = realS[2] - imaginary_sieve[2]
-    q2 = realS[2] + imaginary_sieve[2]
-    
-    N2 = p2*q2
-    
-    if (N2 == n) return(p2, q2) end
-    
-    if (N2 > n)
-      imaginary_sieve[2] = imaginary_sieve[2] + 10
-    else
-      realS[2] = realS[2] + 10
-    end
-
-# 3rd MULTIPLICATION
-   p3 = realS[3] - imaginary_sieve[3]
-   q3 = realS[3] + imaginary_sieve[3]
-   
-   N3 = p3*q3
-   
-   if (N3 == n) return(p3, q3) end
-   
-   if (N3 > n)
-     imaginary_sieve[3] = imaginary_sieve[3] + 10
-   else
-     realS[3] = realS[3] + 10
-   end
-
-# 4th MULTIPLICATION (IF NECESSARY)
-    if lrS > 3
-
-    p4 = realS[4] - imaginary_sieve[4]
-    q4 = realS[4] + imaginary_sieve[4]
-    
-    N4 = p4*q4
-    
-    if (N4 == n) return(p4, q4) end
-    
-    if (N4 > n)
-     imaginary_sieve[4] = imaginary_sieve[4] + 10
-    else
-     realS[4] = realS[4] + 10
-    end
-      end
+  end #for
 
   end # while
 
