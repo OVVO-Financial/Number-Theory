@@ -121,8 +121,6 @@ function SCF{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(n::T)
       F_realS = unique(Fermat_real+(Fermat_real_sieve - Fermat_real%10))
       lFrS = length(F_realS)
 
-#return([Fermat_real,real_sieve,F_realS])  #- good to here
-
 while (TM_imagS_desc[1] >= 0)
 #COMPLEX TRIAL MULTIPLICATION
   p1 = TM_realS[1] - TM_imagS[1]; p1_d = TM_realS_desc[1] - TM_imagS_desc[1]
@@ -199,7 +197,6 @@ if lTMrS > 3
 end #4th MULTIPLICATION CONDITION
 
 # FERMAT DIFF OF SQUARES
-# 1st FERMAT CHECK
       b2s = (F_realS.*F_realS) - n
       
       if any((b2s%10).!=[is_square_sieve])
