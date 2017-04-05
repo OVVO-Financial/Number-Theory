@@ -9,7 +9,7 @@ Using the definition of the imaginary number (***i***) as a set of simultaneous 
 * ***(8+5i)*** maps to real numbers [3,13]
 * ***(-2-3i)*** maps to real numbers [1,-5]
 
-The [papers](https://github.com/OVVO-Financial/Number-Theory/tree/master/Number%20Theory%20Papers) provide details on how the complex space maps to real numbers, **how all complex operations are carried out with only real numbers**, and factor properties.
+The [papers](https://github.com/OVVO-Financial/Number-Theory/tree/master/Number%20Theory%20Papers) provide details on how the complex space maps to real numbers, **how all complex number operations are carried out with only real numbers**, and factor properties.
 
 Please see the [Prime-Factorization branch](https://github.com/OVVO-Financial/Number-Theory/tree/Prime-Factorization) for factorization routines based on these insights.
 
