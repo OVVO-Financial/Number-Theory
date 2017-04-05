@@ -14,7 +14,7 @@ end
 # SIMULTANEOUS COMPLEX FACTORIZATION --- NEEDS PARALLELIZATION FOR 3 METHODS (4 TESTS) WITHIN SAME WHILE LOOP
 function SCF(n)
     r = Newton_sqrt(n)
-    max_im= (n-9)/6
+    max_im= div((n-9),6)
     max_real= max_im + 3
 
     TD = 3
@@ -65,7 +65,7 @@ function SCF(n)
 
 
 # SYNC COMPLEX TRIAL MULTIPLICATION IMAGINARY TO SIEVE STARTING POINT
-    TM_imaginary = div((max_im+Fermat_real),2); TM_imaginary=convert(Int,TM_imaginary)
+    TM_imaginary = div((max_im+Fermat_real),2)
     last_digit_im = TM_imaginary % 10
     if any(last_digit_im!=imaginary_sieve)
       im_init_diff = imaginary_sieve - last_digit_im
@@ -74,7 +74,7 @@ function SCF(n)
     end
 
 # FIND & SYNC COMPLEX TRIAL MULTIPLICATION REAL
-      TM_real=Newton_sqrt(n+(TM_imaginary*TM_imaginary)); TM_real=convert(Int,TM_real)
+      TM_real=Newton_sqrt(n+(TM_imaginary*TM_imaginary))
       last_digit_real = TM_real % 10
       if any(last_digit_real!=real_sieve)
         real_init_diff = real_sieve - last_digit_real
@@ -83,7 +83,7 @@ function SCF(n)
       end
 
 # DESCENDING COMPLEX TRIAL MULTIPLICATION
-        TM_imaginary_desc=TM_imaginary;TM_real_desc=TM_real
+    TM_imaginary_desc=TM_imaginary;TM_real_desc=TM_real
 
 # SYNC FERMAT REAL TO SIEVE STARTING POINT
     last_digit_real = Fermat_real % 10
