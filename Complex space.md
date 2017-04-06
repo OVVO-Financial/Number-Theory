@@ -41,4 +41,17 @@ The yellow triangles represent the number of steps to completely scan the entire
 
 ![Simultaneous](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Complex%20Space%20Factorization%201.jpeg)
 
+### One final insight
+We have one trick to turn this rotated logarithmic factor strip into a straight vertical line in the complex space.  *If we square the complex space*, we have the following image.  The complex factors, when squared, have a `real` part equal to `n`, our number we wish to factor. The `imaginary` coefficient is equal to `2ab`, from our Fermat terms in `a^2 + b^2 = N`.
+
+Thus we only need to test if the square root of these squared complex numbers have integer `real` and `imaginary` coefficients.
+
+#### Original complex space
+Our original complex factor for `n=309` is `53+50i`.
+![Factor Strip](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Factor%20Strip%20in%20Green.jpeg)
+
+#### Squared complex space
+The final form of our squared complex factor will be `n+2abi`.  Our squared complex factor for `n=309` is `309+5300i`.  The large `imaginary` coefficient may seem daunting, but remember, we only need to test intervals of `2ab` which grow quickly.
+![Squared complex space](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Complex%20squared.png)
+
 The above plots were generated with the [complex space generator](https://github.com/OVVO-Financial/Number-Theory/blob/master/R/Complex%20Space%20Generator.R) in R.
