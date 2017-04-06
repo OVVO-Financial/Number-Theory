@@ -11,7 +11,20 @@ end
 
 
 
-function SCF{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(n::T)
+function Newton_sqrt{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(N::T)
+    a = 1
+    b = N
+    while abs(a-b) > 1
+        b = div(N,a)
+        a = div((a + b), 2)
+    end
+    return a
+end
+
+
+
+
+function SCF{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(n::T,modulo::T)
     r = Newton_sqrt(n)
     max_im= div((n-9),6)
     max_real= max_im + 3
@@ -120,6 +133,12 @@ function SCF{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(n::T)
     F_realS = unique(Fermat_real+(Fermat_real_sieve - Fermat_real%10))
     lFrS = length(F_realS)
 
+# FIND QUADRATIC RESIDUES FOR MODULO
+    residues = [0]
+    for i in 1:div(modulo,2)
+        push!(residues,i^2%modulo)
+    end
+    residues = unique(residues)
 
 while (TMdIS[1] >= 0)
 #COMPLEX TRIAL MULTIPLICATION
@@ -143,23 +162,34 @@ for i in 1:lTMRS
 end #for
 
 # FERMAT DIFF OF SQUARES
-    b2s = (F_realS.*F_realS) - n
+  b2s = (F_realS.*F_realS) - n
 
-    if any((b2s%10).!=[is_square_sieve])
-    z= ((b2s%10).!=[is_square_sieve])
-    b2s=b2s[z]; Factor_real = F_realS[b2s.>0]
-    b2s=b2s[b2s.>0]
-    if length(b2s)>0
-      for i in 1:length(b2s)
-      b_test = Newton_sqrt(b2s[i])
-        if b_test*b_test == b2s[i]
-          return("Fermat",Factor_real[i]-b_test, Factor_real[i]+b_test)
-        end
-      end #for
-    end
+  if length(intersect(b2s%10,is_square_sieve))>0
+  if length(intersect(b2s%modulo,residues))>0
+  
+        z= intersect(b2s%10,is_square_sieve).==b2s%10
+        b2s=b2s[z];  Factor_real = F_realS[z]
+          if length(b2s)>0
+            for i in 1:length(b2s)
+              b_test = Newton_sqrt(b2s[i])
+              if b_test*b_test == b2s[i]
+                return("Fermat",Factor_real[i]-b_test, Factor_real[i]+b_test)
+              end
+            end #for
+          end
+          
+      end #residues
+    
     end #if b2s in square sieve
     
     F_realS = F_realS + 10
+    for i in div(modulo,10)
+      if length(intersect(F_realS%modulo,Fermat_real_sieve))==0
+          F_realS= F_realS + 10
+      else
+          break
+      end
+    end  
     F_realS = F_realS[F_realS.<max_real]
       
 # TRIAL DIVISION
