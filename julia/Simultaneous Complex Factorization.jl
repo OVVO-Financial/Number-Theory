@@ -11,19 +11,6 @@ end
 
 
 
-function Newton_sqrt{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(N::T)
-    a = 1
-    b = N
-    while abs(a-b) > 1
-        b = div(N,a)
-        a = div((a + b), 2)
-    end
-    return a
-end
-
-
-
-
 function SCF{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(n::T,modulo::T)
     r = Newton_sqrt(n)
     max_im= div((n-9),6)
