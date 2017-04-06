@@ -1,7 +1,7 @@
-function CTM(n,modulo)
-    r = sqrt(n)
+function CTM(n)
+    r = Newton_sqrt(n)
     max_im= div((n-9),6)
-    real = ceil(Int,r)
+    real = r+1
 
 # FERMAT SIEVES
         last_digit = n % 10
