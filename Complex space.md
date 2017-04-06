@@ -51,7 +51,7 @@ Our original complex factor for `n=309` is `53+50i`.
 ![Factor Strip](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Factor%20Strip%20in%20Green.jpeg)
 
 #### Squared complex space
-The final form of our squared complex factor will be `n+2abi`.  Our squared complex factor for `n=309` is `309+5300i`.  The large `imaginary` coefficient may seem daunting, but remember, we only need to test (via `sqrt(n + 2abi)`) for integers using intervals of `2ab` which grow quickly.
+The final form of our squared complex factor will be `n+2abi`.  Our squared complex factor for `n=309` is `309+5300i`.  The large `imaginary` coefficient may seem daunting, but remember, we only need to test (via `sqrt(n + 2abi)`) for integers using intervals of `2ab` which grow quickly.  Also, the [Fermat sieves](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/Fermat%20Sieve%20Using%20Complex%20Numbers.pdf) for `a` and `b` are still applicable.
 ![Squared complex space](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Complex%20squared.png)
 
 The above plots were generated with the [complex space generator](https://github.com/OVVO-Financial/Number-Theory/blob/master/R/Complex%20Space%20Generator.R) in R.
