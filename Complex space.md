@@ -57,4 +57,19 @@ The green vertical line, formerly our factor strip, is now simply our real numbe
 
 ![Squared complex space](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Complex%20squared.png)
 
+All of this yields the final complex polynomial to solve (perhaps using a complex Newton-Raphson method):
+```
+(a + bi)^2 -n -2abi = 0
+```
+where our intervals for each component are defined by:
+```
+a interval: 
+a = [minimum real, maximimum real]
+a = [ceil(sqrt(n)),3+((n-9)/6)]
+
+b interval:
+b = [minimum imaginary, maximum imaginary]
+b = [1,(n-9)/6] 
+```
+
 The above plots were generated with the [complex space generator](https://github.com/OVVO-Financial/Number-Theory/blob/master/R/Complex%20Space%20Generator.R) in R.
