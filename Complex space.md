@@ -57,7 +57,7 @@ The green vertical line, formerly our factor strip, is now simply our real numbe
 
 ![Squared complex space](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Complex%20squared.png)
 
-All of this yields the final complex polynomial to solve (perhaps using a complex Newton-Raphson method):
+All of this yields the final complex polynomial<sup>[1](#footnote1)</sup> to solve (perhaps using a complex Newton-Raphson method):
 ```
 (a + bi)^2 -n -2abi = 0
 ```
@@ -71,5 +71,7 @@ b interval:
 b = [minimum imaginary, maximum imaginary]
 b = [1,(n-9)/6] 
 ```
+
+<a name="footnote1">1</a>: This is of course equivalent to Fermat `a^2 - b^2 = n`, but the hope is alternative representations yield new insights & methods.
 
 The above plots were generated with the [complex space generator](https://github.com/OVVO-Financial/Number-Theory/blob/master/R/Complex%20Space%20Generator.R) in R.
