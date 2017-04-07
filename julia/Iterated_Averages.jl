@@ -1,10 +1,10 @@
 function VF(n,step_size)
-min_real=Newton_sqrt(n)+1
-max_im= div((n-9),6)
+min_real=ceil(sqrt(n))
+max_im= (n-9)/6
 
-last_digit = n%10
+last_digit = mod(n,10)
 
-iterated_average = [3, div((min_real+n),2)]
+iterated_average = [3, (min_real+n)/2]
 
 #Create Iterated Average for log2(max imaginary value) number of points
 for i in 1:log2(max_im)
