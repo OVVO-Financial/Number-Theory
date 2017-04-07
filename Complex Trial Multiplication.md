@@ -56,7 +56,7 @@ function CTM(n)
 
 # FERMAT SIEVES
         last_digit = n % 10
-    
+
         if((n+1)%4==0)
           if(last_digit==1)
             real_sieve=[0,4,0,10]
@@ -71,13 +71,13 @@ function CTM(n)
             imaginary_sieve=[3,7,7,3]
           end
           if(last_digit==9)
-            real_sieve=[0,2,0,10]
-            imaginary_sieve=[1,5,9]
+            real_sieve=[0,2,8,0,10]
+            imaginary_sieve=[1,5,5,9]
           end
         else
           if(last_digit==1)
-            real_sieve=[1,5,9]
-            imaginary_sieve=[0,2,0]
+            real_sieve=[1,5,5,9]
+            imaginary_sieve=[0,2,8,0]
           end
           if(last_digit==3)
             real_sieve=[3,7,3,7]
@@ -88,8 +88,8 @@ function CTM(n)
             imaginary_sieve=[2,8,8,2]
           end
           if(last_digit==9)
-            real_sieve=[3,5,7]
-            imaginary_sieve=[0,4,0]
+            real_sieve=[3,5,5,7]
+            imaginary_sieve=[0,4,6,0]
           end
     end #FERMAT SIEVE
 
