@@ -49,8 +49,8 @@ Using the even or odd distinction, we can further determine the combinations of 
         end
     else
       if(last_digit==1)
-        real_sieve=[1,5,9]
-        imaginary_sieve=[0,2,0]
+        real_sieve=[1,5,5,9]
+        imaginary_sieve=[0,2,8,0]
         end
       if(last_digit==3)
         real_sieve=[3,7,3,7]
@@ -61,8 +61,8 @@ Using the even or odd distinction, we can further determine the combinations of 
         imaginary_sieve=[2,8,8,2]
         end
       if(last_digit==9)
-        real_sieve=[3,5,7]
-        imaginary_sieve=[0,4,0]
+        real_sieve=[3,5,5,7]
+        imaginary_sieve=[0,4,6,0]
         end
         Fermat_real_sieve=real_sieve
     end #FERMAT SIEVE
