@@ -3,7 +3,7 @@ The iterated averages routine takes advantage of a Fermat property originally de
 We are familiar with the Fermat factorization of the form `N = a^2 - b^2` resulting in the factors `(a-b),(a+b)`.
 Usually `a` is the variable being tested, however, the iterated averages routine searches for `b`.
 
-A brief example will illustrate:
+#### A brief example will illustrate:
 
 For `n=8051`
 
@@ -15,7 +15,7 @@ Our first Fermat test of `a` begins with `ceil(sqrt(8051)) = 90` and low and beh
 
 Let us demonstrate what happens to the value of `b=7` after taking the iterated average and using it in a `gcd` check with `n`...
 
-The first iterated average is
+### The first iterated average is
 
 `(90+8051)/2 = 4070.5`
 
@@ -26,7 +26,7 @@ gcd(8051,(4070.5-3.5)) = 83
 ```
 `b=3.5`, half of the previous value `b=7`.  But wait, we can iterate the average again...
 
-The **second** iterated average is
+### The **second** iterated average is
 
 `(4070.5+8051)/2 = 6060.75`
 
@@ -37,7 +37,7 @@ gcd(8051,(6060.75-1.75)) = 83
 ```
 `b=1.75`, half of the previous value `b=3.5`.  But wait, we can iterate the average again...
 
-The **third** iterated average is
+### The **third** iterated average is
 
 `(6060.75+8051)/2 = 7055.875`
 
