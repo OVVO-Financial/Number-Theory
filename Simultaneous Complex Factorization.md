@@ -17,7 +17,7 @@ function SCF{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(n::T,modulo::T)
 ```
 
 ### Step 2
-In step 2, we define the Fermat sieves.  Quite simply, we match known facts about `real` and `imaginary` values corresponding to `a` and `b` in Fermat's method.  If `n = 4*k +1` we know the real part of the complex number is even.
+In step 2, we define the Fermat sieves.  Quite simply, we match known facts about `real` and `imaginary` values corresponding to `a` and `b` in Fermat's method.  If `n = 4*k +1` we know the `real` part of the complex number is **even**.
 
 Using the even or odd distinction, we can further determine the combinations of `real` and `imaginary` value to the complex numbers that will result in the last digit of `n`.
 * 8051 is of the form `4k + 1`.  The only even numbers with +/- odd counterparts that result in a 1 are `0,4,6`. For example `(20-3)(20+3) = (17)(23) = 391`, last digit equals 1.
@@ -121,7 +121,7 @@ This step is required to eliminate the `10`'s that were inserted into the `real 
     lTMRS = length(TMRS)
 ```
 ### Step 6
-This step shifts our Fermat `real` to the nearest corresponding `real sieve` value.
+This step shifts our `Fermat_real` to the nearest corresponding `real sieve` value.
 ```julia
 # SYNC FERMAT REAL TO SIEVE STARTING POINT
     last_digit_real = Fermat_real % 10
@@ -144,25 +144,33 @@ Once shifted, we find the other values in the `real sieve` and create entries to
     lFrS = length(F_realS)
 ```
 ### Step 8
-In an effort to reduce square checks further, we generate the `quadratic residues` for the given entered `modulo`.  If a Fermat `real` does not have the corresponding residue, it will not be squared and tested.
+In an effort to reduce square checks further, we generate the `quadratic residues` for the given entered `modulo`.  If a `Fermat_real` does not have the corresponding residue, it will not be squared and tested.
 ```julia
 # FIND QUADRATIC RESIDUES FOR MODULO
     residues = [0]
     for i in 1:div(modulo,2)
-        push!(residues,i^2%modulo)
+        push!(residues,(i^2)%modulo)
     end
     residues = unique(residues)
 ```
 ### Step 9
+During trial multiplication, if `p * q < n` we can set lower boundaries on `q`.  Conversely, if `p * q > n` we can set upper boundaries on `p`.  This helps eliminate combinations of `real` and `imaginary` that do not fall within these boundaries.
+```julia
+# SETS LOWER BOUNDARIES FOR (p) AND UPPER BOUNDARIES FOR (q) FOR EACH SIEVE ENTRY 
+    ceilings = div(n,3)
+    ceiling_p = [ceilings,ceilings,ceilings,ceilings];ceiling_p_d=ceiling_p
+    floor_q = [3,3,3,3];floor_q_d=floor_q
+```
+### Step 10
 Run the tests!  Everything is contained within the `while` loop.
 
 There are 3 tests that occur for each `while` increment:
-1. **Complex Trial Multiplication**: For each value in our `real` and `imaginary` array, we multiply their corresponding real numbers.  The arrays are paired such that `real[1]` only has to be multiplied using `imaginary[1]`, for the length of the arrays.
-    * This can likely use a parallelization since there are only 3 or 4 entries in the arrays.
+1. **Complex Trial Multiplication**: For each value in our `real` and `imaginary` array, we multiply their corresponding `real` numbers.  The arrays are paired such that `real[1]` only has to be multiplied using `imaginary[1]`, for the length of the arrays.
+    * This can likely use a parallelization since there are only 4 entries in the arrays.
     * Each `while` increment increases the `real` and `imaginary` arrays by 10, since they are aligned with their respective sieves.
-2. **Fermat Difference of Squares**: For each value in our Fermat `real` array we test its `quadratic residue`, then see if its difference with `n` is in our `square_sieve`
+2. **Fermat Difference of Squares**: For each value in our `Fermat_real` array we test its `quadratic residue`, then see if its difference with `n` is in our `square_sieve`
 and if those conditions are met we then test the resulting difference if it is a square with the `Newton_sqrt` function, again, since precision is not necessary.
-    * Each `while` increment increases the Fermat `real` array by 10.  If a `quadratic residue` does not exist, it will keep increasing by 10 until one is found.  This is contained in a `for` loop.
+    * Each `while` increment increases the `Fermat_real` array by 10.  If a `quadratic residue` does not exist, it will keep increasing by 10 until one is found.  This is contained in a `for` loop.
 3. **Trial Division**: We eliminate the small number of early primes as our sieve and eliminate any odd numbers ending in 5.
     * Each `while` increment increases the `TD` number by 2.  Obviously a more expansive prime check is desired, but this comes at a significant performance cost.
     * Since precision is not needed, we use a `div(n,TD)*TD==n` check.  Also, we didn't need the exact `modulo` of this calculation so it's a really a truncated `mod()` routine.
