@@ -46,13 +46,13 @@ BenchmarkTools.Trial:
 ```
 
 ## Julia code
-Below is the `julia` code.  There are 3 or 4 (depending on the Fermat sieve for that particular last digit) paired multiplications per iteration.  One immediate efficiency would be from the parallelization of these multiplications within the `while` loop.
+Below is the `julia` code.  There are 4 paired multiplications per iteration.  One immediate efficiency would be from the parallelization of these multiplications within the `while` loop.
 
 ``` julia
 function CTM(n)
-    r = sqrt(n)
+    r = Newton_sqrt(n)
     max_im= div((n-9),6)
-    real = ceil(Int,r)
+    real = r+1
 
 # FERMAT SIEVES
         last_digit = n % 10
@@ -115,24 +115,38 @@ lTMRS = length(TMRS)
 # MAKE SURE 0 IMAGINARY STARTS AT 10
 imaginary_sieve[imaginary_sieve.==0] = 10
 TMIS = imaginary_sieve
-
+ceilings = div(n,3)
+ceiling_p = [ceilings,ceilings,ceilings,ceilings]
+floor_q = [3,3,3,3]
 while (TMIS[1] <= max_im)
-for i in 1:lTMRS
-  p = TMRS[i] - TMIS[i]
-  q = TMRS[i] + TMIS[i]
-  N = p*q
-  
-  if (N == n) return(p, q) end
+  for i in 1:lTMRS
+    p = TMRS[i] - TMIS[i]
+    if(p>ceiling_p[i])
+      TMIS[i] = TMIS[i] + 10
+    end
+    if(p<=1)
+        TMRS[i] = TMRS[i] + 10
+        p = TMRS[i] - TMIS[i]
+    end
+    q = TMRS[i] + TMIS[i]
+    if(q<floor_q[i])
+      TMRS[i]=TMRS[i] + 10
+    end
+    N = p*q
 
-  if (N > n)
-    TMIS[i] = TMIS[i] + 10
-  else
-    TMRS[i] = TMRS[i] + 10
-  end
+    if (N == n) return(p, q) end
+
+    if (N > n)
+      ceiling_p[i]=p
+      TMIS[i] = TMIS[i] + 10
+    else
+      floor_q[i]=q
+      TMRS[i] = TMRS[i] + 10
+    end
 
   end #for
 
-  end # while
+end # while
 
 end
 ```
