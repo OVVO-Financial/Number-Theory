@@ -110,27 +110,57 @@ function SCF{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(n::T,modulo::T)
 # FIND QUADRATIC RESIDUES FOR MODULO
     residues = [0]
     for i in 1:div(modulo,2)
-        push!(residues,i^2%modulo)
+        push!(residues,(i^2)%modulo)
     end
     residues = unique(residues)
+
+# SETS LOWER BOUNDARIES FOR (p) AND UPPER BOUNDARIES FOR (q) FOR EACH SIEVE ENTRY 
+    ceilings = div(n,3)
+    ceiling_p = [ceilings,ceilings,ceilings,ceilings];ceiling_p_d=ceiling_p
+    floor_q = [3,3,3,3];floor_q_d=floor_q
+
 
 while (TMdIS[1] >= 0)
 #COMPLEX TRIAL MULTIPLICATION
 for i in 1:lTMRS
   p = TMRS[i] - TMIS[i]; p_d = TMdRS[i] - TMdIS[i]
+  if(p>ceiling_p[i])
+    TMIS[i] = TMIS[i] + 10
+  end
+  if(p<=1)
+      TMRS[i] = TMRS[i] + 10
+      p = TMRS[i] - TMIS[i]
+  end
+  if(p_d>ceiling_p[i])
+    TMdIS[i] = TMdIS[i] - 10
+  end
+  if(p_d<=1)
+      TMdRS[i] = TMdRS[i] - 10
+      p = TMdRS[i] - TMdIS[i]
+  end
   q = TMRS[i] + TMIS[i]; q_d = TMdRS[i] + TMdIS[i]
+  if(q<floor_q[i])
+    TMRS[i]=TMRS[i] + 10
+  end
+  if(q_d<floor_q[i])
+    TMdRS[i]=TMdRS[i] - 10
+  end
   N = p*q; N_d = p_d*q_d
 
   if (N == n) return("TM ascending",p, q) end; if (N_d == n) return("TM descending",p_d, q_d) end
 
   if (N > n)
+    ceiling_p[i]=p
     TMIS[i] = TMIS[i] + 10
   else
+    floor_q[i]=q
     TMRS[i] = TMRS[i] + 10
   end
   if (N_d < n)
+    floor_q_d[i]=q_d
     TMdIS[i] = TMdIS[i] - 10
   else
+    ceiling_p_d[i]=p_d
     TMdRS[i] = TMdRS[i] - 10
   end
 end #for
