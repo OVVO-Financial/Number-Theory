@@ -115,9 +115,13 @@ lTMRS = length(TMRS)
 # MAKE SURE 0 IMAGINARY STARTS AT 10
 imaginary_sieve[imaginary_sieve.==0] = 10
 TMIS = imaginary_sieve
+
+# SETS LOWER BOUNDARIES FOR (p) AND UPPER BOUNDARIES FOR (q) FOR EACH SIEVE ENTRY 
 ceilings = div(n,3)
 ceiling_p = [ceilings,ceilings,ceilings,ceilings]
 floor_q = [3,3,3,3]
+
+
 while (TMIS[1] <= max_im)
   for i in 1:lTMRS
     p = TMRS[i] - TMIS[i]
