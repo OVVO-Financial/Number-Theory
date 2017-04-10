@@ -29,8 +29,8 @@ Using the even or odd distinction, we can further determine the combinations of 
     if((n+1)%4==0)
       if(last_digit==1)
         Fermat_real_sieve=[4,6,0,10]
-        real_sieve=[0,4,0,10]
-        imaginary_sieve=[3,5,7]
+        real_sieve=[0,4,6,0,10]
+        imaginary_sieve=[3,5,5,7]
         end
       if(last_digit==3)
         real_sieve=[2,8,2,8]
