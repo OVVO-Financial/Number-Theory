@@ -8,8 +8,8 @@ function CTM(n)
 
         if((n+1)%4==0)
           if(last_digit==1)
-            real_sieve=[0,4,0,10]
-            imaginary_sieve=[3,5,7]
+            real_sieve=[0,4,6,0,10]
+            imaginary_sieve=[3,5,5,7]
           end
           if(last_digit==3)
             real_sieve=[2,8,2,8]
@@ -70,6 +70,7 @@ floor_q = [3,3,3,3]
 
 
 while (TMIS[1] <= max_im)
+  print([ceiling_p,floor_q])
   for i in 1:lTMRS
     p = TMRS[i] - TMIS[i]
     if(p>ceiling_p[i])
@@ -85,7 +86,7 @@ while (TMIS[1] <= max_im)
     end
     N = p*q
 
-    if (N == n) return(p, q) end
+    if (N == n) return(p, q,i) end
 
     if (N > n)
       ceiling_p[i]=p

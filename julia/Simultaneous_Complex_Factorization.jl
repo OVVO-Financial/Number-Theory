@@ -11,8 +11,8 @@ function SCF{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(n::T,modulo::T)
     if((n+1)%4==0)
       if(last_digit==1)
         Fermat_real_sieve=[4,6,0,10]
-        real_sieve=[0,4,0,10]
-        imaginary_sieve=[3,5,7]
+        real_sieve=[0,4,6,0,10]
+        imaginary_sieve=[3,5,5,7]
         end
       if(last_digit==3)
         real_sieve=[2,8,2,8]
@@ -114,7 +114,7 @@ function SCF{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(n::T,modulo::T)
     end
     residues = unique(residues)
 
-# SETS LOWER BOUNDARIES FOR (p) AND UPPER BOUNDARIES FOR (q) FOR EACH SIEVE ENTRY 
+# SETS LOWER BOUNDARIES FOR (p) AND UPPER BOUNDARIES FOR (q) FOR EACH SIEVE ENTRY
     ceilings = div(n,3)
     ceiling_p = [ceilings,ceilings,ceilings,ceilings];ceiling_p_d=ceiling_p
     floor_q = [3,3,3,3];floor_q_d=floor_q
