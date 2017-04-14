@@ -50,10 +50,11 @@ function SCF{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(n::T,modulo::T)
     end #FERMAT SIEVE
 
 # SQUARE CHECK FERMAT SIEVE
-    is_square_sieve = unique((imaginary_sieve.*imaginary_sieve) % 10)
+    square_sieve = unique((imaginary_sieve.*imaginary_sieve) % 10)
 
 # SYNC COMPLEX TRIAL MULTIPLICATION IMAGINARY TO SIEVE STARTING POINT
-    TM_imaginary = div((max_im+Fermat_real),2)
+    z=sqrt(n+(max_im*max_real)im)
+    TM_imaginary = floor(Int,imag(z))
     last_digit_im = TM_imaginary % 10
     if any(last_digit_im!=imaginary_sieve)
       im_init_diff1 = imaginary_sieve[imaginary_sieve.<=9] - last_digit_im # need a this copy for later
@@ -67,7 +68,7 @@ function SCF{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(n::T,modulo::T)
     end
 
 # FIND & SYNC COMPLEX TRIAL MULTIPLICATION REAL
-    TM_real=Newton_sqrt(n+(TM_imaginary*TM_imaginary))
+    TM_real = floor(Int,real(z))
     if(TM_real < TM_imaginary) TM_real = TM_imaginary + 3 end
       last_digit_real = TM_real % 10
       if any(last_digit_real!=real_sieve)
@@ -90,6 +91,15 @@ function SCF{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(n::T,modulo::T)
     TMdIS = TM_imaginary+(imaginary_sieve - TM_imaginary%10)
     lTMRS = length(TMRS)
 
+# AVOID ANY INITIAL MIS-SYNCH
+for i in 1:lTMRS
+  if((TMRS[i]-TMIS[i])<=1)
+    TMRS[i]=TMRS[i]+10
+  end
+  if((TMdRS[i]-TMdIS[i])<=1)
+    TMdIS[i]=TMdIS[i]-10
+  end
+end
 
 # SYNC FERMAT REAL TO SIEVE STARTING POINT
     last_digit_real = Fermat_real % 10
@@ -116,38 +126,53 @@ function SCF{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(n::T,modulo::T)
 
 # SETS LOWER BOUNDARIES FOR (p) AND UPPER BOUNDARIES FOR (q) FOR EACH SIEVE ENTRY
     ceilings = div(n,3)
-    ceiling_p = [ceilings,ceilings,ceilings,ceilings];ceiling_p_d=ceiling_p
-    floor_q = [3,3,3,3];floor_q_d=floor_q
+    ceiling_p = [ceilings,ceilings,ceilings,ceilings];ceiling_p2=ceiling_p
+    floor_q = [3,3,3,3];floor_q2=floor_q
 
+while (TMdRS[1] >= 0)
 
-while (TMdIS[1] >= 0)
 #COMPLEX TRIAL MULTIPLICATION
 for i in 1:lTMRS
-  p = TMRS[i] - TMIS[i]; p_d = TMdRS[i] - TMdIS[i]
+  a=TMRS[i];b=TMIS[i]
+  a2=TMdRS[i];b2=TMdIS[i]
+
+  p = a - b; p2 = a2 - b2
   if(p>ceiling_p[i])
     TMIS[i] = TMIS[i] + 10
   end
-  if(p<=1)
-      TMRS[i] = TMRS[i] + 10
-      p = TMRS[i] - TMIS[i]
-  end
-  if(p_d>ceiling_p[i])
+  if(p2<ceiling_p2[i])
     TMdIS[i] = TMdIS[i] - 10
   end
-  if(p_d<=1)
-      TMdRS[i] = TMdRS[i] - 10
-      p = TMdRS[i] - TMdIS[i]
+  if(p<=1)
+      TMRS[i] = TMRS[i] + 10
   end
-  q = TMRS[i] + TMIS[i]; q_d = TMdRS[i] + TMdIS[i]
+  if(p2<=1)
+      TMdIS[i] = TMdIS[i] + 10
+  end
+  a=TMRS[i];b=TMIS[i]
+  a2=TMdRS[i];b2=TMdIS[i]
+
+  p = a - b; p2 = a2 - b2
+  q = a + b; q2 = a2 + b2
+
   if(q<floor_q[i])
     TMRS[i]=TMRS[i] + 10
   end
-  if(q_d<floor_q[i])
-    TMdRS[i]=TMdRS[i] - 10
+  if(q2>floor_q2[i])
+    TMdRS[i] = TMdRS[i] - 10
   end
-  N = p*q; N_d = p_d*q_d
 
-  if (N == n) return("TM ascending",p, q) end; if (N_d == n) return("TM descending",p_d, q_d) end
+  q = TMRS[i] + TMIS[i]; q2 = TMdRS[i] + TMdIS[i]
+
+  a=TMRS[i];b=TMIS[i]
+  a2=TMdRS[i];b2=TMdIS[i]
+
+  z = complex(a,b)^2
+  z2 = complex(a2,b2)^2
+
+  N = real(z);N2=real(z2)
+
+  if (N == n) return("TM ascending",p, q) end; if (N2 == n) return("TM descending",p2, q2) end
 
   if (N > n)
     ceiling_p[i]=p
@@ -156,22 +181,33 @@ for i in 1:lTMRS
     floor_q[i]=q
     TMRS[i] = TMRS[i] + 10
   end
-  if (N_d < n)
-    floor_q_d[i]=q_d
+
+  if (N2 < n)
+    floor_q2[i]=q2
     TMdIS[i] = TMdIS[i] - 10
   else
-    ceiling_p_d[i]=p_d
+    ceiling_p2[i]=p2
     TMdRS[i] = TMdRS[i] - 10
   end
+
+  if ((TMdRS[i]<TMdIS[i]) | ((TMdRS[i]-TMdIS[i])<=1))
+    TMdIS[i]=TMdIS[i]-10
+  end
+
+ if (TMdIS[i]<1)
+    TMdIS[i]=TMdIS[i]+20
+  end
+
+
 end #for
 
 # FERMAT DIFF OF SQUARES
   b2s = (F_realS.*F_realS) - n
 
-  if length(intersect(b2s%10,is_square_sieve))>0
+  if length(intersect(b2s%10,square_sieve))>0
   if length(intersect(b2s%modulo,residues))>0
 
-        z= intersect(b2s%10,is_square_sieve).==b2s%10
+        z= intersect(b2s%10,square_sieve).==b2s%10
         b2s=b2s[z];  Factor_real = F_realS[z]
           if length(b2s)>0
             for i in 1:length(b2s)
