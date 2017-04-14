@@ -19,7 +19,7 @@ function SCF{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(n::T,modulo::T)
 ### Step 2
 In step 2, we define the Fermat sieves.  Quite simply, we match known facts about `real` and `imaginary` values corresponding to `a` and `b` in Fermat's method.  If `n = 4*k +1` we know the `real` part of the complex number is **even**.
 
-Using the even or odd distinction, we can further determine the combinations of `real` and `imaginary` value to the complex numbers that will result in the last digit of `n`.
+Using the even or odd distinction, we can further determine the combinations of `real` and `imaginary` values to the complex numbers that will result in the last digit of `n`.
 * 8051 is of the form `4k + 1`.  The only even numbers with +/- odd counterparts that result in a 1 are `0,4,6`. For example `(20-3)(20+3) = (17)(23) = 391`, last digit equals 1.
 * You cannot achieve that with `2 or 8` and +/- the same odd number in this example.
 ```julia
@@ -68,11 +68,11 @@ Using the even or odd distinction, we can further determine the combinations of 
     end #FERMAT SIEVE
 ```
 ### Step 3
-Using our known `imaginary sieve` values from step 2, we can square them to find the corresponding required square for `a^2 - n`.
-* The `imaginary sieve` to 8051 is `[3,5,7]`.  Squaring this yields `[9,25,49]`, thus all `a^2 - n` have to end in `9 or 5` and this reduces the number of square checks.
+Using our known `imaginary_sieve` values from step 2, we can square them to find the corresponding required square for `a^2 - n`.
+* The `imaginary_sieve` to 8051 is `[3,5,7]`.  Squaring this yields `[9,25,49]`, thus all `a^2 - n` have to end in `9 or 5` and this reduces the number of square checks.
 ```julia
 # SQUARE CHECK FERMAT SIEVE
-    is_square_sieve = unique((imaginary_sieve.*imaginary_sieve) % 10)
+    square_sieve = unique((imaginary_sieve.*imaginary_sieve) % 10)
 ```
 ### Step 4
 This step is required to sync our [complex trial mulitiplication](https://github.com/OVVO-Financial/Number-Theory/blob/Prime-Factorization/Complex%20Trial%20Multiplication.md) `real` and `imaginary` components to the middle of the [complex space](https://github.com/OVVO-Financial/Number-Theory/blob/master/Complex%20space.md), while aligning with the respective sieves.
@@ -80,7 +80,8 @@ This step is required to sync our [complex trial mulitiplication](https://github
 
 ```julia
 # SYNC COMPLEX TRIAL MULTIPLICATION IMAGINARY TO SIEVE STARTING POINT
-    TM_imaginary = div((max_im+Fermat_real),2)
+    z=sqrt(n+(max_im*max_real)im)
+    TM_imaginary = floor(Int,imag(z))
     last_digit_im = TM_imaginary % 10
     if any(last_digit_im!=imaginary_sieve)
       im_init_diff1 = imaginary_sieve[imaginary_sieve.<=9] - last_digit_im # need a this copy for later
@@ -94,7 +95,7 @@ This step is required to sync our [complex trial mulitiplication](https://github
     end
 
 # FIND & SYNC COMPLEX TRIAL MULTIPLICATION REAL
-    TM_real=Newton_sqrt(n+(TM_imaginary*TM_imaginary))
+    TM_real = floor(Int,real(z))
     if(TM_real < TM_imaginary) TM_real = TM_imaginary + 3 end
       last_digit_real = TM_real % 10
       if any(last_digit_real!=real_sieve)
@@ -108,7 +109,9 @@ This step is required to sync our [complex trial mulitiplication](https://github
     end
 ```
 ### Step 5
-This step is required to eliminate the `10`'s that were inserted into the `real sieve` and `imaginary sieve` when a `0` was present to find the shift difference.
+This step is required to eliminate the `10`'s that were inserted into the `real_sieve` and `imaginary_sieve` when a `0` was present to find the shift difference.
+
+We also increment each array entry if the difference between `real` and `imaginary` is `< 1` to ensure a proper start.
 ```julia
 # ELIMINATE EXTRA SYNCHING SIEVE ENTRIES FOR NEW POSITIONAL MATCHING MULTIPLICATION & FERMAT REALS
     real_sieve = real_sieve[real_sieve.<=9]
@@ -119,9 +122,19 @@ This step is required to eliminate the `10`'s that were inserted into the `real 
     TMdRS = TM_real+(real_sieve - TM_real%10)
     TMdIS = TM_imaginary+(imaginary_sieve - TM_imaginary%10)
     lTMRS = length(TMRS)
+
+# AVOID ANY INITIAL MIS-SYNCH
+for i in 1:lTMRS
+  if((TMRS[i]-TMIS[i])<=1)
+    TMRS[i]=TMRS[i]+10
+  end
+  if((TMdRS[i]-TMdIS[i])<=1)
+    TMdIS[i]=TMdIS[i]-10
+  end
+end
 ```
 ### Step 6
-This step shifts our `Fermat_real` to the nearest corresponding `real sieve` value.
+This step shifts our `Fermat_real` to the nearest corresponding `real_sieve` value.
 ```julia
 # SYNC FERMAT REAL TO SIEVE STARTING POINT
     last_digit_real = Fermat_real % 10
@@ -136,7 +149,7 @@ This step shifts our `Fermat_real` to the nearest corresponding `real sieve` val
     end
 ```
 ### Step 7
-Once shifted, we find the other values in the `real sieve` and create entries to an array.
+Once shifted, we find the other values in the `real_sieve` and create entries to an array.
 * Using 8051, if our `real sieve` shifted value was 90, we include 94 and 96 because the `real sieve = [0,4,6]` for 8051.
 ```julia
 # DEFINE FERMAT REALS - EVERY INITIAL MEMBER OF SIEVE
@@ -144,7 +157,7 @@ Once shifted, we find the other values in the `real sieve` and create entries to
     lFrS = length(F_realS)
 ```
 ### Step 8
-In an effort to reduce square checks further, we generate the `quadratic residues` for the given entered `modulo`.  If a `Fermat_real` does not have the corresponding residue, it will not be squared and tested.
+In an effort to reduce square checks further, we generate the `quadratic_residues` for the given entered `modulo`.  If a `Fermat_real` does not have the corresponding residue, it will not be squared and tested.
 ```julia
 # FIND QUADRATIC RESIDUES FOR MODULO
     residues = [0]
@@ -168,7 +181,7 @@ There are 3 tests that occur for each `while` increment:
 1. **Complex Trial Multiplication**: For each value in our `real` and `imaginary` array, we multiply their corresponding `real` numbers.  The arrays are paired such that `real[1]` only has to be multiplied using `imaginary[1]`, for the length of the arrays.
     * This can likely use a parallelization since there are only 4 entries in the arrays.
     * Each `while` increment increases the `real` and `imaginary` arrays by 10, since they are aligned with their respective sieves.
-2. **Fermat Difference of Squares**: For each value in our `Fermat_real` array we test its `quadratic residue`, then see if its difference with `n` is in our `square_sieve`
+2. **Fermat Difference of Squares**: For each value in our `Fermat_real` array we test its `quadratic_residue`, then see if its difference with `n` is in our `square_sieve`
 and if those conditions are met we then test the resulting difference if it is a square with the `Newton_sqrt` function, again, since precision is not necessary.
     * Each `while` increment increases the `Fermat_real` array by 10.  If a `quadratic residue` does not exist, it will keep increasing by 10 until one is found.  This is contained in a `for` loop.
 3. **Trial Division**: We eliminate the small number of early primes as our sieve and eliminate any odd numbers ending in 5.
