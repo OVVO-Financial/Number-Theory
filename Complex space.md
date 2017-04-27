@@ -51,13 +51,13 @@ Our original complex factor for `n=309` is `53+50i`.
 ![Factor Strip](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Factor%20Strip%20in%20Green.jpeg)
 
 #### Squared complex space
-The final form of our squared complex factor will be `n+2abi`.  Our squared complex factor for `n=309` is `309+5300i`.  The large `imaginary` coefficient may seem daunting, but remember, we only need to test (via `sqrt(n + 2abi)`) for integers using intervals of `2ab` which grow quickly.  Also, the [Fermat sieves](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/Fermat%20Sieve%20Using%20Complex%20Numbers.pdf) for `a` and `b` are still applicable.
+The final form of our squared complex factor will be `n+2abi`.  Our squared complex factor for `n=309` is `(53+50i)^2 = 309+5300i`.  The large `imaginary` coefficient may seem daunting, but remember, we only need to test (via `sqrt(n + 2abi)`)<sup>[1](#footnote1)</sup> for integer solutions using intervals of `2ab` which grow quickly.  In our example of `n=309`,`a=53 and b=50` thus `2ab=5300`.  Also, the [Fermat sieves](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/Fermat%20Sieve%20Using%20Complex%20Numbers.pdf) for `a` and `b` are still applicable.
 
 The green vertical line, formerly our factor strip, is now simply our real number `n=309`!
 
 ![Squared complex space](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Complex%20squared.png)
 
-All of this yields the final complex polynomial<sup>[1](#footnote1)</sup> to solve (perhaps using a complex Newton-Raphson method):
+All of this yields the final complex polynomial<sup>[2](#footnote2)</sup> to solve (perhaps using a complex Newton-Raphson method):
 ```
 (a + bi)^2 -n -2abi = 0
 ```
@@ -72,6 +72,9 @@ b = [minimum imaginary, maximum imaginary]
 b = [1,(n-9)/6] 
 ```
 
-<a name="footnote1">1</a>: This is of course equivalent to Fermat `a^2 - b^2 = n`, but the hope is alternative representations yield new insights & methods.
+##### Footnotes:
+<a name="footnote1">1</a>: This can be reduced to an integer hypoteneuse test due to the right triangle each complex number represents.
+
+<a name="footnote2">2</a>: This is of course equivalent to Fermat `a^2 - b^2 = n`, but the hope is alternative representations yield new insights & methods.
 
 The above plots were generated with the [complex space generator](https://github.com/OVVO-Financial/Number-Theory/blob/master/R/Complex%20Space%20Generator.R) in R.
