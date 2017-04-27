@@ -73,7 +73,7 @@ b = [1,(n-9)/6]
 ```
 
 ##### Footnotes:
-<a name="footnote1">1</a>: This can be reduced to an integer hypoteneuse test due to the right triangle each complex number represents.
+<a name="footnote1">1</a>: This can be reduced to an integer hypoteneuse test due to the right triangle each complex number represents.  The hypoteneuse of a right triangle with sides `309,5300` is equal to `sqrt(309^2 + 5300^2) = 5309` which is equal to our squared complex factor `(50^2 + 53^2)`.  More generally, we can state `sqrt(n^2 + [2ab]^2) = (a^2 + b^2)` where integer solutions for `a and b` will yield the factors of `n`.
 
 <a name="footnote2">2</a>: This is of course equivalent to Fermat `a^2 - b^2 = n`, but the hope is alternative representations yield new insights & methods.
 
