@@ -1,12 +1,12 @@
 # Factors in the complex space
 
-Below is the complex space associated with `n=309`.  Each triangle represents a complex number whose [corresponding real numbers](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/i.pdf) lie within the interval `[3,sqrt(n)]`.
+Below is the complex space associated with `n=309`.  Each triangle represents a complex number whose lower [corresponding real number](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/i.pdf) lies within the interval `[3,sqrt(n)]`.
 
-Blue triangles are complex numbers whose corresponding real product is less than `n`.
+* Blue triangles are complex numbers whose corresponding real product is less than `n`.
 
-Red triangles are complex numbers whose corresponding real product is greater than `n`.
+* Red triangles are complex numbers whose corresponding real product is greater than `n`.
 
-The green triangle represents the complex number associated with the factors of `n=309`, `53+50i` which has corresponding real numbers `[3,103]`.
+* The green triangle represents the complex number associated with the factors of `n=309`, `53+50i` which has corresponding real numbers `[3,103]`.
 
 ![Complex Space](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Complex%20plane.png)
 
@@ -51,7 +51,20 @@ Our original complex factor for `n=309` is `53+50i`.
 ![Factor Strip](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/Factor%20Strip%20in%20Green.jpeg)
 
 #### Squared complex space
-The final form of our squared complex factor will be `n+2abi`.  Our squared complex factor for `n=309` is `(53+50i)^2 = 309+5300i`.  The large `imaginary` coefficient may seem daunting, but remember, we only need to test (via `sqrt(n + 2abi)`)<sup>[1](#footnote1)</sup> for integer solutions using intervals of `2ab` which grow quickly.  In our example of `n=309`,`a=53 and b=50` thus `2ab=5300`.  Also, the [Fermat sieves](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/Fermat%20Sieve%20Using%20Complex%20Numbers.pdf) for `a` and `b` are still applicable.
+The final form of our squared complex factor will be `n+2abi`.  Our squared complex factor for `n=309` is `(53+50i)^2 = 309+5300i`.  The large `imaginary` coefficient may seem daunting, but remember, we only need to test (via `sqrt(n + 2abi)`)<sup>[1](#footnote1)</sup> for integer solutions using intervals of `2ab` which grow quickly.  In our example where:
+```
+n=309
+```
+our solutions were:
+```
+a=53 and b=50 
+```
+thus
+```
+2ab=5300
+```
+
+Also, the [Fermat sieves](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/Fermat%20Sieve%20Using%20Complex%20Numbers.pdf) for `a` and `b` are still applicable.
 
 The green vertical line, formerly our factor strip, is now simply our real number `n=309`!
 
@@ -61,6 +74,11 @@ All of this yields the final complex polynomial<sup>[2](#footnote2)</sup> to sol
 ```
 (a + bi)^2 -n -2abi = 0
 ```
+And here is the equivalent polynomial using only real numbers:
+```
+sqrt(n^2 + [2ab]^2) - (a^2 + b^2) = 0
+```
+
 where our intervals for each component are defined by:
 ```
 a interval: 
