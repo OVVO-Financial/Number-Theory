@@ -3,12 +3,15 @@ The naive grouping routine is as stated, *a naive grouping method for factorizat
 It is deterministic and can be distributed along any number of "seed groups".
 One of 3 known seed groups resides below `0.5*sqrt(n)`.
 
+This method is loosely related to the [Ramanujan partition function](https://en.wikipedia.org/wiki/Partition_(number_theory)) whereby the relevant partitions of `n` are those whose summands differ by 1.  Those relevant partitions are then further partitioned to identify factors of `n`.
+
+
 The method is best described with an example:
 
 1. For `n = 798,607` if we start with a seed group of **59**, we would have **17** groups of **13,535** and **42** groups of **13,536**.
-    > * The group counts (e.g., 13,535 and 13,536 generated from `798607/59 = 13535.71`) are to have a maximum difference of 1 (hence naive grouping!).
+    > * The summands (e.g., 13,535 and 13,536 generated from `798607/59 = 13535.71`) are to have a maximum difference of 1 (hence naive grouping!).
     > * Checking our total: `17 * 13535 + 42 * 13536 = 798607`
-2. Neither the **17** nor the **42** will evenly parse the other grouping counts so we double the seed group and halve the counts.
+2. Neither the **17** nor the **42** will evenly parse the other summands so we double the seed group and halve the summands.
     > * `mod(13535,42) > 1` and `mod(13536,17) > 1`.  
 3. Now we have **118** groups in total, **17** groups of **6,767** and **101** groups of **6,768**.
     > * Checking our total: `17 * 6767 + 101 * 6768 = 798607`
@@ -47,67 +50,67 @@ i = rr   # Possible distribution / parallelization, using multiple "Seed groups"
 k = i+2
 
 while true
-  count_floor = div(n,i)
-  if count_floor*i==n return (i, count_floor) end
-  count_ceiling = count_floor+1
+  summand_floor = div(n,i)
+  if summand_floor*i==n return (i, summand_floor) end
+  summand_ceiling = summand_floor+1
   group_ceiling = mod(n,i)
   group_floor = i - group_ceiling
-  count_floor2 = div(n,k)
-  if count_floor2*k==n return (k, count_floor2) end
-  count_ceiling2 = count_floor2+1
+  summand_floor2 = div(n,k)
+  if summand_floor2*k==n return (k, summand_floor2) end
+  summand_ceiling2 = summand_floor2+1
   group_ceiling2 = mod(n,k)
   group_floor2 = k - group_ceiling2
 
   while true
-  if (count_floor & 1)==0
+  if (summand_floor & 1)==0
     group_floor=(2*group_floor)+group_ceiling
   end
 
-  if (count_ceiling & 1)==0
+  if (summand_ceiling & 1)==0
     group_ceiling=(2*group_ceiling)+group_floor
   end
   
-  if count_floor < count_ceiling
-    count_floor=div(count_floor,2) 
-    count_ceiling=cld(count_ceiling,2)
+  if summand_floor < summand_ceiling
+    summand_floor=div(summand_floor,2) 
+    summand_ceiling=cld(summand_ceiling,2)
   else
-    count_floor=cld(count_floor,2)
-    count_ceiling=div(count_ceiling,2)
+    summand_floor=cld(summand_floor,2)
+    summand_ceiling=div(summand_ceiling,2)
   end
 
-  if ((count_floor < group_ceiling) | (count_ceiling < group_floor)) 
+  if ((summand_floor < group_ceiling) | (summand_ceiling < group_floor)) 
       break
   end
 
-  if (count_floor2 & 1)==0
+  if (summand_floor2 & 1)==0
     group_floor2=(2*group_floor2)+group_ceiling2
   end
-  if (count_ceiling2 & 1)==0
+  if (summand_ceiling2 & 1)==0
     group_ceiling2=(2*group_ceiling2)+group_floor2
   end
-  if count_floor2< count_ceiling2
-    count_floor2=div(count_floor2,2)
-    count_ceiling2=cld(count_ceiling2,2)
+  if summand_floor2< summand_ceiling2
+    summand_floor2=div(summand_floor2,2)
+    summand_ceiling2=cld(summand_ceiling2,2)
   else
-    count_floor2=cld(count_floor2,2)
-    count_ceiling2=div(count_ceiling2,2)
+    summand_floor2=cld(summand_floor2,2)
+    summand_ceiling2=div(summand_ceiling2,2)
   end
 
   if(group_ceiling>1 && group_floor>1)
-    if(div(count_floor,group_ceiling)*group_ceiling==count_floor)
+    if(div(summand_floor,group_ceiling)*group_ceiling==summand_floor)
         return (group_ceiling , div(n,group_ceiling))
         end
 
-        if(div(count_ceiling,group_floor)*group_floor==count_ceiling)
+        if(div(summand_ceiling,group_floor)*group_floor==summand_ceiling)
           return (group_floor , div(n,group_floor))
           end
   end
 
   if(group_ceiling2>1 && group_floor2>1)
-    if(div(count_floor2,group_ceiling2)*group_ceiling2==count_floor2)
+    if(div(summand_floor2,group_ceiling2)*group_ceiling2==summand_floor2)
         return (group_ceiling2 , div(n,group_ceiling2))
       end
-      if(div(count_ceiling2,group_floor2)*group_floor2==count_ceiling2)
+      if(div(summand_ceiling2,group_floor2)*group_floor2==summand_ceiling2)
         return (group_floor2 , div(n,group_floor2))
       end
   end
