@@ -74,3 +74,33 @@ points(b,rep(0.01,y-1),pch="|",col='blue',cex=3)
 points(a,rep(0,length(a%in%b)),pch=19,col=ifelse(a%in%b,'red','transparent'))
 legend('top',legend=list(y,x), pch = "|",cex=2,col = c('blue','black'),bty='n')
   }
+
+
+
+DFT <- function(x){
+  l = length(x)
+  f.hat = numeric()
+  Simultaneous.reals = data.frame()
+  magnitude = numeric()  
+  
+  for(i in 1:(l)){
+    
+    f.hat[i]=sum(((Roots.of.unity(l,plot.roots = FALSE)$"Complex Points")^(i-1))*x)
+    Simultaneous.reals[i,1] = Re(f.hat[i]) - Im(f.hat[i])
+    Simultaneous.reals[i,2] = Re(f.hat[i]) + Im(f.hat[i])
+    if(i <= l/2){
+    magnitude[i] = sqrt(Re(2*f.hat[i])^2 + Im(2*f.hat[i])^2)} else {
+      magnitude[i] = 0 
+    }
+  }
+  
+  Amplitude = magnitude/l
+  par(mfrow=c(2,1))
+  plot((1:(l/2))-1,Amplitude[1:(l/2)],col='steelblue',pch=19,xlab="Frequency",ylab = "Amplitude")
+  
+  plot(Simultaneous.reals[,1],rep(0,l),pch="|",cex=2,col='blue')
+  
+  colnames(Simultaneous.reals) = c("Real 1","Real 2")
+  return(cbind(Simultaneous.reals,"f hat"=f.hat, "Magnitude"=format(magnitude,digits = 4),"Amplitude"=magnitude/l))
+  
+}  
