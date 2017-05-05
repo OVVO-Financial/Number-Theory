@@ -98,7 +98,7 @@ DFT <- function(x){
   par(mfrow=c(2,1))
   plot((1:(l/2))-1,Amplitude[1:(l/2)],col='steelblue',pch=19,xlab="Frequency",ylab = "Amplitude")
   
-  plot(Simultaneous.reals[,1],rep(0,l),pch="|",cex=2,col='blue')
+  plot(Simultaneous.reals[,1],rep(0,l),pch="|",cex=2,col='blue',ylab="",xlab="Simultaneous Reals")
   
   colnames(Simultaneous.reals) = c("Real 1","Real 2")
   return(cbind(Simultaneous.reals,"f hat"=f.hat, "Magnitude"=format(magnitude,digits = 4),"Amplitude"=magnitude/l))
