@@ -1,7 +1,7 @@
 # Naive Grouping
 The naive grouping routine is as stated, *a naive grouping method for factorization.*
 It is deterministic and can be distributed along any number of "seed groups".
-One of 3 known seed groups resides below `0.5*sqrt(n)`.
+Like factors, one of 3 *known* seed groups resides below `0.5*sqrt(n)`.
 
 This method is loosely related to the [Ramanujan partition function](https://en.wikipedia.org/wiki/Partition_(number_theory)) whereby the relevant partitions of `n` are those whose summands differ by 1.  Those relevant partitions are then further partitioned to identify factors of `n`.
 
