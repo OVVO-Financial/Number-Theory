@@ -1,4 +1,4 @@
-function gcd1{T<:Union{Int64,UInt64,Int128,UInt128}}(a::T, b::T)
+function gcd1{T<:Union{Int64,UInt64,Int128,UInt128,BigInt}}(a::T, b::T)
     a == 0 && return abs(b)
     b == 0 && return abs(a)
     za = trailing_zeros(a)
