@@ -66,11 +66,14 @@ i = rr   # Possible distribution / parallelization, using multiple "Seed groups"
 k = i+2
 
 while true
+# i seed group decreasing per iteration
   summand_floor = div(n,i)
   if summand_floor*i==n return (i, summand_floor) end
   summand_ceiling = summand_floor+1
   group_ceiling = mod(n,i)
   group_floor = i - group_ceiling
+  
+# k seed group increasing per iteration
   summand_floor2 = div(n,k)
   if summand_floor2*k==n return (k, summand_floor2) end
   summand_ceiling2 = summand_floor2+1
