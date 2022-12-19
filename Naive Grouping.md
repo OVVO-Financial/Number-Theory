@@ -5,8 +5,24 @@ Like factors, one of 3 *known* seed groups resides below `0.5*sqrt(n)`.
 
 This method is loosely related to the [Ramanujan partition function](https://en.wikipedia.org/wiki/Partition_(number_theory)) whereby the relevant partitions of `n` are those whose summands differ by 1.  Those relevant partitions are then further partitioned to identify factors of `n`.
 
+## The method is best described with an elementary example:
 
-The method is best described with an example:
+1. For `n = 187` if we start with a seed group of **2**, we would have **1** group of **93** and **1** group of **94**.
+    > * The summands (e.g., 93 and 94 generated from `187/2 = 93.5`) are to have a maximum difference of 1 (hence naive grouping!).
+    > * Checking our total: `1 * 93 + 1 * 94 = 187`
+2. Neither of the groups will evenly parse the other summands so we double the seed group and halve the summands.
+3. Now we have **4** groups in total, **3** groups of **47** and **1** groups of **46**.
+    > * Checking our total: `3 * 47 + 1 * 46 = 187`
+4. The **46** cannot be distributed evenly among the **3** groups, so we repeat.
+5. Now we have **8** groups in total, **5** groups of **23** and **3** groups of **24**.
+    > * Checking our total: `5 * 23 + 3 * 24 = 187`
+6. The **24** cannot be distributed evenly among the **5** groups, nor can the **23** be evenly distributed among the **3** groups, so we repeat.
+7. Now we have **16** groups in total, **11** groups of **12** and **5** groups of **11**.
+    > * Checking our total: `11 * 12 + 5 * 11 = 187`
+8. The **5** groups of **11** can be evenly distributed to the **11** groups of **12**, leaving us with **11** groups of **17**, our factors for `n = 187`.
+
+
+## And further described with another example:
 
 1. For `n = 798,607` if we start with a seed group of **59**, we would have **17** groups of **13,535** and **42** groups of **13,536**.
     > * The summands (e.g., 13,535 and 13,536 generated from `798607/59 = 13535.71`) are to have a maximum difference of 1 (hence naive grouping!).
