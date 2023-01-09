@@ -28,7 +28,7 @@ This method is loosely related to the [Ramanujan partition function](https://en.
     > * The summands (e.g., 13,535 and 13,536 generated from `798607/59 = 13535.71`) are to have a maximum difference of 1 (hence naive grouping!).
     > * Checking our total: `17 * 13535 + 42 * 13536 = 798607`
 2. Neither the **17** nor the **42** will evenly parse the other summands so we double the seed group and halve the summands.
-    > * `mod(13535,42) > 1` and `mod(13536,17) > 1`.  
+    > * `mod(13535,42) > 0` and `mod(13536,17) > 0`.  
 3. Now we have **118** groups in total, **17** groups of **6,767** and **101** groups of **6,768**.
     > * Checking our total: `17 * 6767 + 101 * 6768 = 798607`
 4. The **6,767** can be distributed among the **101** groups, resulting in factors of **101** groups of **7,907**.
