@@ -32,7 +32,7 @@ mpf_class df(mpf_class zz, const mpz_class& r) {
 // Newton-Raphson method to find zz
 mpz_class newton_raphson_zz(const mpz_class& r, const mpz_class& n, int max_iterations = 100, mpf_class tolerance = 1e-10) {
     mpf_class zz, zz_next;
-    mpf_set_default_prec(512); // High precision for calculations
+    mpf_set_default_prec(1024); // Increase precision for very large numbers
 
     zz = (r.get_d() - 3) / 2;
 
@@ -63,13 +63,16 @@ mpz_class newton_raphson_zz(const mpz_class& r, const mpz_class& n, int max_iter
 
 // Synchronize starting point with the sieve
 void sync_to_sieve(mpz_class &value, const std::vector<int> &sieve) {
-    int last_digit = value.get_si() % 10;
-    auto it = std::find(sieve.begin(), sieve.end(), last_digit);
-    if (it != sieve.end()) {
-        value -= last_digit - *it; // Align with the sieve
-    } else {
-        value += sieve.front() - last_digit; // Use the first sieve element if misaligned
+    mpz_class last_digit = value % 10; // Use modulo for last digit
+    int last_digit_int = last_digit.get_si(); // Convert to int
+    for (int sieve_val : sieve) {
+        if (sieve_val == last_digit_int) return; // Already aligned
+        int shift = (sieve_val - last_digit_int + 10) % 10; // Calculate shift
+        value += shift; // Adjust value
+        return; // We only need to sync to one value
     }
+    // If no match, use the first sieve element
+    value += (sieve.front() - last_digit_int + 10) % 10;
 }
 
 // Main SCF function with integrated complex trial multiplication, Fermat's method, and trial division
@@ -127,19 +130,38 @@ void SCF(mpz_class n, mpz_class modulo) {
     std::cout << "Initial TM_real: " << TM_real << std::endl;
     std::cout << "Initial TM_imaginary: " << TM_imaginary << std::endl;
 
-    sync_to_sieve(TM_real, real_sieve);
-    sync_to_sieve(TM_imaginary, imaginary_sieve);
-
-    std::cout << "Updated TM_real: " << TM_real << std::endl;
-    std::cout << "Updated TM_imaginary: " << TM_imaginary << std::endl;
-
+    // Clear vectors if they might have been used before
     std::vector<mpz_class> TMRS, TMIS, TMdRS, TMdIS;
+    TMRS.clear();
+    TMIS.clear();
+    TMdRS.clear();
+    TMdIS.clear();
+
+    // Adjust TM_real for each sieve element
     for (size_t i = 0; i < real_sieve.size(); ++i) {
-        TMRS.push_back(TM_real + ((real_sieve[i] - TM_real.get_si() % 10 + 10) % 10));
-        TMdRS.push_back(TMRS.back());
-        TMIS.push_back(TM_imaginary + ((imaginary_sieve[i] - TM_imaginary.get_si() % 10 + 10) % 10));
-        TMdIS.push_back(TMIS.back());
+        mpz_class last_digit_real = TM_real % 10;
+        int last_digit_real_int = last_digit_real.get_si();
+        mpz_class adjusted_TM_real = TM_real + ((real_sieve[i] - last_digit_real_int + 10) % 10);
+        TMRS.push_back(adjusted_TM_real);
+        TMdRS.push_back(adjusted_TM_real); // TMdRS starts the same as TMRS
     }
+
+    // Adjust TM_imaginary for each sieve element
+    for (size_t i = 0; i < imaginary_sieve.size(); ++i) {
+        mpz_class last_digit_imag = TM_imaginary % 10;
+        int last_digit_imag_int = last_digit_imag.get_si();
+        mpz_class adjusted_TM_imaginary = TM_imaginary + ((imaginary_sieve[i] - last_digit_imag_int + 10) % 10);
+        TMIS.push_back(adjusted_TM_imaginary);
+        TMdIS.push_back(adjusted_TM_imaginary); // TMdIS starts the same as TMIS
+    }
+
+    std::cout << "TMRS after sync: ";
+    for (const auto &val : TMRS) std::cout << val << " ";
+    std::cout << std::endl;
+
+    std::cout << "TMIS after sync: ";
+    for (const auto &val : TMIS) std::cout << val << " ";
+    std::cout << std::endl;
 
     auto start = std::chrono::high_resolution_clock::now();
     int iteration = 0;
