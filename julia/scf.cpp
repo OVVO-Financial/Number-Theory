@@ -4,6 +4,7 @@
 #include <cmath>
 #include <algorithm>
 #include <cstdlib>
+#include <chrono>
 
 // Function to calculate Newton's square root approximation
 mpz_class Newton_sqrt(const mpz_class& n) {
@@ -15,12 +16,14 @@ mpz_class Newton_sqrt(const mpz_class& n) {
     return x;
 }
 
-// Helper function to calculate the square root of a complex number approximation
-void complex_sqrt(mpz_class& real, mpz_class& imag, const mpz_class& n, const mpz_class& max_im, const mpz_class& max_real) {
-    double r = sqrt(n.get_d() + max_im.get_d() * max_real.get_d());
-    double theta = atan2(max_im.get_d(), n.get_d()) / 2.0;
-    real = mpz_class(round(r * cos(theta)));
-    imag = mpz_class(round(r * sin(theta)));
+// Helper function to find the smallest positive shift or the largest negative shift if all are negative
+int find_shift(const std::vector<int>& diffs) {
+    auto non_negative = std::find_if(diffs.begin(), diffs.end(), [](int diff) { return diff >= 0; });
+    if (non_negative != diffs.end()) {
+        return *std::min_element(non_negative, diffs.end());
+    } else {
+        return diffs.back();
+    }
 }
 
 // Main SCF function with enforced sieve
@@ -44,10 +47,10 @@ void SCF(mpz_class n, mpz_class modulo) {
     if (class_n == "4k-1") { // N = 4k - 1
         sieve_selected = "4k-1 Sieve";
         switch (last_digit) {
-            case 1: real_sieve = {4, 6, 0, 0}; imaginary_sieve = {5, 5, 3, 7}; break;
-            case 3: real_sieve = {2, 8, 2, 8}; imaginary_sieve = {1, 9, 9, 1}; break;
-            case 7: real_sieve = {4, 6, 4, 6}; imaginary_sieve = {3, 7, 7, 3}; break;
-            case 9: real_sieve = {0, 2, 8, 0}; imaginary_sieve = {1, 5, 5, 9}; break;
+            case 1: real_sieve = {0, 0, 4, 6}; imaginary_sieve = {3, 7, 5, 5}; break;
+            case 3: real_sieve = {2, 2, 8, 8}; imaginary_sieve = {1, 9, 9, 1}; break;
+            case 7: real_sieve = {4, 4, 6, 6}; imaginary_sieve = {3, 7, 7, 3}; break;
+            case 9: real_sieve = {0, 0, 2, 8}; imaginary_sieve = {1, 9, 5, 5}; break;
             default: std::cout << "Unexpected last digit for 4k-1 case." << std::endl; return;
         }
         Fermat_real_sieve = real_sieve;
@@ -55,17 +58,13 @@ void SCF(mpz_class n, mpz_class modulo) {
         sieve_selected = "4k+1 Sieve";
         switch (last_digit) {
             case 1: real_sieve = {1, 5, 5, 9}; imaginary_sieve = {0, 2, 8, 0}; break;
-            case 3: real_sieve = {3, 7, 3, 7}; imaginary_sieve = {4, 6, 6, 4}; break;
-            case 7: real_sieve = {1, 9, 1, 9}; imaginary_sieve = {2, 8, 8, 2}; break;
+            case 3: real_sieve = {3, 3, 7, 7}; imaginary_sieve = {4, 6, 6, 4}; break;
+            case 7: real_sieve = {1, 1, 9, 9}; imaginary_sieve = {2, 8, 8, 2}; break;
             case 9: real_sieve = {3, 5, 5, 7}; imaginary_sieve = {0, 4, 6, 0}; break;
             default: std::cout << "Unexpected last digit for 4k+1 case." << std::endl; return;
         }
         Fermat_real_sieve = real_sieve;
     }
-
-    std::cout << "Sieve Selected: " << sieve_selected << std::endl;
-    std::cout << "Real Sieve: "; for (int i : real_sieve) std::cout << i << " "; std::cout << std::endl;
-    std::cout << "Imaginary Sieve: "; for (int i : imaginary_sieve) std::cout << i << " "; std::cout << std::endl;
 
     // Step 3: Square Check Fermat Sieve
     std::vector<int> square_sieve;
@@ -75,7 +74,6 @@ void SCF(mpz_class n, mpz_class modulo) {
             square_sieve.push_back(sq);
         }
     }
-    std::cout << "Square Sieve: "; for (int i : square_sieve) std::cout << i << " "; std::cout << std::endl;
 
     // Correct Calculation for Resulting Reals 
     std::vector<int> resulting_reals1, resulting_reals2;
@@ -86,67 +84,76 @@ void SCF(mpz_class n, mpz_class modulo) {
         resulting_reals2.push_back(q);
     }
 
-    std::cout << "Resulting Reals (p,g) Vector 1: "; for (int i : resulting_reals1) std::cout << i << " "; std::cout << std::endl;
-    std::cout << "Resulting Reals (p,g) Vector 2: "; for (int i : resulting_reals2) std::cout << i << " "; std::cout << std::endl;
+    // SYNC COMPLEX TRIAL MULTIPLICATION IMAGINARY TO SIEVE STARTING POINT
+    mpz_class zz = Newton_sqrt(r - 3); // New initial approximation based on your instruction
+    mpz_class TM_real = r + zz;
+    mpz_class TM_imaginary = r - 3 - zz;
 
-    // Step 4: Sync Complex Trial Multiplication
-    mpz_class TM_imaginary, TM_real;
-    complex_sqrt(TM_real, TM_imaginary, n, max_im, max_real);
-    int last_digit_im = TM_imaginary.get_si() % 10;
+    // SYNC COMPLEX TRIAL MULTIPLICATION IMAGINARY TO SIEVE STARTING POINT
+    int last_digit_im = mpz_class(TM_imaginary % 10).get_si();
     std::vector<int> im_init_diff;
-
     for (int i : imaginary_sieve) {
         im_init_diff.push_back(i - last_digit_im);
     }
 
-    int im_shift = 0;
-    for (int diff : im_init_diff) {
-        if (diff >= 0) {
-            im_shift = diff;
-            break;
+    // Shift to align with the sieve while moving down
+    if (std::find_if(im_init_diff.begin(), im_init_diff.end(), [](int diff) { return diff >= 0; }) != im_init_diff.end()) {
+        int shift = find_shift(im_init_diff);
+        if (shift > 0) {
+            TM_imaginary -= shift; // Move down
+        } else {
+            TM_imaginary += shift;
         }
-        im_shift = diff;
+    } else {
+        TM_imaginary += im_init_diff.back();
     }
-    TM_imaginary += im_shift;
 
-    if (TM_real < TM_imaginary) TM_real = TM_imaginary + 3;
-    int last_digit_real = TM_real.get_si() % 10;
+    // FIND & SYNC COMPLEX TRIAL MULTIPLICATION REAL
+    int last_digit_real = mpz_class(TM_real % 10).get_si();
     std::vector<int> real_init_diff;
-
     for (int i : real_sieve) {
         real_init_diff.push_back(i - last_digit_real);
     }
 
-    int real_shift = 0;
-    for (int diff : real_init_diff) {
-        if (diff >= 0) {
-            real_shift = diff;
-            break;
+    // Shift to align with the sieve while moving left
+    if (std::find_if(real_init_diff.begin(), real_init_diff.end(), [](int diff) { return diff >= 0; }) != real_init_diff.end()) {
+        int shift = find_shift(real_init_diff);
+        if (shift > 0) {
+            TM_real -= shift; // Move left
+        } else {
+            TM_real += shift;
         }
-        real_shift = diff;
+    } else {
+        TM_real += real_init_diff.back();
     }
-    TM_real += real_shift;
 
     // Step 5: Prepare for factorization
     std::vector<mpz_class> TMRS, TMIS, TMdRS, TMdIS;
     for (int i : real_sieve) {
-        TMRS.push_back(TM_real + ((i - TM_real.get_si() % 10 + 10) % 10));
-        TMdRS.push_back(TM_real + ((i - TM_real.get_si() % 10 + 10) % 10));
+        TMRS.push_back(TM_real + ((i - TM_real.get_si() % 10 + 10) % 10));  // Ascending real part
+        TMdRS.push_back(TM_real - ((i - TM_real.get_si() % 10 + 10) % 10));  // Descending real part
     }
     for (int i : imaginary_sieve) {
-        TMIS.push_back(TM_imaginary + ((i - TM_imaginary.get_si() % 10 + 10) % 10));
-        TMdIS.push_back(TM_imaginary + ((i - TM_imaginary.get_si() % 10 + 10) % 10));
+        TMIS.push_back(TM_imaginary + ((i - TM_imaginary.get_si() % 10 + 10) % 10));  // Ascending imaginary part
+        TMdIS.push_back(TM_imaginary - ((i - TM_imaginary.get_si() % 10 + 10) % 10));  // Descending imaginary part
     }
 
     // Adjust for initial sync mismatch
     for (size_t i = 0; i < TMRS.size(); ++i) {
-        if (TMRS[i] - TMIS[i] <= 1) TMRS[i] += 10;
-        if (TMdRS[i] - TMdIS[i] <= 1) TMdIS[i] -= 10;
+        if (TMRS[i] - TMIS[i] <= 1) TMRS[i] += 10; // Ensure ascending stays above
+        if (TMdRS[i] - TMdIS[i] <= 1) TMdRS[i] -= 10; // Ensure descending stays below
     }
 
-    // Step 6: Main loop for factorization
+    // Fermat Difference of Squares with Square Sieve applied
+    std::vector<mpz_class> F_realS;
+    for (int i : Fermat_real_sieve) {
+        F_realS.push_back(Fermat_real + ((i - Fermat_real.get_si() % 10 + 10) % 10));
+    }
+
+    auto start = std::chrono::high_resolution_clock::now();
+
     int iterations = 0;
-    while (iterations < 10000) { // Limit iterations to prevent infinite loop
+    while (true) {
         for (size_t i = 0; i < TMRS.size(); ++i) {
             mpz_class p = TMRS[i] - TMIS[i], p_d = TMdRS[i] - TMdIS[i];
             mpz_class q = TMRS[i] + TMIS[i], q_d = TMdRS[i] + TMdIS[i];
@@ -154,54 +161,54 @@ void SCF(mpz_class n, mpz_class modulo) {
 
             if (N == n) {
                 std::cout << "TM ascending: " << p << " and " << q << std::endl;
-                return;
+                goto end;
             }
             if (N_d == n) {
                 std::cout << "TM descending: " << p_d << " and " << q_d << std::endl;
-                return;
+                goto end;
             }
 
-            if (N > n) {
-                TMIS[i] += 10;
+            // Here, we adjust both ascending and descending:
+            if (N < n) {
+                TMIS[i] += 10;  // Increase imaginary if too high for ascending
             } else {
-                TMRS[i] += 10;
+                TMRS[i] += 10;  // Increase real if too low for ascending
             }
-            if (N_d < n) {
-                TMdIS[i] -= 10;
+            if (N_d > n) {
+                TMdIS[i] -= 10;  // Decrease imaginary if too low for descending
             } else {
-                TMdRS[i] -= 10;
+                TMdRS[i] -= 10;  // Decrease real if too high for descending
             }
         }
 
-        // Fermat Difference of Squares 
-        std::vector<mpz_class> F_realS;
-        for (int i : Fermat_real_sieve) {
-            F_realS.push_back(Fermat_real + ((i - Fermat_real.get_si() % 10 + 10) % 10));
-        }
-
-        for (mpz_class fr : F_realS) {
-            mpz_class b2 = fr * fr - n;
-            if (b2 >= 0) {
+        for (size_t i = 0; i < F_realS.size(); ++i) {
+            mpz_class b2 = F_realS[i] * F_realS[i] - n;
+            int last_digit_b2 = mpz_class(b2 % 10).get_si();
+            if (b2 >= 0 && std::find(square_sieve.begin(), square_sieve.end(), last_digit_b2) != square_sieve.end()) {
                 mpz_class b_test = Newton_sqrt(b2);
                 if (b_test * b_test == b2) {
-                    std::cout << "Fermat: " << fr - b_test << " and " << fr + b_test << std::endl;
-                    return;
+                    std::cout << "Fermat: " << F_realS[i] - b_test << " and " << F_realS[i] + b_test << std::endl;
+                    goto end;
                 }
             }
+            F_realS[i] += 10; // Increment by 10 to match the sieve's pattern
         }
 
         // Trial Division 
         while (TD % 10 == 5) TD += 2; // Skip numbers ending in 5 as they cannot be prime except for 5 itself
         if (n % TD == 0) {
             std::cout << "Trial Division: " << TD << " and " << n / TD << std::endl;
-            return;
+            goto end;
         }
         TD += 2;
 
         ++iterations;
     }
 
-    std::cout << "No factors found within the given constraints." << std::endl;
+    end:
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    std::cout << "Time taken: " << duration.count() << " milliseconds" << std::endl;
 }
 
 int main() {
