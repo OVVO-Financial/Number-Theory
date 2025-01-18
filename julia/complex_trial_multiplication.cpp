@@ -16,49 +16,26 @@ mpz_class Newton_sqrt(const mpz_class &n) {
     return x;
 }
 
-// Synchronize starting point with the sieve
-void sync_to_sieve(mpz_class &value, const std::vector<int> &sieve) {
-    int last_digit = value.get_si() % 10;
-    auto it = std::find(sieve.begin(), sieve.end(), last_digit);
-    if (it != sieve.end()) {
-        value -= last_digit - *it; // Align with the sieve
-    } else {
-        value += sieve.front() - last_digit; // Use the first sieve element if misaligned
-    }
-}
-
-// Function to compute f(zz)
-mpf_class f(mpf_class zz, const mpz_class& r, const mpz_class& n) {
-    mpf_class r_mpf = r.get_d();
-    mpf_class product = (r_mpf + zz) * (r_mpf - 3 - zz);
-    return product - n.get_d();
-}
-
-// Derivative of f(zz)
-mpf_class df(mpf_class zz, const mpz_class& r) {
-    mpf_class r_mpf = r.get_d();
-    return 2 * (r_mpf - 3 - zz) - 2 * zz;
-}
-
-// Newton-Raphson method to find zz
+// Newton-Raphson method to find zz based on new equation
 mpz_class newton_raphson_zz(const mpz_class& r, const mpz_class& n, int max_iterations = 100, mpf_class tolerance = 1e-10) {
     mpf_class zz, zz_next;
-    mpf_set_default_prec(512); // High precision for calculations
+    mpf_set_default_prec(1024); // Higher precision due to quadratic term
 
-    zz = (r.get_d() - 3) / 2;
+    // Initial guess - adjust based on new equation
+    zz = sqrt((n.get_d() / (2 * r.get_d() - 3) - 3) / 2);  
 
     for (int i = 0; i < max_iterations; ++i) {
-        mpf_class f_val = f(zz, r, n);
-        mpf_class df_val = df(zz, r);
+        mpf_class f_val = (2 * r.get_d() - 3) * (2 * zz * zz + 3) - n.get_d();
+        mpf_class df_val = (2 * r.get_d() - 3) * 4 * zz;
 
         if (abs(df_val) < tolerance) {
-            break;
+            break; // Avoid division by near-zero
         }
 
         zz_next = zz - f_val / df_val;
 
         if (abs(zz_next - zz) < tolerance) {
-            break;
+            break; // Converged
         }
 
         zz = zz_next;
@@ -125,7 +102,7 @@ void complex_trial_multiplication(mpz_class n) {
     // Initialize vectors
     std::vector<mpz_class> TMRS, TMIS, TMdRS, TMdIS;
 
-      // Adjust TM_real and TM_imaginary for each sieve element
+    // Adjust TM_real and TM_imaginary for each sieve element
     for (size_t i = 0; i < real_sieve.size(); ++i) {
         mpz_class last_digit_real = TM_real % 10;
         int last_digit_real_int = last_digit_real.get_si();
@@ -142,7 +119,6 @@ void complex_trial_multiplication(mpz_class n) {
         TMdIS.push_back(adjusted_TM_imaginary); // TMdIS starts the same as TMIS
     }
 
-
     std::cout << "TMRS after sync: ";
     for (const auto &val : TMRS) std::cout << val << " ";
     std::cout << std::endl;
@@ -153,11 +129,10 @@ void complex_trial_multiplication(mpz_class n) {
 
     auto start = std::chrono::high_resolution_clock::now();
     int iteration = 0;
+    bool factor_found = false;
 
-    // Iterative factorization
     while(true) {
         ++iteration;
-        bool factor_found = false;
 
         for (size_t i = 0; i < TMRS.size(); ++i) {
             mpz_class p = TMRS[i] - TMIS[i];  
@@ -179,7 +154,7 @@ void complex_trial_multiplication(mpz_class n) {
                 break;
             }
 
-            // Adjust ascending and descending paths - TMdIS and TMIS diverge after 1st iteration
+            // Adjust ascending and descending paths
             if (N > n) TMIS[i] += 10; else TMRS[i] += 10;
             if (N_d < n) TMdIS[i] -= 10; else TMdRS[i] -= 10;
         }
