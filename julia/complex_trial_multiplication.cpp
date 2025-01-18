@@ -4,6 +4,7 @@
 #include <chrono>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 // Function to calculate Newton's square root approximation
 mpz_class Newton_sqrt(const mpz_class &n) {
@@ -24,7 +25,51 @@ void sync_to_sieve(mpz_class &value, const std::vector<int> &sieve) {
     } else {
         value += sieve.front() - last_digit; // Use the first sieve element if misaligned
     }
-    std::cout << "Synchronized value to: " << value << std::endl;
+}
+
+// Function to compute f(zz)
+mpf_class f(mpf_class zz, const mpz_class& r, const mpz_class& n) {
+    mpf_class r_mpf = r.get_d();
+    mpf_class product = (r_mpf + zz) * (r_mpf - 3 - zz);
+    return product - n.get_d();
+}
+
+// Derivative of f(zz)
+mpf_class df(mpf_class zz, const mpz_class& r) {
+    mpf_class r_mpf = r.get_d();
+    return 2 * (r_mpf - 3 - zz) - 2 * zz;
+}
+
+// Newton-Raphson method to find zz
+mpz_class newton_raphson_zz(const mpz_class& r, const mpz_class& n, int max_iterations = 100, mpf_class tolerance = 1e-10) {
+    mpf_class zz, zz_next;
+    mpf_set_default_prec(512); // High precision for calculations
+
+    zz = (r.get_d() - 3) / 2;
+
+    for (int i = 0; i < max_iterations; ++i) {
+        mpf_class f_val = f(zz, r, n);
+        mpf_class df_val = df(zz, r);
+
+        if (abs(df_val) < tolerance) {
+            break;
+        }
+
+        zz_next = zz - f_val / df_val;
+
+        if (abs(zz_next - zz) < tolerance) {
+            break;
+        }
+
+        zz = zz_next;
+    }
+
+    mpz_class int_zz;
+    mpf_class temp_zz(zz);
+    temp_zz = floor(temp_zz + 0.5); // Round to nearest integer
+    mpz_set_f(int_zz.get_mpz_t(), temp_zz.get_mpf_t());
+
+    return int_zz;
 }
 
 // Function to perform complex trial multiplication
@@ -36,11 +81,9 @@ void complex_trial_multiplication(mpz_class n) {
     // Step 1: Initialization
     mpz_class r = Newton_sqrt(n);
     std::cout << "Square root of n: " << r << std::endl;
-    
-    // Using mpf_class for a more precise initial approximation
-    mpf_class mpf_r = r.get_d();
-    mpf_class mpf_zz = (sqrt(mpf_r - 3) + (mpf_r - 3)) / 2;
-    mpz_class zz = mpf_zz.get_si();
+
+    // Use Newton-Raphson method to find zz
+    mpz_class zz = newton_raphson_zz(r, n);
     mpz_class TM_real = r + zz;
     mpz_class TM_imaginary = r - 3 - zz;
 
@@ -71,49 +114,42 @@ void complex_trial_multiplication(mpz_class n) {
         }
     }
 
-    // Print selected sieves
-    std::cout << "Sieve Selected: " << sieve_selected << std::endl;
-    std::cout << "Real Sieve: ";
+    std::cout << "Selected Real Sieve: ";
     for (int i : real_sieve) std::cout << i << " ";
     std::cout << std::endl;
 
-    std::cout << "Imaginary Sieve: ";
+    std::cout << "Selected Imaginary Sieve: ";
     for (int i : imaginary_sieve) std::cout << i << " ";
     std::cout << std::endl;
 
-    // Sync TM_real and TM_imaginary to the sieve
-    sync_to_sieve(TM_real, real_sieve);
-    sync_to_sieve(TM_imaginary, imaginary_sieve);
-
-    std::cout << "Updated TM_real: " << TM_real << std::endl;
-    std::cout << "Updated TM_imaginary: " << TM_imaginary << std::endl;
-
-    // Step 3: Square Check Fermat Sieve (not used in this function, but included for completeness)
-    std::vector<int> square_sieve;
-    for (int i : imaginary_sieve) {
-        int sq = (i * i) % 10;
-        if (std::find(square_sieve.begin(), square_sieve.end(), sq) == square_sieve.end()) {
-            square_sieve.push_back(sq);
-        }
-    }
-
-    // Correct Calculation for Resulting Reals (not used, but included for completeness)
-    std::vector<int> resulting_reals1, resulting_reals2;
-    for (size_t i = 0; i < real_sieve.size(); ++i) {
-        int p = (real_sieve[i] - imaginary_sieve[i] + 10) % 10; // Addition
-        int q = (real_sieve[i] + imaginary_sieve[i]) % 10;      // Subtraction
-        resulting_reals1.push_back(p);
-        resulting_reals2.push_back(q);
-    }
-
+    // Initialize vectors
     std::vector<mpz_class> TMRS, TMIS, TMdRS, TMdIS;
+
+      // Adjust TM_real and TM_imaginary for each sieve element
     for (size_t i = 0; i < real_sieve.size(); ++i) {
-        TMRS.push_back(TM_real + ((real_sieve[i] - TM_real.get_si() % 10 + 10) % 10));  // Ascending real part
-        TMdRS.push_back(TMRS.back());  // TMdRS set equal to TMRS initially
-        TMIS.push_back(TM_imaginary + ((imaginary_sieve[i] - TM_imaginary.get_si() % 10 + 10) % 10));  // Ascending imaginary part
-        // TMdIS is set to be equal to TMIS after sync
-        TMdIS.push_back(TMIS.back());  
+        mpz_class last_digit_real = TM_real % 10;
+        int last_digit_real_int = last_digit_real.get_si();
+        mpz_class adjusted_TM_real = TM_real + ((real_sieve[i] - last_digit_real_int + 10) % 10);
+        TMRS.push_back(adjusted_TM_real);
+        TMdRS.push_back(adjusted_TM_real); // TMdRS starts the same as TMRS
     }
+
+    for (size_t i = 0; i < imaginary_sieve.size(); ++i) {
+        mpz_class last_digit_imag = TM_imaginary % 10;
+        int last_digit_imag_int = last_digit_imag.get_si();
+        mpz_class adjusted_TM_imaginary = TM_imaginary + ((imaginary_sieve[i] - last_digit_imag_int + 10) % 10);
+        TMIS.push_back(adjusted_TM_imaginary);
+        TMdIS.push_back(adjusted_TM_imaginary); // TMdIS starts the same as TMIS
+    }
+
+
+    std::cout << "TMRS after sync: ";
+    for (const auto &val : TMRS) std::cout << val << " ";
+    std::cout << std::endl;
+
+    std::cout << "TMIS after sync: ";
+    for (const auto &val : TMIS) std::cout << val << " ";
+    std::cout << std::endl;
 
     auto start = std::chrono::high_resolution_clock::now();
     int iteration = 0;
