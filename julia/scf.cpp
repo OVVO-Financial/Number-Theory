@@ -3,56 +3,64 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
-#include <cstdlib>
 #include <chrono>
 
 // Function to calculate Newton's square root approximation
 mpz_class Newton_sqrt(const mpz_class &n) {
-    mpz_class x = n, y = (n + 1) / 2;
-    while (y < x) {
-        x = y;
-        y = (x + n / x) / 2;
+    if (n < 2) return n;
+
+    mpz_class x = n;            // Current guess
+    mpz_class x_prev = 0;       // Previous guess
+    mpz_class two = 2;
+
+    // Newton iteration: x_{k+1} = (x_k + n / x_k) / 2
+    while (true) {
+        x_prev = x;
+        x = (x + (n / x)) / two;
+        if (x == x_prev || x == x_prev - 1) {
+            // Once it stabilizes or changes very little, stop.
+            if (x * x > n) return x - 1;
+            return x;
+        }
     }
-    return x;
-}
-
-// Function to compute f(zz)
-mpf_class f(mpf_class zz, const mpz_class& r, const mpz_class& n) {
-    mpf_class r_mpf = r.get_d();
-    mpf_class product = (r_mpf + zz) * (r_mpf - 3 - zz);
-    return product - n.get_d();
-}
-
-// Derivative of f(zz)
-mpf_class df(mpf_class zz, const mpz_class& r) {
-    mpf_class r_mpf = r.get_d();
-    return 2 * (r_mpf - 3 - zz) - 2 * zz;
 }
 
 // Newton-Raphson method to find zz
 mpz_class newton_raphson_zz(const mpz_class& r, const mpz_class& n, int max_iterations = 100, mpf_class tolerance = 1e-10) {
     mpf_class zz, zz_next;
-    mpf_set_default_prec(1024); // Increase precision for very large numbers
+    mpf_set_default_prec(2048); // Increase precision for accuracy
 
-    zz = (r.get_d() - 3) / 2;
+    // Initial guess: zz = sqrt(n / (2r - 3) - 3) / 2
+    zz = sqrt((n.get_d() / (2 * r.get_d() - 3) - 3) / 2);
 
     for (int i = 0; i < max_iterations; ++i) {
-        mpf_class f_val = f(zz, r, n);
-        mpf_class df_val = df(zz, r);
+        // f(zz) = (2zz + 3)(2r - 3) - n
+        mpf_class f_val = (2 * zz + 3) * (2 * r.get_d() - 3) - n.get_d();
+
+        // f'(zz) = 2(2r - 3)
+        mpf_class df_val = 2 * (2 * r.get_d() - 3);
 
         if (abs(df_val) < tolerance) {
-            break;
+            break; // Avoid division by near-zero
         }
 
         zz_next = zz - f_val / df_val;
 
-        if (abs(zz_next - zz) < tolerance) {
-            break;
+        // Check if the last two estimates are 1 unit apart
+        if (abs(zz_next - zz) <= 1) {
+            // Verify that the expression straddles n
+            mpf_class expr1 = (2 * zz + 3) * (2 * r.get_d() - 3);
+            mpf_class expr2 = (2 * zz_next + 3) * (2 * r.get_d() - 3);
+
+            if ((expr1 > n && expr2 < n) || (expr1 < n && expr2 > n)) {
+                break; // Converged and satisfies the straddling condition
+            }
         }
 
         zz = zz_next;
     }
 
+    // Round zz to the nearest integer
     mpz_class int_zz;
     mpf_class temp_zz(zz);
     temp_zz = floor(temp_zz + 0.5); // Round to nearest integer
@@ -61,18 +69,79 @@ mpz_class newton_raphson_zz(const mpz_class& r, const mpz_class& n, int max_iter
     return int_zz;
 }
 
-// Synchronize starting point with the sieve
-void sync_to_sieve(mpz_class &value, const std::vector<int> &sieve) {
-    mpz_class last_digit = value % 10; // Use modulo for last digit
-    int last_digit_int = last_digit.get_si(); // Convert to int
-    for (int sieve_val : sieve) {
-        if (sieve_val == last_digit_int) return; // Already aligned
-        int shift = (sieve_val - last_digit_int + 10) % 10; // Calculate shift
-        value += shift; // Adjust value
-        return; // We only need to sync to one value
+// Function to generate quadratic residues for a given modulo
+std::vector<int> generate_quadratic_residues(int modulo) {
+    std::vector<int> residues = {0};
+    for (int i = 1; i <= modulo / 2; ++i) {
+        residues.push_back((i * i) % modulo);
     }
-    // If no match, use the first sieve element
-    value += (sieve.front() - last_digit_int + 10) % 10;
+    // Remove duplicates
+    std::sort(residues.begin(), residues.end());
+    residues.erase(std::unique(residues.begin(), residues.end()), residues.end());
+    return residues;
+}
+
+// Function to check if a number is a perfect square
+bool is_perfect_square(const mpz_class& n) {
+    mpz_class sqrt_n = Newton_sqrt(n);
+    return (sqrt_n * sqrt_n == n);
+}
+
+// Fermat's Factorization with quadratic residues optimization
+void fermat_factorization(const mpz_class& n, int modulo, const std::vector<int>& is_square_sieve, const std::vector<int>& Fermat_real_sieve) {
+    // Generate quadratic residues
+    std::vector<int> residues = generate_quadratic_residues(modulo);
+
+    // Initialize F_realS
+    mpz_class F_realS = Newton_sqrt(n) + 1;
+    mpz_class max_real = (n - 9) / 6 + 3;
+
+    while (F_realS < max_real) {
+        // Compute b^2 = F_realS^2 - n
+        mpz_class b2 = F_realS * F_realS - n;
+
+        // Check if b2 % 10 is in is_square_sieve
+        int b2_mod10 = mpz_class(b2 % 10).get_si();
+        if (std::find(is_square_sieve.begin(), is_square_sieve.end(), b2_mod10) != is_square_sieve.end()) {
+            // Check if b2 % modulo is in residues
+            int b2_mod = mpz_class(b2 % modulo).get_si();
+            if (std::find(residues.begin(), residues.end(), b2_mod) != residues.end()) {
+                // Check if b2 is a perfect square
+                if (is_perfect_square(b2)) {
+                    mpz_class b = Newton_sqrt(b2);
+                    std::cout << "Fermat factorization: " << F_realS - b << " and " << F_realS + b << std::endl;
+                    return;
+                }
+            }
+        }
+
+        // Update F_realS
+        F_realS += 10;
+        for (int i = 0; i < modulo / 10; ++i) {
+            int F_realS_mod = mpz_class(F_realS % modulo).get_si();
+            if (std::find(Fermat_real_sieve.begin(), Fermat_real_sieve.end(), F_realS_mod) == Fermat_real_sieve.end()) {
+                F_realS += 10;
+            } else {
+                break;
+            }
+        }
+    }
+
+    std::cout << "Fermat factorization failed." << std::endl;
+}
+
+// Trial Division method
+bool trial_division(const mpz_class& n) {
+    mpz_class TD = 3; // Start from 3
+    while (TD * TD <= n) {
+        if (n % TD == 0) {
+            std::cout << "Trial Division factorization: " << TD << " and " << n / TD << std::endl;
+            return true; // Factor found
+        }
+        TD += 2; // Only check odd numbers
+    }
+    std::cout << "Trial Division failed." << std::endl;
+    return false; // No factor found
 }
 
 // Main SCF function with integrated complex trial multiplication, Fermat's method, and trial division
@@ -84,8 +153,6 @@ void SCF(mpz_class n, mpz_class modulo) {
     mpz_class r = Newton_sqrt(n);
     mpz_class max_im = (n - 9) / 6;
     mpz_class max_real = max_im + 3;
-    mpz_class TD = 3; // Trial Division starts from 3
-    mpz_class Fermat_real = r + 1;
 
     std::cout << "Root of n: " << r << std::endl;
 
@@ -122,6 +189,19 @@ void SCF(mpz_class n, mpz_class modulo) {
     for (int i : imaginary_sieve) std::cout << i << " ";
     std::cout << std::endl;
 
+    // Generate square sieve from imaginary_sieve
+    std::vector<int> square_sieve;
+    for (int i : imaginary_sieve) {
+        square_sieve.push_back((i * i) % 10);
+    }
+    // Remove duplicates
+    std::sort(square_sieve.begin(), square_sieve.end());
+    square_sieve.erase(std::unique(square_sieve.begin(), square_sieve.end()), square_sieve.end());
+
+    std::cout << "Square Sieve: ";
+    for (int i : square_sieve) std::cout << i << " ";
+    std::cout << std::endl;
+
     // Complex Trial Multiplication Integration
     mpz_class zz = newton_raphson_zz(r, n);
     mpz_class TM_real = r + zz;
@@ -151,6 +231,12 @@ void SCF(mpz_class n, mpz_class modulo) {
         mpz_class last_digit_imag = TM_imaginary % 10;
         int last_digit_imag_int = last_digit_imag.get_si();
         mpz_class adjusted_TM_imaginary = TM_imaginary + ((imaginary_sieve[i] - last_digit_imag_int + 10) % 10);
+
+        // Ensure TMIS <= TMRS
+        if (adjusted_TM_imaginary > TMRS[i]) {
+            adjusted_TM_imaginary -= 10; // Decrease by 10 to satisfy TMIS <= TMRS
+        }
+
         TMIS.push_back(adjusted_TM_imaginary);
         TMdIS.push_back(adjusted_TM_imaginary); // TMdIS starts the same as TMIS
     }
@@ -163,71 +249,44 @@ void SCF(mpz_class n, mpz_class modulo) {
     for (const auto &val : TMIS) std::cout << val << " ";
     std::cout << std::endl;
 
+    // Print initial p's, q's, and n's
+    std::cout << "Initial p's: ";
+    for (size_t i = 0; i < TMRS.size(); ++i) {
+        std::cout << TMRS[i] - TMIS[i] << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "Initial q's: ";
+    for (size_t i = 0; i < TMRS.size(); ++i) {
+        std::cout << TMRS[i] + TMIS[i] << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "Initial n's: ";
+    for (size_t i = 0; i < TMRS.size(); ++i) {
+        mpz_class p = TMRS[i] - TMIS[i];
+        mpz_class q = TMRS[i] + TMIS[i];
+        std::cout << p * q << " ";
+    }
+    std::cout << std::endl;
+
+    // Start timer
     auto start = std::chrono::high_resolution_clock::now();
-    int iteration = 0;
 
-    while(true) {
-        ++iteration;
-        bool factor_found = false;
-
-        for (size_t i = 0; i < TMRS.size(); ++i) {
-            mpz_class p = TMRS[i] - TMIS[i];
-            mpz_class q = TMRS[i] + TMIS[i];
-            mpz_class p_d = TMdRS[i] - TMdIS[i];
-            mpz_class q_d = TMdRS[i] + TMdIS[i];
-
-            mpz_class N = p * q;
-            mpz_class N_d = p_d * q_d;
-
-            if (N == n) {
-                factor_found = true;
-                std::cout << "Factor found in ascending: " << p << " and " << q << std::endl;
-                goto end;
-            }
-            if (N_d == n) {
-                factor_found = true;
-                std::cout << "Factor found in descending: " << p_d << " and " << q_d << std::endl;
-                goto end;
-            }
-
-            if (N > n) TMIS[i] += 10; else TMRS[i] += 10;
-            if (N_d < n) TMdIS[i] -= 10; else TMdRS[i] -= 10;
-
-            // Fermat Method check after each trial multiplication
-            mpz_class b2 = Fermat_real * Fermat_real - n;
-            if (b2 >= 0) {
-                mpz_class b = Newton_sqrt(b2);
-                if (b * b == b2) {
-                    std::cout << "Fermat factorization: " << Fermat_real - b << " and " << Fermat_real + b << std::endl;
-                    factor_found = true;
-                    goto end;
-                }
-            }
-            Fermat_real += 10; // Next number in Fermat sequence
-
-            // Trial Division - check if n is divisible by TD
-            if (n % TD == 0) {
-                std::cout << "Trial Division factorization: " << TD << " and " << n / TD << std::endl;
-                factor_found = true;
-                goto end;
-            }
-            TD += 2; // Only check odd numbers, skip even numbers except 2 which we already handled implicitly
-
-            if (factor_found) break; // Break the inner loop if a factor is found
-        }
-
-        // Check if all descending paths are exhausted
-        if (std::all_of(TMdRS.begin(), TMdRS.end(), [TMdIS](const mpz_class &real) {
-            return std::none_of(TMdIS.begin(), TMdIS.end(), [&real](const mpz_class &imag) {
-                return real - imag >= 3;
-            });
-        })) {
-            std::cout << "Number might be prime or factorization not found with current methods." << std::endl;
-            goto end;
-        }
+    // Trial Division
+    if (trial_division(n)) {
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+        std::cout << "Time taken: " << duration.count() << " milliseconds" << std::endl;
+        return; // Stop if a factor is found
     }
 
-end:
+    // Fermat's Factorization
+    std::vector<int> is_square_sieve = square_sieve; // Use the square sieve
+    std::vector<int> Fermat_real_sieve = {1, 3, 7, 9}; // Example for modulo 10
+    fermat_factorization(n, modulo.get_si(), is_square_sieve, Fermat_real_sieve);
+
+    // Stop timer
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
     std::cout << "Time taken: " << duration.count() << " milliseconds" << std::endl;
