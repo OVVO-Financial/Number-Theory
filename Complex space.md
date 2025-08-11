@@ -1,6 +1,6 @@
 # Factors in the complex space
 
-Below is the complex space associated with `n=309`.  Each triangle represents a complex number whose lower [corresponding real number](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/i.pdf](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/Real_Pair_Representation_of_Complex_Numbers_and_Quaternions.pdf)) lies within the interval `[3,sqrt(n)]`.
+Below is the complex space associated with `n=309`.  Each triangle represents a complex number whose lower [corresponding real number](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/i.pdf](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/Real_Pair_Representation_of_Complex_Numbers_and_Quaternions.pdf) lies within the interval `[3,sqrt(n)]`.
 
 * Blue triangles are complex numbers whose corresponding real product is less than `n`.
 
