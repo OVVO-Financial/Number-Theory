@@ -1,10 +1,10 @@
 # Simultaneous Complex Factorization
-This page presents the annotated `julia` code from the discussion / visualization on factors in the complex space [presented here](https://github.com/OVVO-Financial/Number-Theory/blob/master/Complex%20space.md).
+This page presents the annotated `julia` code from the discussion / visualization on factors in the complex space [presented here](../Complex%20space.md).
 
 ## `julia` code
 ### Step 1
 In the introductory step we find the `Newton_sqrt` of the number `(n)` since no precision is needed. 
-* `Newton_sqrt` is an integer based function, [available here](https://github.com/OVVO-Financial/Number-Theory/blob/Prime-Factorization/julia/Newton_Square_Root.jl). 
+* `Newton_sqrt` is an integer based function, [available here](../julia/Newton_Square_Root.jl).
 
 We also define the `maximum imaginary number`, `maximum real number`, the trial division starting point and the minimum Fermat real number `Fermat_real`.
 ```julia
@@ -75,7 +75,7 @@ Using our known `imaginary_sieve` values from step 2, we can square them to find
     square_sieve = unique((imaginary_sieve.*imaginary_sieve) % 10)
 ```
 ### Step 4
-This step is required to sync our [complex trial mulitiplication](https://github.com/OVVO-Financial/Number-Theory/blob/Prime-Factorization/Complex%20Trial%20Multiplication.md) `real` and `imaginary` components to the middle of the [complex space](https://github.com/OVVO-Financial/Number-Theory/blob/master/Complex%20space.md), while aligning with the respective sieves.
+This step is required to sync our [complex trial mulitiplication](Complex%20Trial%20Multiplication.md) `real` and `imaginary` components to the middle of the [complex space](../Complex%20space.md), while aligning with the respective sieves.
 * Example: if our complex space starting point estimate ends in a 7 and we need a `[0,4,6]`, we shift up to the next number ending in `0`.
 
 ```julia
