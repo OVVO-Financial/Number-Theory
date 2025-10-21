@@ -8,7 +8,7 @@ The basis of the method is simply:
     
    * All while continuing where the last `p` and the last `q` left off.
 
-The complex Fermat sieves, [described here](https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/Fermat%20Sieve%20Using%20Complex%20Numbers.pdf)
+The complex Fermat sieves, [described here](../Number%20Theory%20Papers/Fermat%20Sieve%20Using%20Complex%20Numbers.pdf)
 define the sequences for `p` and `q` via their complex mapping.
 
 ## Examples

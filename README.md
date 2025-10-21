@@ -1,27 +1,57 @@
-# Number-Theory
+# Number Theory
 
-Using the definition of the imaginary number (***i***) as a set of simultaneous real numbers, we are able to offer novel insights to the manipulation of the complex space **using only real numbers**.  We can [visualize how trial division / Fermat's method operates](https://github.com/OVVO-Financial/Number-Theory/blob/master/Complex%20space.md)  on this space and increase efficiency by combining methods.
-This section presents the methods of factorization derived from the complex space insights detailed [here](https://github.com/OVVO-Financial/Number-Theory).
+This project investigates prime factorisation and analytic number theory by expressing complex numbers as **simultaneous pairs of real values**.  Treating the imaginary unit in this way lets us reason about complex arithmetic, visualise factor searches, and implement sieves while staying entirely within the real plane.
 
-### Mapping
-The simultaneous real numbers take the form [(***real - imaginary***),(***real + imaginary***)].  Some examples include:
-* ***i*** →  [-1,1]
-* ***2i*** →  [-2,2]
-* ***-i*** →  [1,-1]
-* ***(8+5i)*** →  [3,13]
-* ***(-2-3i)*** →  [1,-5]
+The repository now lives on a single branch and the documents referenced below are kept alongside the code.  All of the links have been updated to use relative paths so they work both locally and on GitHub.
 
+## Overview
 
-### Factorization
-Please see the [Prime-Factorization branch](https://github.com/OVVO-Financial/Number-Theory/tree/Prime-Factorization) for factorization routines based on these insights.
-* The method of [Iterated Averages](https://github.com/OVVO-Financial/Number-Theory/blob/Prime-Factorization/Iterated%20Averages.md)
+* [Factors in the complex space](Complex%20space.md) introduces the simultaneous-real mapping and illustrates how trial division, Fermat's method, and complex trial multiplication interact on the complex lattice.
+* The `Prime Factorization` directory gathers algorithms that combine these insights into practical routines.
+* The `R` and `julia` directories contain the code used to generate the visualisations and to prototype the factorisation methods.
 
-* The method of [Naive Grouping](https://github.com/OVVO-Financial/Number-Theory/blob/Prime-Factorization/Naive%20Grouping.md)
+## Mapping simultaneous reals
 
-* The method of [Complex Trial Multiplication](https://github.com/OVVO-Financial/Number-Theory/blob/Prime-Factorization/Complex%20Trial%20Multiplication.md)
+The simultaneous representation of a complex value `a + bi` is defined as `[(a - b), (a + b)]`.  A few examples:
 
-* The method of [Simultaneous Complex Factorization](https://github.com/OVVO-Financial/Number-Theory/blob/Prime-Factorization/Simultaneous%20Complex%20Factorization.md)
+| Complex number | Simultaneous real pair |
+| -------------- | ---------------------- |
+| `i`            | `[-1, 1]`              |
+| `2i`           | `[-2, 2]`              |
+| `-i`           | `[1, -1]`              |
+| `8 + 5i`       | `[3, 13]`              |
+| `-2 - 3i`      | `[1, -5]`              |
 
+These pairs are the foundation for the geometric interpretations used throughout the project.
 
-### References
-The [papers](https://github.com/OVVO-Financial/Number-Theory/tree/master/Number%20Theory%20Papers) provide details on how the complex space maps to real numbers, **how all complex number operations are carried out with only real numbers**, and factor properties.
+## Repository structure
+
+| Path | Description |
+| ---- | ----------- |
+| [`Complex space.md`](Complex%20space.md) | Narrative overview of the complex-space factor strip and how different algorithms traverse it. |
+| [`Prime Factorization/`](Prime%20Factorization/README.md) | Detailed write-ups for each factorisation method together with Julia source files. |
+| [`Prime Factorization/README.md`](Prime%20Factorization/README.md) | Entry point for the factorisation notes shown below. |
+| [`R/`](R/) | R scripts for generating the diagrams plus a gallery of their output. |
+| [`julia/`](julia/) | Julia implementations of the algorithms, including supporting utilities such as `Newton_Square_Root.jl`. |
+| [`Number Theory Papers/`](Number%20Theory%20Papers/) | Research papers that motivate the approach and provide mathematical background. |
+| [`Images/`](Images/) | Static images embedded throughout the documentation. |
+
+## Factorisation methods
+
+The factorisation routines derived from the complex-space analysis are documented here:
+
+* [Complex Trial Multiplication](Prime%20Factorization/Complex%20Trial%20Multiplication.md)
+* [Iterated Averages](Prime%20Factorization/Iterated%20Averages.md)
+* [Naive Grouping](Prime%20Factorization/Naive%20Grouping.md)
+* [Simultaneous Complex Factorization](Prime%20Factorization/Simultaneous%20Complex%20Factorization.md)
+
+Each note explains the intuition, provides worked examples, and links to the corresponding Julia implementation.
+
+## Working with the code
+
+* **Julia prototypes:** The `julia/` directory mirrors the documentation above.  For example, `julia/Simultaneous_Complex_Factorization.jl` implements the algorithm described in the accompanying markdown file.
+* **R visualisations:** R scripts such as `R/Complex Space Generator.R` reproduce the plots shown in the documentation.  The `R/README.md` file contains sample output and screenshots of the generated graphics.
+
+## References
+
+Additional background, proofs, and derivations can be found in the [Number Theory Papers](Number%20Theory%20Papers/) collection.  These papers formalise the simultaneous-real mapping, explore the resulting factor properties, and describe supporting sieves.

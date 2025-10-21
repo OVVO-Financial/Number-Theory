@@ -10,7 +10,7 @@ x=seq(0,1,.01);y=sin(x)
 DFT(y)
 ```
 
-![DFT](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/DFT%20sin(x).png)
+![DFT](../Images/DFT%20sin%28x%29.png)
 
 
 ```r
@@ -123,7 +123,7 @@ The output from the `Roots.of.unity` R function will consist of the following im
 ```r
 Roots.of.unity(39)
 ```
-![ROU](https://github.com/OVVO-Financial/Number-Theory/blob/master/Images/RoU39.png)
+![ROU](../Images/RoU39.png)
 
 ```r
 $`Simultaneous Reals`
