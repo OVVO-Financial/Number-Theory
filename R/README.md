@@ -10,7 +10,7 @@ x=seq(0,1,.01);y=sin(x)
 DFT(y)
 ```
 
-![DFT](../Images/DFT%20sin(x).png)
+![DFT](../Images/DFT%20sin%28x%29.png)
 
 
 ```r
