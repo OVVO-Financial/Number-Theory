@@ -390,6 +390,10 @@ static Wheel build_wheel(const BigInt& M,
 
         // Stop growing if the composed list would exceed the budget or
         // overflow 32-bit residues.
+        // Two independent caps. residue_budget bounds the materialised list;
+        // 0xFFFFFFFF bounds W itself, because residues are stored as uint32.
+        // The modulus cap binds first with the default moduli, so raising
+        // --wheel past ~2^18 has no effect -- W is already maximal.
         const __uint128_t newW = static_cast<__uint128_t>(curW) * m;
         const __uint128_t newN = static_cast<__uint128_t>(cur.size()) * am.size();
         if (newW > 0xFFFFFFFFull || newN > residue_budget) break;
@@ -1183,8 +1187,17 @@ static std::optional<BigInt> split_once(const BigInt& N,
 
     unsigned reserved = 1 + (opt.hf ? 1u : 0u) + (opt.ia ? 1u : 0u) + (opt.yp ? 1u : 0u);
     unsigned rest = (T > reserved) ? T - reserved : 1;
-    unsigned nVF = want_lm ? std::max(1u, rest / 2) : rest;
-    unsigned nLM = (want_lm && rest > nVF) ? rest - nVF : 0;
+    // Thread split. Lehman is the O(N^(1/3)) completeness guarantee, not
+    // the workhorse -- it never won a race in any measured case. Giving it
+    // half the pool starved the vertical scan, which IS the workhorse for
+    // balanced N: on a 107-bit case with j = 4.09e13, --no-lehman ran 3.2x
+    // faster (132 s -> 41.5 s) purely because vf went from 1 thread to 3.
+    //
+    // One Lehman thread still sweeps every k, so the asymptotic bound is
+    // unchanged; only its constant is. Everything else goes to vf.
+    unsigned nLM = (want_lm && rest >= 2) ? 1u : 0u;
+    unsigned nVF = rest - nLM;
+    if (nVF == 0) { nVF = 1; nLM = 0; }
     if (only_mode) {
         nVF = want_vf ? T : 0;
         nLM = want_lm ? T : 0;
