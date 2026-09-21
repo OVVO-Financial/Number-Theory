@@ -1065,14 +1065,31 @@ struct Options {
     bool quiet         = false;
     bool verbose       = false;
     std::string only;          // "", "vf", "hf", "ia", "td", "lm"
+    std::uint64_t wheel = 0;   // 0 = pick from bit-length
 };
 
+// Residue budget for the sieve wheel.
+//
+// Scaling this with the bit-length of N was wrong: what the wheel has to
+// pay for is the SCAN DEPTH, and the sieve's returns saturate long before
+// the table does. Measured (4 threads):
+//
+//   budget      shallow 112-bit (j~1e7)   deep 96-bit (j~2.9e11)
+//    4,096            6 ms                      662 ms
+//   65,536           11 ms                      372 ms
+//  262,144           11 ms                      191 ms   <- saturated
+// 1,048,576          52 ms                      190 ms
+// 2,097,152          50 ms                      196 ms   <- was the default
+//
+// Past 2^18 the extra residues buy nothing on a deep scan and cost 8x on a
+// shallow one, because building sec_res is O(budget * moduli) modulos up
+// front. Capping there is a strict improvement at both ends. Override with
+// --wheel=R; batch work over many shallow N wants a smaller value still.
 static std::uint64_t wheel_budget_for(const BigInt& N) {
     const std::size_t bits = mpz_sizeinbase(N.get_mpz_t(), 2);
     if (bits < 48)  return 1u << 12;
     if (bits < 72)  return 1u << 16;
-    if (bits < 104) return 1u << 19;
-    return 1u << 21;
+    return 1u << 18;
 }
 
 // Integer cube root, rounded up.
@@ -1139,7 +1156,7 @@ static std::optional<BigInt> split_once(const BigInt& N,
     const BigInt vf_lo = isqrt_ceil(N);
     if (vf_hi < vf_lo) vf_hi = vf_lo;
 
-    const std::uint64_t budget = wheel_budget_for(N);
+    const std::uint64_t budget = opt.wheel ? opt.wheel : wheel_budget_for(N);
     Wheel wv = build_wheel(N, budget, opt.digit_only, opt.no_sieve);
     Wheel wh;
     if (opt.hf || opt.only == "hf") wh = build_wheel(-N, budget, opt.digit_only, opt.no_sieve);
@@ -1457,6 +1474,7 @@ static void usage() {
       "  --digit-only    sieve with modulus 20 only (the terminal-digit sieve)\n"
       "  --no-sieve      disable sieving entirely\n"
       "  --only=S        run a single stream: vf|hf|ia|td|lm|yp\n"
+      "  --wheel=R       residue budget for the sieve wheel (0 = auto)\n"
       "  --quiet         print only the factorization\n"
       "  --verbose       print stream statistics\n";
 }
@@ -1481,6 +1499,7 @@ int main(int argc, char** argv) {
         else if (a == "--digit-only")           opt.digit_only = true;
         else if (a == "--no-sieve")             opt.no_sieve   = true;
         else if (a.rfind("--only=", 0) == 0)    opt.only    = a.substr(7);
+        else if (a.rfind("--wheel=", 0) == 0)   opt.wheel   = std::stoull(a.substr(8));
         else if (a == "--quiet")                opt.quiet   = true;
         else if (a == "--verbose")              opt.verbose = true;
         else if (a.rfind("--", 0) == 0) { std::cerr << "unknown option: " << a << "\n"; return 1; }
