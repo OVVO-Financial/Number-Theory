@@ -289,6 +289,37 @@ struct Wheel {
     std::vector<std::uint32_t> residues;        // admissible a mod W, sorted
     std::vector<std::uint32_t> sec_mod;         // second-tier moduli
     std::vector<std::vector<std::uint8_t>> sec_ok;
+
+    // Division-free walk of the residue list.
+    //
+    // The secondary test is ok[s][(base_mod[s] + residues[i]) % p_s].  Doing
+    // that modulo per residue per modulus was the whole cost of the scan:
+    // an integer division is ~20-40 cycles against ~2 for an add, and it is
+    // far worse on a GPU, where integer division is emulated.
+    //
+    // residues[] is fixed for a given N, so the per-step increment
+    //     step[s][i] = (residues[i] - residues[i-1]) mod p_s
+    // can be precomputed once and amortised over every block.  Walking then
+    // costs one add and one conditional subtract: since step < p and
+    // cur < p, the sum is below 2p and a single subtract renormalises.
+    //
+    // A chunk starting at an arbitrary index pays one division to seed
+    // cur[s], then none for the rest of the chunk.  This is also exactly the
+    // shape a GPU kernel wants: a coalesced byte read and an add.
+    // sec_res[i * sec_mod.size() + s] = residues[i] mod sec_mod[s].
+    //
+    // Absolute, not incremental. Since base_mod[s] < p and sec_res < p, the
+    // live residue is (base_mod[s] + sec_res) with one conditional subtract
+    // -- no division anywhere in the scan, and no loop-carried dependency,
+    // so residues are independent and the loop vectorises.
+    //
+    // Interleaved so one 64-byte line carries every modulus for several
+    // consecutive residues. Independence + coalesced reads + the branchless
+    // fold below are exactly the three properties a GPU kernel needs; the
+    // CUDA port in complex_space_factorization_cuda.cu reuses this table
+    // verbatim.
+    std::vector<std::uint8_t> sec_res;
+
     double density = 1.0;
 
     bool empty() const { return residues.empty(); }
@@ -393,6 +424,16 @@ static Wheel build_wheel(const BigInt& M,
             w.sec_mod.push_back(p);
             w.sec_ok.push_back(std::move(ok));
             w.density *= static_cast<double>(cnt) / static_cast<double>(p);
+        }
+
+        // Precompute the per-residue increments (see Wheel::sec_step).
+        const std::size_t R = w.residues.size();
+        const std::size_t NS = w.sec_mod.size();
+        w.sec_res.assign(R * NS, 0);
+        for (std::size_t s2 = 0; s2 < NS; ++s2) {
+            const std::uint32_t p = w.sec_mod[s2];
+            for (std::size_t i = 0; i < R; ++i)
+                w.sec_res[i * NS + s2] = static_cast<std::uint8_t>(w.residues[i] % p);
         }
     }
     return w;
@@ -521,21 +562,56 @@ static void fermat_scan_chunked(const BigInt& N,
         const std::uint64_t i0 = k * CHUNK;
         const std::uint64_t i1 = std::min(R, i0 + CHUNK);
 
+        // Bounds as base-relative OFFSETS, so the hot loop never touches an
+        // mpz.  base is the largest multiple of W at or below x_lo, so
+        // x_lo - base < W < 2^32; and when x_hi - base exceeds W no residue
+        // in this block can reach it.
+        std::uint64_t lo_off = 0, hi_off = std::numeric_limits<std::uint64_t>::max();
+        if (base < x_lo) lo_off = u64_from_big(x_lo - base, W);
+        {
+            const BigInt span = x_hi - base;
+            if (mpz_sgn(span.get_mpz_t()) < 0) { exhausted = true; break; }
+            hi_off = u64_from_big(span, std::numeric_limits<std::uint64_t>::max());
+        }
+
+        // Seed the division-free walk: one modulo per modulus per chunk,
+        // then add-and-conditionally-subtract for every residue after that.
+        const std::size_t NS = w.sec_mod.size();
+        std::uint32_t smod[16], bmod[16];
+        const std::uint8_t* okp[16];
+        for (std::size_t s = 0; s < NS; ++s) {
+            smod[s] = w.sec_mod[s];
+            okp[s]  = w.sec_ok[s].data();
+            bmod[s] = static_cast<std::uint32_t>(base_mod[s] % smod[s]);
+        }
+
         for (std::uint64_t i = i0; i < i1; ++i) {
             const std::uint32_t r = w.residues[i];
-            x = base + r;
-            if (x < x_lo) continue;
-            if (x > x_hi) { exhausted = true; break; }
+            if (r < lo_off) continue;
+            if (r > hi_off) { exhausted = true; break; }
 
             ++local_scan;
-            bool ok = true;
-            for (std::size_t s = 0; s < w.sec_mod.size(); ++s) {
-                const std::uint32_t p = w.sec_mod[s];
-                if (!w.sec_ok[s][(base_mod[s] + r) % p]) { ok = false; break; }
-            }
-            if (!ok) continue;
 
+            // Branchless fold. The early-exit form tested ~2 moduli per
+            // residue, but each test is a coin-flip branch and a mispredict
+            // costs more than the check itself. Folding all NS lookups with
+            // & leaves one well-predicted branch (survivors are ~1 in 300).
+            // On a GPU the same rewrite removes warp divergence.
+            const std::uint8_t* rm = &w.sec_res[i * NS];
+            unsigned okm = 1u;
+            for (std::size_t s = 0; s < NS; ++s) {
+                std::uint32_t c = bmod[s] + rm[s];
+                const std::uint32_t p = smod[s];
+                c -= (c >= p ? p : 0);
+                okm &= okp[s][c];
+            }
+            if (!okm) continue;
+
+            // Survivor: only now is an mpz built.  This is the host/device
+            // split -- everything above is machine words and maps directly
+            // onto a GPU kernel that emits surviving offsets.
             ++local_cand;
+            x = base + r;
             t = x * x - M;
             if (t < 0) continue;
             if (!is_perfect_square(t, &y)) continue;
