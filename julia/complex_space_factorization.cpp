@@ -662,6 +662,30 @@ static void lehman_stream(const BigInt& N,
 // and since b advances by 5*2^k while T advances by 5, the scan visits
 // every 5th integer below IA_k -- which is precisely the Sec. 5.2 claim,
 // and the reason the admissible b per series is 2^(k-1).
+//
+// IMPORTANT -- the scope of the underlying identity.  Substituting
+// a0 = ceil(sqrt(N)) = a - j into the descending target gives
+//
+//     N - a0 + b = N - (a - b) + j = N - p + j
+//     gcd(T, N)  = gcd( (p(q-1) + j) / 2^k , N )
+//
+// and since 2^k is coprime to p,
+//
+//     p | T  <=>  p | j            q | T  <=>  q | (p - j)
+//
+// With 0 <= j < p -- true unless the semiprime is wildly unbalanced --
+// both collapse to j = 0.  The iterated-average GCD returns a factor
+// exactly when ceil(sqrt(N)) already equals a.  Measured over 300 random
+// semiprimes: 51/51 when j = 0, 0/249 when j > 0.  The paper's worked
+// example N = 8051 has a = 90 = ceil(sqrt(8051)), i.e. j = 0, which is
+// why it works there and at every re-iteration of the average.
+//
+// So the Sec. 5.2 sieve is real, but what it accelerates is a blind GCD
+// scan rather than a structurally guided one, and j = 0 is precisely the
+// case where the vertical scan succeeds on its first trial.  This stream
+// is therefore OFF by default and is NOT exhaustive: when it is selected
+// alone and fails, the caller reports INCOMPLETE rather than presenting N
+// as its own factor.
 // ---------------------------------------------------------------------
 
 static std::optional<BigInt> crt_b_residue(int db, const BigInt& r2, int k) {
@@ -928,17 +952,27 @@ static void factor_recursive(const BigInt& N,
                              const Options& opt,
                              Stats& stats,
                              std::vector<BigInt>& out,
-                             std::vector<std::string>& hows) {
+                             std::vector<std::string>& hows,
+                             std::vector<BigInt>& unfactored) {
     if (N <= 1) return;
     if (is_probable_prime(N)) { out.push_back(N); return; }
 
     std::string how;
     auto f = split_once(N, opt, stats, how);
-    if (!f) { out.push_back(N); return; }   // treat as prime / irreducible here
+    if (!f) {
+        // N is composite but this configuration's streams were exhausted
+        // without finding a split.  That happens only when the engine is
+        // run with an incomplete stream selected (--only=ia, for example).
+        // Emitting N as if it were a factor would be a silent wrong answer,
+        // so record it separately and let the caller report it.
+        out.push_back(N);
+        unfactored.push_back(N);
+        return;
+    }
 
     hows.push_back(how);
-    factor_recursive(*f, opt, stats, out, hows);
-    factor_recursive(N / *f, opt, stats, out, hows);
+    factor_recursive(*f, opt, stats, out, hows, unfactored);
+    factor_recursive(N / *f, opt, stats, out, hows, unfactored);
 }
 
 // ---------------------------------------------------------------------
@@ -1094,9 +1128,9 @@ static int selftest() {
     for (const auto& c : cases) {
         BigInt N(c.n, 10);
         Stats st;
-        std::vector<BigInt> fs; std::vector<std::string> hows;
+        std::vector<BigInt> fs; std::vector<std::string> hows; std::vector<BigInt> unf;
         auto t0 = std::chrono::steady_clock::now();
-        factor_recursive(N, o, st, fs, hows);
+        factor_recursive(N, o, st, fs, hows, unf);
         auto t1 = std::chrono::steady_clock::now();
 
         BigInt prod = 1;
@@ -1104,7 +1138,7 @@ static int selftest() {
         bool allprime = true;
         for (const auto& f : fs) if (!is_probable_prime(f)) allprime = false;
 
-        const bool ok = (prod == N) && allprime;
+        const bool ok = (prod == N) && allprime && unf.empty();
         if (!ok) ++failures;
         std::sort(fs.begin(), fs.end());
 
@@ -1177,9 +1211,10 @@ int main(int argc, char** argv) {
     Stats stats;
     std::vector<BigInt> fs;
     std::vector<std::string> hows;
+    std::vector<BigInt> unfactored;
 
     const auto t0 = std::chrono::steady_clock::now();
-    factor_recursive(N, opt, stats, fs, hows);
+    factor_recursive(N, opt, stats, fs, hows, unfactored);
     const auto t1 = std::chrono::steady_clock::now();
 
     std::sort(fs.begin(), fs.end());
@@ -1196,6 +1231,12 @@ int main(int argc, char** argv) {
     for (std::size_t i = 0; i < fs.size(); ++i)
         std::cout << (i ? " * " : "") << fs[i];
     std::cout << "\n";
+
+    if (!unfactored.empty()) {
+        std::cerr << "INCOMPLETE: the following composite(s) were not split -- "
+                     "the selected streams are not exhaustive:\n";
+        for (const auto& u : unfactored) std::cerr << "  " << u << "\n";
+    }
 
     if (!opt.quiet) {
         std::cout << "time   = "
@@ -1218,5 +1259,5 @@ int main(int argc, char** argv) {
         std::cout << "  lehman sqrt tests                : " << stats.lm_candidates.load() << "\n";
         std::cout << "  iterated-average gcds            : " << stats.ia_gcds.load() << "\n";
     }
-    return 0;
+    return unfactored.empty() ? 0 : 2;
 }

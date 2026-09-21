@@ -10,7 +10,7 @@ Build and run:
 g++ -std=c++17 -O3 -march=native julia/complex_space_factorization.cpp \
     -lgmpxx -lgmp -pthread -o csf
 
-./csf 3169100003113213800570166301717      # factor
+./csf 3168987219233877513774136225800517      # factor
 ./csf --selftest                            # verify every claim below
 ```
 
@@ -155,6 +155,10 @@ and since `b` advances by `5*2^k` while `T` advances by `5`, the scan visits **e
 count of admissible `b` per series is `2^(k-1)`. The engine implements both the
 descending and ascending branches over all `k` and all admissible terminal digits.
 
+The sieve is correct. The underlying identity, however, turns out to hold only when
+`ceil(sqrt(N))` already equals `a = (p+q)/2` — see **3.3**, which derives the condition
+and measures it. That is why this stream is off by default.
+
 ---
 
 ## 3. Measurements
@@ -183,3 +187,162 @@ engine sizes the wheel by the bit-length of `N` for that reason.
 
 Run-to-run variation at a fixed `j` (e.g. 149 ms vs 48 ms above) comes from where the
 true `a` falls relative to chunk boundaries across the four threads, not from the sieve.
+
+### 3.2 The five streams, in isolation
+
+`--only=<stream>` runs a single stream. `j = a - ceil(sqrt(N))` is the vertical scan depth.
+
+| N | `j` | vertical Fermat | horizontal Fermat | iterated average | trial division | Lehman |
+| - | --- | --------------- | ----------------- | ---------------- | -------------- | ------ |
+| 8051 (paper) | 0 | 0 ms | 0 ms | 0 ms | 0 ms | 0 ms |
+| 40-bit | 523 | 0 ms | 0 ms | *not found* | 3 ms | 42 ms |
+| 56-bit | 9,881 | **4 ms** | 6 ms | *not found* | 309 ms | 1,748 ms |
+| 96-bit | 1.0e6 | **14 ms** | 329 ms | *not found* | >120 s | >120 s |
+| 112-bit | 1.0e7 | **43 ms** | 68,985 ms | *not found* | >120 s | >120 s |
+
+Two things to read off this table.
+
+**Vertical Fermat dominates horizontal Fermat, quadratically.** Writing
+`p, q = sqrt(N)(1 -+ e)`, the horizontal scan length is `b ~ e*sqrt(N)` while the
+vertical scan depth is
+
+```
+j = a - ceil(sqrt(N)) = (sqrt(q) - sqrt(p))^2 / 2  ~  b^2 / (2 sqrt(N))
+```
+
+so `j / b ~ b / (2 sqrt(N))`, which is far below 1 in exactly the balanced regime the
+complex-space picture targets. At 112 bits, `b = 1.06e12` against `j = 1.0e7` — and the
+measured gap is 68,985 ms against 43 ms. Sec. 4 of the paper is right that horizontal
+Fermat covers a different part of the strip, but as a *search order* it is strictly worse
+than the vertical scan, which is why it is off by default.
+
+**Trial division and Lehman are the other end of the strip.** They are the wrong tool for
+balanced `N` and the only tool for unbalanced `N`. That is precisely why the engine races
+all of them rather than choosing.
+
+### 3.3 The iterated-average method requires `j = 0`
+
+The Sec. 5 identity does not hold in general. Substituting `a0 = ceil(sqrt(N)) = a - j`
+into the descending target:
+
+```
+T   = IA_k - b/2^k = N - (N - a0 + b)/2^k
+N - a0 + b = N - (a - j) + b = N - (a - b) + j = N - p + j
+
+so  gcd(T, N) = gcd( (p(q-1) + j) / 2^k , N )
+```
+
+and since `2^k` is coprime to `p`,
+
+```
+p | T   <=>   p | j
+q | T   <=>   q | (p - j)
+```
+
+With `0 <= j < p` — which holds whenever the semiprime is not wildly unbalanced — both
+conditions collapse to **`j = 0`**: the iterated-average GCD returns a factor exactly when
+`ceil(sqrt(N))` already equals `a = (p+q)/2`.
+
+Measured over 300 random semiprimes:
+
+| | identity yields a factor |
+| - | - |
+| `j == 0` | **51 / 51** |
+| `j > 0` | **0 / 249** |
+
+The paper's worked example `N = 8051` has `a = 90 = ceil(sqrt(8051))`, i.e. `j = 0`, which
+is why it works there and in every re-iteration of the average. This also answers the open
+question in Sec. 5 — *"why these partial products ... are residing near or on iterated
+averages ... is still a mystery"*. It is not a property of the iterated averages at all:
+when `j = 0` the quantity being tested is `N - p`, and `gcd(N - p, N) = p` identically.
+Halving it `k` times keeps it a multiple of `p` for as long as `2^k` divides `q - 1`.
+
+The `j = 0` case is precisely the case where plain Fermat succeeds on its very first
+trial, so the identity carries no search advantage over the vertical scan.
+
+The Sec. 5.2 remainder sieve is a separate and correct observation: the CRT of
+`b = Num_k (mod 2^k)` with `b = db (mod 10)` really does leave every 5th integer below
+`IA_k`, and the engine implements it. But what it accelerates is a blind GCD scan, not a
+structurally guided one. The `ia` stream is therefore **off by default** and is not
+exhaustive; running `--only=ia` on a composite it cannot split reports
+`INCOMPLETE` on stderr and exits 2 rather than silently presenting `N` as its own factor.
+
+### 3.4 Lehman window scan
+
+The multiplier windows are short — `N^(1/6) / (4 sqrt(k))` — so materialising a
+residue-list wheel per `k` costs far more to build, and to skip past, than the window
+itself contains. The stream instead applies the same quadratic-residue condition
+incrementally, one modulus at a time, straight across the window:
+
+| N | wheel rebuilt per `k` | incremental small-window sieve |
+| - | --------------------- | ------------------------------ |
+| 40-bit | 42 ms | **10 ms** |
+| 56-bit | 1,748 ms | **19 ms** |
+
+A 92x improvement on the second case, from choosing the sieve representation to match
+the length of the interval being scanned.
+
+### 3.5 Against the existing routine
+
+`paper_test_gmp_parallel_scalable_chunks` versus `csf`, both on **default settings**,
+4 threads, 60 s cap. Both solve the same problem and both are correct where they finish
+(the 40-bit case returns `993913 * 1059467` from either program).
+
+| case | `j` | existing | csf |
+| ---- | --- | -------- | --- |
+| 40-bit | 523 | 497 ms | **6 ms** |
+| 56-bit | 9,881 | >60 s | **9 ms** |
+| 64-bit | 37,682 | >60 s | **8 ms** |
+| 96-bit | 1.0e6 | >60 s | **21 ms** |
+| 112-bit | 1.0e7 | >60 s | **45 ms** |
+| 128-bit | 1.0e8 | >60 s | **154 ms** |
+
+This should be read fairly. The existing program is a Sec. 5.2 accelerator with roughly
+twenty tunable parameters, and it was not tuned here; a better parameter set would move
+these numbers. But its core search is the iterated-average GCD scan, and §3.3 shows why
+that scan has no structural edge once `j > 0` — which is every row below the first.
+
+---
+
+## 4. Verification
+
+`./csf --selftest` runs five checks, all of which must pass:
+
+1. **Corrected sieve vs brute force.** `fermat_digit_pairs()` is compared class-for-class
+   against direct enumeration of `N = (R-i)(R+i)`, for all ten odd residues `mod 20`.
+   This includes `N = 5 (mod 10)`, where the answer is 9 classes per lane, not 0.
+2. **Digit sieve = QR sieve at modulus 20.** The two admissible sets are computed
+   independently and compared.
+3. **Sieve strength.** Reports the measured density of both sieves.
+4. **Wheel soundness.** For 400 random semiprimes, the genuine `a = (p+q)/2` must survive
+   the wheel. A sieve that ever dropped it would make the engine silently incomplete.
+   Measured: 0 drops in 400.
+5. **Factorization correctness.** A suite spanning both parity lanes, every `N mod 10`
+   including `5 | N`, perfect squares, perfect powers, primes, highly composite numbers,
+   strong pseudoprimes, and balanced semiprimes up to 112 bits. Products are re-multiplied
+   and every returned factor is primality-tested.
+
+Additionally, every split found by a Fermat-type stream is checked against the squared
+complex space identity `sqrt(N^2 + (2ab)^2) = a^2 + b^2` before being accepted.
+
+---
+
+## 5. What this does and does not claim
+
+**What it is.** The fastest deterministic realisation of the complex-space program in
+this repository: a strip traversal whose sieve is the corrected terminal-digit sieve
+taken to its natural conclusion, with a worst case of `O(N^(1/3))`.
+
+**What it is not.** `O(N^(1/3))` is exponential in the *length* of `N`. For a balanced
+semiprime of any cryptographic size this engine — like every Fermat-type method — is not
+competitive with the quadratic sieve or the number field sieve, which are subexponential.
+The wheel's ~420,000x is a constant factor, not a change of complexity class.
+
+The regime where this approach genuinely wins is the one the complex-space picture was
+built for: `N` whose factors are close to `sqrt(N)`, where the vertical scan depth
+`j = a - ceil(sqrt(N))` is small. There it is fast, deterministic, needs no randomness,
+and produces an exactly certifiable answer.
+
+**On the deterministic claim.** Sec. 7 of *Complex Space Factorization* lists determinism
+as a benefit over Pollard's rho. That is preserved here: no stream uses randomness, and
+the `td` + `lm` pair makes termination provable rather than heuristic.
