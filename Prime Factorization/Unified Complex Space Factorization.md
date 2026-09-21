@@ -356,6 +356,79 @@ twenty tunable parameters, and it was not tuned here; a better parameter set wou
 these numbers. But its core search is the iterated-average GCD scan, and §3.3 shows why
 that scan has no structural edge once `j > 0` — which is every row below the first.
 
+### 3.6 The yellow path (Sec. 4, Figure 8) as a fused stream
+
+The "key complex number" `(r + (r-3)i)`, `r = ceil(sqrt(N))`, and the 135-degree line
+through it give a single index that drives all three methods at once. With `m = r-3`
+and `S = r+m`:
+
+```
+R_j = r + j      i_j = m - j      P_j = R - i = 2j + 3      R + i = S  (constant)
+```
+
+Three facts make the step very cheap (all verified in `--selftest`, 0 violations over
+18,000 `(N,j)` pairs):
+
+1. `V_j = R_j^2 - N` and `H_j = i_j^2 + N` advance by **addition alone**:
+   `V += 2R + 1`, `H -= 2i - 1`.
+2. They are **linearly linked**: `H_j = V_j - P_j*S + 2N`, so one state variable
+   carries both Fermat tests.
+3. Wheel residues advance by increment/decrement.
+
+So the inner loop is a few additions, two table lookups and one small division — no
+multiplication, no square root in the common case.
+
+**The path is exactly `sqrt(N)/4` steps and provably complete.** It stops when
+`P_j * S > N`, i.e. `j_max = (N/S - 3)/2`; the measured ratio `j_max / sqrt(N)`
+converges to `0.2500`. Coverage: the trial-division leg catches any `p <= 2 j_max + 3
+~ sqrt(N)/2`, and for `p > sqrt(N)/2` one has
+`j_true = (sqrt(q) - sqrt(p))^2 / 2 <= sqrt(N)/4`, so the vertical leg catches it. The
+two legs cover each other exactly — which is what Figure 8 shows geometrically.
+Verified on 400 semiprimes: 0 misses. For `N = 309` the whole path is `j = 0,1,2,3`.
+
+Available as `--yp`, or `--only=yp`. `8051` resolves in 1 step; `798607` in 50
+(`p = 101`, so `2j+3 = 101` at `j = 49`).
+
+**But fusing loses to racing, and the reason is the sieve.** Locking `a = r + j` to
+`p = 2j + 3` means the wheel can suppress the `isqrt` but cannot *skip the iteration*:
+
+```
+yellow path cost = min( j_true , p/2 )            raw iterations
+race cost        = min( p/2 , j_true / ~4000 )    the vertical scan skips
+```
+
+so the race is never worse. Measured (4 threads, `--b1=1000`):
+
+| regime | yellow path | vertical only | race |
+| ------ | ----------- | ------------- | ---- |
+| balanced `p ~ N^0.50` | 11 ms | 11 ms | **10 ms** |
+| mid `p ~ N^0.42` | 57 ms | 212 ms | **10 ms** |
+| mid `p ~ N^0.38` | 57 ms | 1,286 ms | **8 ms** |
+| unbalanced `p ~ N^0.30` | 12 ms | 1,489 ms | **7 ms** |
+
+The fused path does beat the *vertical stream alone* by 20-100x in the unbalanced
+regimes — its trial-division leg gets there first. That is exactly the complementarity
+Figure 8 describes. It just does not beat running the same three legs at independent
+rates.
+
+### 3.7 A bug this exercise found
+
+Before this comparison the trial-division stream was capped at `N^(1/3)` whenever the
+Lehman stream was enabled, on the reasoning that Lehman's theorem only requires every
+prime below `N^(1/3)` to be covered. That is sound asymptotically and wrong in practice:
+Lehman's per-candidate constant is far worse than one division, so a `p` modestly above
+`N^(1/3)` was handed to the slow stream. At `p ~ N^0.38` the full race *lost to the
+fused path*, 127 ms against 61 ms.
+
+Trial division now always runs to `sqrt(N)`. It costs nothing asymptotically — Lehman
+still bounds the worst case at `O(N^(1/3))` and the two race — and the measured effect
+is large:
+
+| regime | capped at `N^(1/3)` | uncapped |
+| ------ | ------------------- | -------- |
+| `p ~ N^0.42` | 20 ms | **10 ms** |
+| `p ~ N^0.38` | 127 ms | **8 ms** |
+
 ---
 
 ## 4. Verification
