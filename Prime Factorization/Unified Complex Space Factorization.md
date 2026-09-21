@@ -222,26 +222,55 @@ all of them rather than choosing.
 
 ### 3.3 The iterated-average method requires `j = 0`
 
-The Sec. 5 identity does not hold in general. Substituting `a0 = ceil(sqrt(N)) = a - j`
-into the descending target:
+Let `j = a - ceil(sqrt(N))` be the vertical Fermat depth. The Sec. 5 identity does not
+hold in general, and the reason is sharper than it first looks.
+
+**The construction collapses.** With `IA_k = N - (N - a0)/2^k`, the target is
 
 ```
-T   = IA_k - b/2^k = N - (N - a0 + b)/2^k
-N - a0 + b = N - (a - j) + b = N - (a - b) + j = N - p + j
-
-so  gcd(T, N) = gcd( (p(q-1) + j) / 2^k , N )
+T_k = IA_k - b/2^k = N - (N - a0 + b) / 2^k
 ```
 
-and since `2^k` is coprime to `p`,
+`T_k` is only defined when that division is exact, i.e. `N - a0 + b = 2^k * X`. But `N` is
+odd, so `gcd(2^k, N) = 1` and dividing by `2^k` cannot change a gcd with `N`:
 
 ```
-p | T   <=>   p | j
-q | T   <=>   q | (p - j)
+gcd(T_k, N) = gcd(N - a0 + b, N) = gcd(a0 - b, N)      for EVERY k
 ```
 
-With `0 <= j < p` — which holds whenever the semiprime is not wildly unbalanced — both
-conditions collapse to **`j = 0`**: the iterated-average GCD returns a factor exactly when
-`ceil(sqrt(N))` already equals `a = (p+q)/2`.
+Every level of the iterated average returns the identical gcd. Verified:
+
+| N | `j` | `gcd(a0-b,N)` | k=1 | k=2 | k=3 | k=4 | k=5 | k=6 |
+| - | --- | ------------- | --- | --- | --- | --- | --- | --- |
+| 8051 | 0 | 83 | 83 | 83 | 83 | 83 | 83 | — |
+| 143 | 0 | 11 | 11 | 11 | — | — | — | — |
+| 10967535067 | 0 | 104723 | 104723 | 104723 | 104723 | — | — | — |
+| 1053018024371 | 523 | 1 | — | — | — | — | — | — |
+
+The `—` entries are where `T_k` stops being an integer, which happens at exactly
+`k > v2(q-1)`: for `N = 8051`, `q - 1 = 96 = 2^5 * 3`, so `k <= 5`. The `k` iterations are
+not `k` independent chances at a factor — they are one arithmetic fact re-tested `k` times,
+until the halving exhausts the powers of 2 in `q - 1`.
+
+**What the test really is.** Substituting `a0 = a - j`:
+
+```
+a0 - b = (a - b) - j = p - j          a0 + b = (a + b) - j = q - j
+```
+
+so the descending branch asks whether `p - j` divides `N`, and the ascending branch asks
+the same of `q - j`. Unrolled through `N - p = p(q-1)`:
+
+```
+gcd(T_k, N) = gcd( p(q-1) + j , N ),   and since gcd(2^k, p) = 1:
+
+    p | T_k  <=>  p | j              q | T_k  <=>  q | (p - j)
+```
+
+With `0 <= j < p` the first forces `j = 0` and the second forces `j = p`, a contradiction.
+The side condition `j < p` holds unless `q/p >= 3 + 2*sqrt(2) = 5.828` — checked on 3,000
+semiprimes, with no exceptions — and that is also the regime where trial division finds
+`p` at once.
 
 Measured over 300 random semiprimes:
 
@@ -250,22 +279,47 @@ Measured over 300 random semiprimes:
 | `j == 0` | **51 / 51** |
 | `j > 0` | **0 / 249** |
 
-The paper's worked example `N = 8051` has `a = 90 = ceil(sqrt(8051))`, i.e. `j = 0`, which
-is why it works there and in every re-iteration of the average. This also answers the open
-question in Sec. 5 — *"why these partial products ... are residing near or on iterated
-averages ... is still a mystery"*. It is not a property of the iterated averages at all:
-when `j = 0` the quantity being tested is `N - p`, and `gcd(N - p, N) = p` identically.
-Halving it `k` times keeps it a multiple of `p` for as long as `2^k` divides `q - 1`.
+**Why `j = 0` is the wrong thing to be good at.** Since
+`a - sqrt(N) = (sqrt(q) - sqrt(p))^2 / 2`, the condition `j = 0` means
+`(sqrt(q) - sqrt(p))^2 < 2`, i.e.
 
-The `j = 0` case is precisely the case where plain Fermat succeeds on its very first
-trial, so the identity carries no search advantage over the vertical scan.
+```
+b  <~  sqrt(2) * N^(1/4)
+```
 
-The Sec. 5.2 remainder sieve is a separate and correct observation: the CRT of
-`b = Num_k (mod 2^k)` with `b = db (mod 10)` really does leave every 5th integer below
-`IA_k`, and the engine implements it. But what it accelerates is a blind GCD scan, not a
-structurally guided one. The `ia` stream is therefore **off by default** and is not
-exhaustive; running `--only=ia` on a composite it cannot split reports
-`INCOMPLETE` on stderr and exits 2 rather than silently presenting `N` as its own factor.
+(tested as a predictor on 2,000 semiprimes: zero mismatches). But `j = 0` is the definition
+of "Fermat succeeds on its first trial" — `a = ceil(sqrt(N))` is candidate number one. The
+identity fires exactly when a single `isqrt` would already have finished, and is silent
+everywhere else.
+
+**The Sec. 5 open question.** The paper asks why the partial products "are residing near or
+on iterated averages". They are not, and it has nothing to do with the imaginary
+coefficient. When `j = 0` the quantity tested is `N - p = p(q-1)`, a multiple of `p` by
+construction; `gcd(N - p, N) = p` is an identity, not a discovery. Halving keeps it a
+multiple of `p` while `2^k | (q-1)`, and the halving is invisible to the gcd because `N` is
+odd. The apparent alignment between `b/2^k` and `IA_k` is the same `2^k` cancelling against
+itself on both sides.
+
+**What Sec. 5.2 gets right.** The remainder sieve is correct and is the best part of the
+section. `T_k` is an integer iff `b = Num_k (mod 2^k)`; intersecting with `b = d (mod 10)`
+gives `b = r (mod 5*2^k)` by CRT, so `b` advances by `5*2^k` while `T` advances by `5` —
+exactly the "every 5th integer" claim, with `5*2^3 = 40` and `5*2^4 = 80` matching the
+worked example, and `2^(k-1)` admissible `b` per series. The engine implements it.
+
+What it accelerates is the problem. Since the identity is inert for `j > 0`, the Sec. 7.3
+routine is a blind search for any multiple of `p` near `IA_k`, costing about `p/2` gcds,
+which Sec. 5.2 cuts by 5. Trial division does the same `O(p)` work with a division per
+step rather than a gcd.
+
+**Why the seed-sweeping implementations still factor things.** They sweep
+`a_s = a0 + 2s`; when a seed lands on the true `a` that seed has `j = 0` and the identity
+fires. The seed-sweep version is therefore vertical Fermat in disguise — the same `a`
+ladder, with each rung verified by a chain of gcds instead of one perfect-square test.
+That is the gap measured in 3.5.
+
+The `ia` stream is consequently **off by default** and is not exhaustive; running
+`--only=ia` on a composite it cannot split reports `INCOMPLETE` on stderr and exits 2
+rather than silently presenting `N` as its own factor.
 
 ### 3.4 Lehman window scan
 
