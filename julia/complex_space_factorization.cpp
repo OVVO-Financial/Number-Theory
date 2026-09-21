@@ -1,0 +1,1222 @@
+// =====================================================================
+//  complex_space_factorization.cpp
+//
+//  A unified factorization engine for the complex-space program:
+//
+//    * "Complex Space Factorization" (Viole)        -- strip geometry,
+//      combined trial-division / vertical-Fermat / horizontal-Fermat
+//      traversal (Sec. 4), the iterated-average GCD method (Sec. 5) and
+//      its remainder sieve (Sec. 5.2).
+//    * "The Complete Fermat Sieve by Terminal Digit -- a corrected and
+//      verified reference"                          -- the corrected
+//      terminal-digit sieve, both parity lanes, including the
+//      N = 5 (mod 10) case that the 8-class table excludes.
+//    * "Fermat Sieve Using Complex Numbers"         -- the original
+//      per-lane (R,i) terminal-digit tables.
+//    * Complex space.md                             -- the squared
+//      complex space identity  sqrt(N^2 + (2ab)^2) = a^2 + b^2,
+//      used here as an exact integer certificate.
+//
+//  ---------------------------------------------------------------
+//  THE CENTRAL OBSERVATION THIS FILE IS BUILT ON
+//  ---------------------------------------------------------------
+//
+//  Write N = a^2 - b^2 = (a-b)(a+b), so a = (p+q)/2 and b = (q-p)/2.
+//  The terminal-digit sieve asks which (a mod 10, b mod 10) classes can
+//  occur for a given N mod 10.  That is exactly the statement
+//
+//        a^2 - N  must be a square modulo 10,
+//
+//  together with the lane condition, which is "a^2 - N is a square
+//  modulo 4".  In other words the corrected terminal-digit sieve is
+//  precisely the quadratic-residue sieve at the single modulus 20.
+//
+//  Once seen that way it generalises: for ANY modulus m,
+//
+//        a admissible  <=>  (a^2 - N) mod m is a square mod m.
+//
+//  Measured survival fractions (see --selftest):
+//
+//        modulus 10 alone          ->  2.5x reduction
+//        wheel 2^6*3^3*5^2*7*11*13*17
+//                                  ->  ~4,000x reduction
+//
+//  So the digit sieve, generalised to a CRT wheel, is worth three to
+//  four orders of magnitude rather than a factor of 2.5.  Everything
+//  below is organised around that wheel.
+//
+//  ---------------------------------------------------------------
+//  ALGORITHM
+//  ---------------------------------------------------------------
+//
+//  Stage 0   Reduction: powers of 2, perfect powers, wheel-30 trial
+//            division to B1, strong probable-prime test.
+//
+//  Stage 1   A race of deterministic streams over all worker threads,
+//            stopping at the first split.  This is the paper's Sec. 4
+//            "combined method", made concrete:
+//
+//              TD   trial division climbing from B1        (top of strip)
+//              VF   wheel-sieved vertical Fermat from      (bottom of strip)
+//                   ceil(sqrt(N)) upward
+//              HF   wheel-sieved horizontal Fermat         (middle of strip,
+//                   from b = 1 upward                       optional, see below)
+//              IA   iterated-average GCD accelerator       (Sec. 5 / 5.2)
+//                   with the every-5th-integer sieve        (optional)
+//              LM   Lehman multiplier sweep: the same       (completeness)
+//                   wheel-sieved scan applied to 4kN
+//
+//  Stage 2   Recurse on both cofactors until everything is prime.
+//
+//  Worst-case cost is O(N^(1/3)) arithmetic operations: TD covers every
+//  prime below N^(1/3) and LM covers every remaining case, which is
+//  Lehman's theorem.  Racing TD against VF alone would only give
+//  O(N^(3/8)).  The wheel reduces the constant on VF/LM by ~4,000x.
+//
+//  Fidelity note: HF and IA are implemented faithfully to the paper and
+//  are available via flags, but they are OFF by default because VF
+//  strictly dominates them.  With p,q = sqrt(N)(1 -+ e), the vertical
+//  scan length is j ~ b^2 / (2 sqrt(N)), i.e. quadratically shorter than
+//  the horizontal scan length b.  See the benchmark table in
+//  Prime Factorization/Unified Complex Space Factorization.md.
+//
+//  ---------------------------------------------------------------
+//  BUILD
+//  ---------------------------------------------------------------
+//    g++ -std=c++17 -O3 -march=native complex_space_factorization.cpp \
+//        -lgmpxx -lgmp -pthread -o csf
+//
+//  RUN
+//    ./csf <N> [options]
+//    ./csf --selftest
+//
+//  Options:
+//    --threads=T     worker threads (0 = hardware concurrency)
+//    --b1=B          stage-0 trial division bound      (default 1000000)
+//    --no-lehman     disable the Lehman multiplier stream
+//    --hf            enable the horizontal (b-driven) Fermat stream
+//    --ia            enable the iterated-average GCD stream (Sec. 5/5.2)
+//    --digit-only    restrict the sieve to modulus 20, i.e. the corrected
+//                    terminal-digit sieve alone (for comparison)
+//    --no-sieve      disable sieving entirely (for comparison)
+//    --quiet         print only the factorization
+//    --verbose       print stream statistics
+// =====================================================================
+
+#include <gmpxx.h>
+
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <cstring>
+#include <iostream>
+#include <limits>
+#include <mutex>
+#include <numeric>
+#include <optional>
+#include <random>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <vector>
+
+using BigInt = mpz_class;
+
+// ---------------------------------------------------------------------
+// Basic helpers
+// ---------------------------------------------------------------------
+
+static inline BigInt isqrt_floor(const BigInt& n) {
+    BigInt r;
+    mpz_sqrt(r.get_mpz_t(), n.get_mpz_t());
+    return r;
+}
+
+static inline BigInt isqrt_ceil(const BigInt& n) {
+    BigInt r = isqrt_floor(n);
+    if (r * r < n) ++r;
+    return r;
+}
+
+static inline bool is_perfect_square(const BigInt& x, BigInt* root = nullptr) {
+    if (x < 0) return false;
+    if (mpz_perfect_square_p(x.get_mpz_t()) == 0) return false;
+    if (root) *root = isqrt_floor(x);
+    return true;
+}
+
+static inline bool is_probable_prime(const BigInt& n) {
+    return mpz_probab_prime_p(n.get_mpz_t(), 30) != 0;
+}
+
+static inline std::uint64_t umod(const BigInt& n, std::uint64_t m) {
+    return static_cast<std::uint64_t>(mpz_fdiv_ui(n.get_mpz_t(), m));
+}
+
+// Set of squares modulo m.  For a perfect square x, x mod m must lie in
+// this set; that is the whole content of the sieve.
+static std::vector<std::uint8_t> squares_mod(std::uint64_t m) {
+    std::vector<std::uint8_t> s(m, 0);
+    for (std::uint64_t r = 0; r < m; ++r) s[(r * r) % m] = 1;
+    return s;
+}
+
+// ---------------------------------------------------------------------
+// Corrected complete Fermat terminal-digit sieve
+//
+//   N = R^2 - i^2,  p = R - i,  q = R + i.
+//   Lane A: N = 1 (mod 4)  <=>  R odd,  i even
+//   Lane B: N = 3 (mod 4)  <=>  R even, i odd
+//
+// Indexed by N mod 10 alone the admissible (R,i) mod 10 classes number 8
+// for N ending in 1,3,7,9 (four from each lane) and 18 for N ending in 5.
+// Because we always know N mod 4 we use the lane directly: 4 classes for
+// N coprime to 10, 9 classes for 5 | N.
+//
+// The 5 | N branch is the one the published 8-class table excludes.  It
+// is included here so the routine is total: any caller that has not
+// already stripped the factor 5 still gets a sound (not empty) sieve.
+// ---------------------------------------------------------------------
+
+struct DigitPair { int a10; int b10; };
+
+static std::vector<DigitPair> fermat_digit_pairs(const BigInt& N) {
+    const int n10 = static_cast<int>(umod(N, 10));
+    const int n4  = static_cast<int>(umod(N, 4));
+
+    bool a_even;
+    if (n4 == 3)      a_even = true;   // Lane B
+    else if (n4 == 1) a_even = false;  // Lane A
+    else throw std::runtime_error("fermat_digit_pairs: N must be odd");
+
+    const bool b_even = !a_even;
+    const bool five_divides_N = (n10 == 5);
+
+    std::vector<DigitPair> pairs;
+    for (int da = 0; da <= 9; ++da) {
+        if (((da % 2) == 0) != a_even) continue;
+        for (int db = 0; db <= 9; ++db) {
+            if (((db % 2) == 0) != b_even) continue;
+
+            const int p10 = ((da - db) % 10 + 10) % 10;
+            const int q10 = (da + db) % 10;
+
+            // p and q are odd.  When 5 does not divide N neither p nor q
+            // may end in 5 or 0, so both must end in 1, 3, 7 or 9.  When
+            // 5 does divide N exactly one of them carries the 5, so that
+            // restriction must be lifted -- this is the correction.
+            auto odd_digit   = [](int d) { return d % 2 == 1; };
+            auto coprime10   = [](int d) { return d == 1 || d == 3 || d == 7 || d == 9; };
+
+            if (!odd_digit(p10) || !odd_digit(q10)) continue;
+            if (!five_divides_N && (!coprime10(p10) || !coprime10(q10))) continue;
+
+            if ((p10 * q10) % 10 == n10) pairs.push_back({da, db});
+        }
+    }
+    return pairs;
+}
+
+// ---------------------------------------------------------------------
+// Generalised quadratic-residue wheel
+//
+// The terminal-digit sieve is the m = 20 case of:
+//
+//     a is admissible  <=>  (a^2 - M) mod m is a square mod m
+//
+// We build a CRT wheel from several coprime prime powers and materialise
+// the sorted list of admissible residues modulo W = prod(m_i).  The list
+// is built by CRT composition, so construction costs O(output), not O(W).
+//
+// A second tier of small prime moduli is applied per-candidate; those are
+// cheaper to test than to fold into W.
+// ---------------------------------------------------------------------
+
+struct Wheel {
+    std::uint64_t W = 1;
+    std::vector<std::uint32_t> residues;        // admissible a mod W, sorted
+    std::vector<std::uint32_t> sec_mod;         // second-tier moduli
+    std::vector<std::vector<std::uint8_t>> sec_ok;
+    double density = 1.0;
+
+    bool empty() const { return residues.empty(); }
+};
+
+// Admissible residues of a modulo m for a^2 - M = square.
+static std::vector<std::uint32_t> admissible_mod(const BigInt& M, std::uint64_t m) {
+    const std::vector<std::uint8_t> sq = squares_mod(m);
+    const std::uint64_t Mm = umod(M, m);
+    std::vector<std::uint32_t> out;
+    for (std::uint64_t r = 0; r < m; ++r) {
+        const std::uint64_t v = ((r * r) % m + m - Mm) % m;
+        if (sq[v]) out.push_back(static_cast<std::uint32_t>(r));
+    }
+    return out;
+}
+
+// Extended gcd based CRT for two coprime moduli.
+static std::uint64_t crt_pair(std::uint64_t r1, std::uint64_t m1,
+                              std::uint64_t r2, std::uint64_t m2) {
+    // Return the unique x in [0, m1*m2) with x = r1 (mod m1), x = r2 (mod m2).
+    // Requires gcd(m1, m2) = 1.
+    const long long m = static_cast<long long>(m2);
+
+    // m1^{-1} (mod m2) by extended Euclid.
+    long long old_r = static_cast<long long>(m1 % m2), r = m;
+    long long old_s = 1, sc = 0;
+    while (r != 0) {
+        const long long q = old_r / r;
+        long long tmp = old_r - q * r; old_r = r; r = tmp;
+        tmp = old_s - q * sc; old_s = sc; sc = tmp;
+    }
+    const long long inv = ((old_s % m) + m) % m;
+
+    const long long diff = static_cast<long long>((r2 + m2 - r1 % m2) % m2);
+    long long t = static_cast<long long>((static_cast<__int128>(diff) * inv) % m);
+    if (t < 0) t += m;
+    return r1 + m1 * static_cast<std::uint64_t>(t);
+}
+
+static Wheel build_wheel(const BigInt& M,
+                         std::uint64_t residue_budget,
+                         bool digit_only,
+                         bool disabled) {
+    Wheel w;
+    if (disabled) {
+        w.W = 1;
+        w.residues = {0};
+        w.density = 1.0;
+        return w;
+    }
+
+    // Primary moduli, most selective first.  2^k and 5^k subsume the
+    // corrected terminal-digit sieve (modulus 20 = 4 * 5).
+    std::vector<std::uint64_t> primary;
+    if (digit_only) {
+        primary = {4, 5};                        // exactly the digit sieve
+    } else {
+        primary = {64, 27, 25, 7, 11, 13, 17};
+    }
+
+    std::vector<std::uint32_t> cur = {0};
+    std::uint64_t curW = 1;
+
+    for (std::uint64_t m : primary) {
+        std::vector<std::uint32_t> am = admissible_mod(M, m);
+        if (am.empty()) { w.W = curW; w.residues.clear(); return w; }
+
+        // Stop growing if the composed list would exceed the budget or
+        // overflow 32-bit residues.
+        const __uint128_t newW = static_cast<__uint128_t>(curW) * m;
+        const __uint128_t newN = static_cast<__uint128_t>(cur.size()) * am.size();
+        if (newW > 0xFFFFFFFFull || newN > residue_budget) break;
+
+        std::vector<std::uint32_t> next;
+        next.reserve(static_cast<std::size_t>(newN));
+        for (std::uint32_t r1 : cur)
+            for (std::uint32_t r2 : am)
+                next.push_back(static_cast<std::uint32_t>(crt_pair(r1, curW, r2, m)));
+
+        cur.swap(next);
+        curW = static_cast<std::uint64_t>(newW);
+    }
+
+    std::sort(cur.begin(), cur.end());
+    w.W = curW;
+    w.residues = std::move(cur);
+    w.density = static_cast<double>(w.residues.size()) / static_cast<double>(w.W);
+
+    if (!digit_only) {
+        // Second tier: applied per surviving candidate.
+        for (std::uint32_t p : {19u, 23u, 29u, 31u, 37u, 41u, 43u, 47u}) {
+            if (w.W % p == 0) continue;
+            std::vector<std::uint8_t> ok(p, 0);
+            const std::vector<std::uint8_t> sq = squares_mod(p);
+            const std::uint64_t Mp = umod(M, p);
+            std::size_t cnt = 0;
+            for (std::uint32_t r = 0; r < p; ++r) {
+                const std::uint64_t v = ((1ull * r * r) % p + p - Mp) % p;
+                if (sq[v]) { ok[r] = 1; ++cnt; }
+            }
+            w.sec_mod.push_back(p);
+            w.sec_ok.push_back(std::move(ok));
+            w.density *= static_cast<double>(cnt) / static_cast<double>(p);
+        }
+    }
+    return w;
+}
+
+// ---------------------------------------------------------------------
+// Squared complex space certificate (Complex space.md, footnote 1)
+//
+// A complex factor (a + bi) squares to n + 2abi, and the right triangle
+// it represents gives the exact integer identity
+//
+//        sqrt(N^2 + (2ab)^2) = a^2 + b^2.
+//
+// We use it as an independent check on every split the engine reports:
+// it must hold exactly, in integers, or the split is rejected.
+// ---------------------------------------------------------------------
+
+static bool certify_complex_square(const BigInt& N, const BigInt& a, const BigInt& b) {
+    if (a <= b || b < 0) return false;
+    if ((a - b) * (a + b) != N) return false;
+
+    const BigInt two_ab = 2 * a * b;
+    const BigInt hyp2   = N * N + two_ab * two_ab;
+    BigInt hyp;
+    if (!is_perfect_square(hyp2, &hyp)) return false;
+    return hyp == a * a + b * b;
+}
+
+// ---------------------------------------------------------------------
+// Shared result slot
+// ---------------------------------------------------------------------
+
+struct Found {
+    std::atomic<bool> done{false};
+    std::mutex mu;
+    BigInt factor;
+    std::string source;
+    BigInt cert_a, cert_b;
+    bool certified = false;
+
+    bool ready() const { return done.load(std::memory_order_relaxed); }
+
+    void submit(const BigInt& N, const BigInt& f, const char* src,
+                const BigInt* a = nullptr, const BigInt* b = nullptr) {
+        if (f <= 1 || f >= N) return;
+        if (N % f != 0) return;
+        std::lock_guard<std::mutex> lk(mu);
+        if (done.load()) return;
+        factor = f;
+        source = src;
+        if (a && b) {
+            cert_a = *a; cert_b = *b;
+            certified = certify_complex_square(N, *a, *b);
+        }
+        done.store(true, std::memory_order_release);
+    }
+};
+
+struct Stats {
+    std::atomic<std::uint64_t> vf_candidates{0};   // survived the wheel
+    std::atomic<std::uint64_t> vf_scanned{0};      // residues visited
+    std::atomic<std::uint64_t> td_tested{0};
+    std::atomic<std::uint64_t> hf_candidates{0};
+    std::atomic<std::uint64_t> ia_gcds{0};
+    std::atomic<std::uint64_t> lm_candidates{0};
+};
+
+// ---------------------------------------------------------------------
+// Generic wheel-sieved Fermat scan
+//
+// Finds x in [x_lo, x_hi] with x^2 - M a perfect square, then offers
+// gcd(|x-y|, N) and gcd(x+y, N) as splits of N.
+//
+//   vertical Fermat    M = N,     x = a, y = b
+//   horizontal Fermat  M = -N,    x = b, y = a
+//   Lehman multiplier  M = 4kN,   x = a, y = b
+//
+// All three are the same scan; only M and the interval differ.  This is
+// the paper's Sec. 4 "run every method simultaneously" made literal --
+// the methods are one routine pointed at different parts of the strip.
+// ---------------------------------------------------------------------
+
+// Chunked, work-stealing variant for the unbounded vertical/horizontal
+// streams: residue indices are handed out by an atomic counter so that
+// low x (short scans, the balanced-semiprime case) is always covered
+// first regardless of thread count.
+static void fermat_scan_chunked(const BigInt& N,
+                                const BigInt& M,
+                                const Wheel& w,
+                                const BigInt& x_lo,
+                                const BigInt& x_hi,
+                                Found& found,
+                                std::atomic<std::uint64_t>& next_chunk,
+                                std::atomic<std::uint64_t>& cand_counter,
+                                std::atomic<std::uint64_t>& scan_counter,
+                                const char* src) {
+    if (w.empty() || x_hi < x_lo) return;
+
+    const std::uint64_t W = w.W;
+    const std::uint64_t R = w.residues.size();
+    const std::uint64_t CHUNK = std::min<std::uint64_t>(R, 4096);
+    const std::uint64_t chunks_per_block = (R + CHUNK - 1) / CHUNK;
+
+    const BigInt base0 = x_lo - BigInt(umod(x_lo, W));
+
+    BigInt x, t, y, g, base;
+    std::vector<std::uint64_t> base_mod(w.sec_mod.size());
+    std::uint64_t cur_blk = std::numeric_limits<std::uint64_t>::max();
+    std::uint64_t local_cand = 0, local_scan = 0;
+    bool exhausted = false;
+
+    while (!found.ready() && !exhausted) {
+        const std::uint64_t c = next_chunk.fetch_add(1, std::memory_order_relaxed);
+        const std::uint64_t blk = c / chunks_per_block;
+        const std::uint64_t k   = c % chunks_per_block;
+
+        if (blk != cur_blk) {
+            cur_blk = blk;
+            base = base0 + BigInt(blk) * W;
+            if (base > x_hi) break;
+            for (std::size_t i = 0; i < w.sec_mod.size(); ++i)
+                base_mod[i] = umod(base, w.sec_mod[i]);
+        }
+
+        const std::uint64_t i0 = k * CHUNK;
+        const std::uint64_t i1 = std::min(R, i0 + CHUNK);
+
+        for (std::uint64_t i = i0; i < i1; ++i) {
+            const std::uint32_t r = w.residues[i];
+            x = base + r;
+            if (x < x_lo) continue;
+            if (x > x_hi) { exhausted = true; break; }
+
+            ++local_scan;
+            bool ok = true;
+            for (std::size_t s = 0; s < w.sec_mod.size(); ++s) {
+                const std::uint32_t p = w.sec_mod[s];
+                if (!w.sec_ok[s][(base_mod[s] + r) % p]) { ok = false; break; }
+            }
+            if (!ok) continue;
+
+            ++local_cand;
+            t = x * x - M;
+            if (t < 0) continue;
+            if (!is_perfect_square(t, &y)) continue;
+
+            BigInt d = x > y ? x - y : y - x;
+            mpz_gcd(g.get_mpz_t(), d.get_mpz_t(), N.get_mpz_t());
+            if (g > 1 && g < N) {
+                if (M == N)       found.submit(N, g, src, &x, &y);
+                else if (M == -N) found.submit(N, g, src, &y, &x);
+                else              found.submit(N, g, src);
+                break;
+            }
+            BigInt s2 = x + y;
+            mpz_gcd(g.get_mpz_t(), s2.get_mpz_t(), N.get_mpz_t());
+            if (g > 1 && g < N) { found.submit(N, g, src); break; }
+        }
+        if ((local_scan & 0xFFFF) == 0 && found.ready()) break;
+    }
+    scan_counter += local_scan;
+    cand_counter += local_cand;
+}
+
+// ---------------------------------------------------------------------
+// Trial division stream -- the top of the factor strip.
+// Wheel-30 residues, climbing from `start` to `limit`.
+// ---------------------------------------------------------------------
+
+static void trial_division_stream(const BigInt& N,
+                                  std::uint64_t start,
+                                  std::uint64_t limit,
+                                  Found& found,
+                                  std::atomic<std::uint64_t>& counter) {
+    static const std::uint64_t W30[8] = {1, 7, 11, 13, 17, 19, 23, 29};
+    std::uint64_t base = (start / 30) * 30;
+    std::uint64_t tested = 0;
+
+    while (base <= limit && !found.ready()) {
+        for (std::uint64_t off : W30) {
+            const std::uint64_t d = base + off;
+            if (d < start || d < 7) continue;
+            if (d > limit) { counter += tested; return; }
+            ++tested;
+            if (mpz_divisible_ui_p(N.get_mpz_t(), d)) {
+                found.submit(N, BigInt(d), "trial-division");
+                counter += tested;
+                return;
+            }
+        }
+        if ((tested & 0xFFFFF) == 0 && found.ready()) break;
+        base += 30;
+    }
+    counter += tested;
+}
+
+// ---------------------------------------------------------------------
+// Lehman multiplier stream -- the completeness guarantee.
+//
+// If N has no prime factor below N^(1/3), then for some k in
+// [1, N^(1/3)] there are a, b with a^2 - b^2 = 4kN and
+//
+//     ceil(sqrt(4kN)) <= a <= ceil(sqrt(4kN)) + N^(1/6) / (4 sqrt(k)).
+//
+// Each k is just another wheel-sieved Fermat scan, this time on 4kN.
+// Geometrically: multiplying by k re-scales the complex space so that a
+// different part of the factor strip is brought down to the near-vertical
+// region where Fermat's method is efficient.
+// ---------------------------------------------------------------------
+
+// A small-window sieved scan.  The Lehman windows are short
+// (N^(1/6) / (4 sqrt k)), so a residue-list wheel would cost far more to
+// build and to skip past than the window itself.  Here the same
+// quadratic-residue condition is applied incrementally, one modulus at a
+// time, directly over the window.
+struct SmallSieve {
+    static constexpr std::uint32_t MODS[9] = {64, 27, 25, 7, 11, 13, 17, 19, 23};
+    std::vector<std::uint8_t> ok[9];
+    std::uint64_t start_mod[9];
+
+    void build(const BigInt& M, const BigInt& lo) {
+        for (int i = 0; i < 9; ++i) {
+            const std::uint32_t m = MODS[i];
+            const std::vector<std::uint8_t> sq = squares_mod(m);
+            const std::uint64_t Mm = umod(M, m);
+            ok[i].assign(m, 0);
+            for (std::uint32_t r = 0; r < m; ++r) {
+                const std::uint64_t v = ((1ull * r * r) % m + m - Mm) % m;
+                ok[i][r] = sq[v] ? 1 : 0;
+            }
+            start_mod[i] = umod(lo, m);
+        }
+    }
+};
+constexpr std::uint32_t SmallSieve::MODS[9];
+
+static void lehman_stream(const BigInt& N,
+                          std::uint64_t k_max,
+                          Found& found,
+                          std::atomic<std::uint64_t>& next_k,
+                          std::atomic<std::uint64_t>& counter) {
+    // Integer 6th root, rounded up: the Lehman window width scale.
+    BigInt n16;
+    mpz_root(n16.get_mpz_t(), N.get_mpz_t(), 6);
+    ++n16;
+
+    SmallSieve ss;
+    BigInt x, t, y, g, d;
+    std::uint64_t local = 0;
+
+    while (!found.ready()) {
+        const std::uint64_t k = next_k.fetch_add(1, std::memory_order_relaxed);
+        if (k < 1 || k > k_max) break;
+
+        const BigInt M  = 4 * BigInt(k) * N;
+        const BigInt lo = isqrt_ceil(M);
+
+        // span = n16 / (4 sqrt k), rounded up.  Using floor(sqrt(k)) makes
+        // the divisor no larger than the true one, so the window is a
+        // superset of Lehman's -- never a miss.
+        std::uint64_t sk = static_cast<std::uint64_t>(std::sqrt(static_cast<double>(k)));
+        if (sk < 1) sk = 1;
+        BigInt span = n16 / (4 * BigInt(sk)) + 2;
+        std::uint64_t span_u = mpz_fits_ulong_p(span.get_mpz_t())
+                             ? mpz_get_ui(span.get_mpz_t())
+                             : std::numeric_limits<std::uint64_t>::max();
+
+        ss.build(M, lo);
+
+        std::uint64_t cur[9];
+        for (int i = 0; i < 9; ++i) cur[i] = ss.start_mod[i];
+
+        for (std::uint64_t off = 0; off <= span_u; ++off) {
+            bool pass = true;
+            for (int i = 0; i < 9; ++i) {
+                if (!ss.ok[i][cur[i]]) { pass = false; break; }
+            }
+
+            if (pass) {
+                ++local;
+                x = lo + off;
+                t = x * x - M;
+                if (t >= 0 && is_perfect_square(t, &y)) {
+                    d = x > y ? x - y : y - x;
+                    mpz_gcd(g.get_mpz_t(), d.get_mpz_t(), N.get_mpz_t());
+                    if (g > 1 && g < N) { found.submit(N, g, "lehman"); counter += local; return; }
+                    d = x + y;
+                    mpz_gcd(g.get_mpz_t(), d.get_mpz_t(), N.get_mpz_t());
+                    if (g > 1 && g < N) { found.submit(N, g, "lehman"); counter += local; return; }
+                }
+            }
+
+            for (int i = 0; i < 9; ++i) {
+                if (++cur[i] == SmallSieve::MODS[i]) cur[i] = 0;
+            }
+            if ((off & 0xFFFF) == 0 && found.ready()) break;
+        }
+    }
+    counter += local;
+}
+
+// ---------------------------------------------------------------------
+// Iterated-average GCD stream  (Complex Space Factorization, Sec. 5)
+// with the remainder sieve of Sec. 5.2.
+//
+//   a0    = ceil(sqrt(N))
+//   IA_k  = (IA_{k-1} + N) / 2,  IA_0 = a0
+//         = (N*(2^k - 1) + a0) / 2^k  =  Num_k / 2^k
+//
+// The paper's test is GCD(IA_k - b/2^k, N).  Writing T = (Num_k - b)/2^k,
+// T is an integer exactly when b = Num_k (mod 2^k).  Intersecting that
+// with the terminal-digit condition b = db (mod 10) gives, by CRT,
+//
+//        b = r (mod 5 * 2^k),
+//
+// and since b advances by 5*2^k while T advances by 5, the scan visits
+// every 5th integer below IA_k -- which is precisely the Sec. 5.2 claim,
+// and the reason the admissible b per series is 2^(k-1).
+// ---------------------------------------------------------------------
+
+static std::optional<BigInt> crt_b_residue(int db, const BigInt& r2, int k) {
+    // b = db (mod 10), b = r2 (mod 2^k)  ->  b mod 5*2^k
+    if (k <= 0) return BigInt(db);
+    BigInt pow2 = BigInt(1) << k;
+    if (umod(r2, 2) != static_cast<std::uint64_t>(db % 2)) return std::nullopt;
+
+    // b = r2 + 2^k * s,  need r2 + 2^k s = db (mod 5)
+    const std::uint64_t r5  = umod(r2, 5);
+    const std::uint64_t p5  = umod(pow2, 5);           // 2^k mod 5, never 0
+    const std::uint64_t tgt = (static_cast<std::uint64_t>(db % 5) + 5 - r5) % 5;
+
+    std::uint64_t inv = 0;
+    for (std::uint64_t i = 1; i < 5; ++i) if ((p5 * i) % 5 == 1) { inv = i; break; }
+    const std::uint64_t s = (tgt * inv) % 5;
+
+    BigInt b = r2 + pow2 * BigInt(s);
+    BigInt mod = 5 * pow2;
+    b %= mod; if (b < 0) b += mod;
+    return b;
+}
+
+static void iterated_average_stream(const BigInt& N,
+                                    std::uint64_t steps_per_level,
+                                    Found& found,
+                                    std::atomic<std::uint64_t>& next_job,
+                                    std::atomic<std::uint64_t>& counter) {
+    const BigInt a0 = isqrt_ceil(N);
+    const BigInt b_max = (N - 9) / 6;
+    if (b_max < 1) return;
+
+    const auto pairs = fermat_digit_pairs(N);
+    std::vector<int> b_digits;
+    for (const auto& pr : pairs)
+        if (std::find(b_digits.begin(), b_digits.end(), pr.b10) == b_digits.end())
+            b_digits.push_back(pr.b10);
+    if (b_digits.empty()) return;
+
+    const int k_max = std::max(1, static_cast<int>(mpz_sizeinbase(b_max.get_mpz_t(), 2)));
+    const std::uint64_t jobs = static_cast<std::uint64_t>(k_max) * b_digits.size() * 2;
+
+    BigInt g, T;
+    std::uint64_t gcds = 0;
+
+    while (!found.ready()) {
+        const std::uint64_t j = next_job.fetch_add(1, std::memory_order_relaxed);
+        if (j >= jobs) break;
+
+        const int k        = static_cast<int>(j / (b_digits.size() * 2)) + 1;
+        const std::size_t t = static_cast<std::size_t>(j % (b_digits.size() * 2));
+        const int db       = b_digits[t / 2];
+        const bool descend = (t % 2) == 0;
+
+        const BigInt pow2  = BigInt(1) << k;
+        const BigInt Num   = N * (pow2 - 1) + a0;          // IA_k = Num / 2^k
+
+        // descending: T = (Num - b)/2^k  -> b = Num (mod 2^k)
+        // ascending : T = (Num + b)/2^k  -> b = -Num (mod 2^k)
+        BigInt r2 = Num % pow2;
+        if (!descend) r2 = (pow2 - r2) % pow2;
+        if (r2 < 0) r2 += pow2;
+
+        auto b0 = crt_b_residue(db, r2, k);
+        if (!b0) continue;
+
+        const BigInt stride = 5 * pow2;
+        BigInt b = *b0;
+        if (b == 0) b = stride;
+
+        for (std::uint64_t s = 0; s < steps_per_level && b <= b_max; ++s) {
+            if (descend) T = (Num - b) / pow2;
+            else         T = (Num + b) / pow2;
+            if (T <= 1) break;
+            ++gcds;
+            mpz_gcd(g.get_mpz_t(), T.get_mpz_t(), N.get_mpz_t());
+            if (g > 1 && g < N) {
+                found.submit(N, g, "iterated-average");
+                counter += gcds;
+                return;
+            }
+            b += stride;
+            if ((s & 0x3FF) == 0 && found.ready()) break;
+        }
+    }
+    counter += gcds;
+}
+
+// ---------------------------------------------------------------------
+// Options and orchestration
+// ---------------------------------------------------------------------
+
+struct Options {
+    unsigned threads   = 0;
+    std::uint64_t b1   = 1000000;
+    bool lehman        = true;
+    bool hf            = false;
+    bool ia            = false;
+    bool digit_only    = false;
+    bool no_sieve      = false;
+    bool quiet         = false;
+    bool verbose       = false;
+    std::string only;          // "", "vf", "hf", "ia", "td", "lm"
+};
+
+static std::uint64_t wheel_budget_for(const BigInt& N) {
+    const std::size_t bits = mpz_sizeinbase(N.get_mpz_t(), 2);
+    if (bits < 48)  return 1u << 12;
+    if (bits < 72)  return 1u << 16;
+    if (bits < 104) return 1u << 19;
+    return 1u << 21;
+}
+
+// Integer cube root, rounded up.
+static BigInt icbrt_ceil(const BigInt& n) {
+    BigInt r;
+    mpz_root(r.get_mpz_t(), n.get_mpz_t(), 3);
+    if (r * r * r < n) ++r;
+    return r;
+}
+
+// Find one nontrivial split of a composite N, or nullopt if N is prime.
+static std::optional<BigInt> split_once(const BigInt& N,
+                                        const Options& opt,
+                                        Stats& stats,
+                                        std::string& how) {
+    if (N <= 3) return std::nullopt;
+
+    if (N % 2 == 0) { how = "even"; return BigInt(2); }
+
+    // Perfect power.
+    {
+        BigInt root;
+        if (mpz_perfect_power_p(N.get_mpz_t()) != 0) {
+            for (unsigned e = 2; e <= mpz_sizeinbase(N.get_mpz_t(), 2); ++e) {
+                if (mpz_root(root.get_mpz_t(), N.get_mpz_t(), e) != 0) {
+                    how = "perfect-power";
+                    return root;
+                }
+            }
+        }
+    }
+
+    // Stage 0: trial division to b1.
+    {
+        std::uint64_t d_found = 0;
+        static const std::uint64_t small[3] = {3, 5, 7};
+        for (std::uint64_t d : small)
+            if (mpz_divisible_ui_p(N.get_mpz_t(), d)) { d_found = d; break; }
+        if (!d_found) {
+            static const std::uint64_t W30[8] = {1, 7, 11, 13, 17, 19, 23, 29};
+            for (std::uint64_t base = 0; base <= opt.b1 && !d_found; base += 30)
+                for (std::uint64_t off : W30) {
+                    const std::uint64_t d = base + off;
+                    if (d < 11 || d > opt.b1) continue;
+                    if (mpz_divisible_ui_p(N.get_mpz_t(), d)) { d_found = d; break; }
+                }
+        }
+        if (d_found) { how = "trial-division(stage0)"; return BigInt(d_found); }
+    }
+
+    if (is_probable_prime(N)) return std::nullopt;
+
+    // Stage 1: the race.
+    Found found;
+    unsigned T = opt.threads ? opt.threads : std::thread::hardware_concurrency();
+    if (T == 0) T = 1;
+
+    const BigInt sqrtN = isqrt_floor(N);
+    const BigInt cbrtN = icbrt_ceil(N);
+
+    // After stage 0 no factor is <= b1, so a = (p + N/p)/2 is bounded.
+    const BigInt b1b = BigInt(opt.b1 < 3 ? 3 : opt.b1);
+    BigInt vf_hi = (b1b + N / b1b) / 2 + 1;
+    const BigInt vf_lo = isqrt_ceil(N);
+    if (vf_hi < vf_lo) vf_hi = vf_lo;
+
+    const std::uint64_t budget = wheel_budget_for(N);
+    Wheel wv = build_wheel(N, budget, opt.digit_only, opt.no_sieve);
+    Wheel wh;
+    if (opt.hf || opt.only == "hf") wh = build_wheel(-N, budget, opt.digit_only, opt.no_sieve);
+
+    std::uint64_t k_max = 0;
+    if (opt.lehman || opt.only == "lm") {
+        k_max = mpz_fits_ulong_p(cbrtN.get_mpz_t())
+              ? mpz_get_ui(cbrtN.get_mpz_t())
+              : std::numeric_limits<std::uint64_t>::max();
+    }
+
+    std::atomic<std::uint64_t> vf_chunk{0}, hf_chunk{0}, lm_k{1}, ia_job{0};
+
+    // Thread budget: one for TD, optionally one each for HF and IA, the
+    // rest split between vertical Fermat and the Lehman sweep.
+    // --only isolates a single stream (used for the method comparison in
+    // the write-up; the default is the full race).
+    const bool only_mode = !opt.only.empty();
+    const bool want_td = !only_mode || opt.only == "td";
+    const bool want_vf = !only_mode || opt.only == "vf";
+    const bool want_hf = only_mode ? (opt.only == "hf") : opt.hf;
+    const bool want_ia = only_mode ? (opt.only == "ia") : opt.ia;
+    const bool want_lm = only_mode ? (opt.only == "lm") : opt.lehman;
+
+    unsigned reserved = 1 + (opt.hf ? 1u : 0u) + (opt.ia ? 1u : 0u);
+    unsigned rest = (T > reserved) ? T - reserved : 1;
+    unsigned nVF = want_lm ? std::max(1u, rest / 2) : rest;
+    unsigned nLM = (want_lm && rest > nVF) ? rest - nVF : 0;
+    if (only_mode) {
+        nVF = want_vf ? T : 0;
+        nLM = want_lm ? T : 0;
+        if (!want_vf && !want_lm) { nVF = 0; nLM = 0; }
+    }
+
+    // Without a Lehman thread, trial division to sqrt(N) is the fallback
+    // that keeps the engine complete on its own.
+    std::uint64_t td_limit;
+    {
+        const BigInt lim = (nLM > 0) ? cbrtN + 1 : sqrtN;
+        td_limit = mpz_fits_ulong_p(lim.get_mpz_t())
+                 ? mpz_get_ui(lim.get_mpz_t())
+                 : std::numeric_limits<std::uint64_t>::max();
+    }
+
+    std::vector<std::thread> pool;
+    if (want_td)
+        pool.emplace_back([&] {
+            trial_division_stream(N, opt.b1 + 1, td_limit, found, stats.td_tested);
+        });
+
+    for (unsigned i = 0; i < nVF; ++i)
+        pool.emplace_back([&] {
+            fermat_scan_chunked(N, N, wv, vf_lo, vf_hi, found, vf_chunk,
+                                stats.vf_candidates, stats.vf_scanned, "vertical-fermat");
+        });
+
+    if (want_hf)
+        pool.emplace_back([&] {
+            std::atomic<std::uint64_t> dummy{0};
+            fermat_scan_chunked(N, -N, wh, BigInt(0), (N - 9) / 6, found, hf_chunk,
+                                stats.hf_candidates, dummy, "horizontal-fermat");
+        });
+
+    if (want_ia)
+        pool.emplace_back([&] {
+            iterated_average_stream(N, 1u << 22, found, ia_job, stats.ia_gcds);
+        });
+
+    for (unsigned i = 0; i < nLM; ++i)
+        pool.emplace_back([&] {
+            lehman_stream(N, k_max, found, lm_k, stats.lm_candidates);
+        });
+
+    for (auto& t : pool) t.join();
+
+    if (found.ready() && found.factor > 1 && found.factor < N) {
+        how = found.source;
+        if (found.certified) how += " [complex-square certified]";
+        return found.factor;
+    }
+    return std::nullopt;
+}
+
+// Full factorization.
+static void factor_recursive(const BigInt& N,
+                             const Options& opt,
+                             Stats& stats,
+                             std::vector<BigInt>& out,
+                             std::vector<std::string>& hows) {
+    if (N <= 1) return;
+    if (is_probable_prime(N)) { out.push_back(N); return; }
+
+    std::string how;
+    auto f = split_once(N, opt, stats, how);
+    if (!f) { out.push_back(N); return; }   // treat as prime / irreducible here
+
+    hows.push_back(how);
+    factor_recursive(*f, opt, stats, out, hows);
+    factor_recursive(N / *f, opt, stats, out, hows);
+}
+
+// ---------------------------------------------------------------------
+// Self-test
+// ---------------------------------------------------------------------
+
+static int selftest() {
+    int failures = 0;
+    std::cout << "=== 1. Corrected terminal-digit sieve vs brute force ===\n";
+
+    // Ground truth by direct enumeration of N = (R-i)(R+i).
+    std::vector<std::vector<std::vector<char>>> truth(
+        20, std::vector<std::vector<char>>(10, std::vector<char>(10, 0)));
+    std::vector<BigInt> rep(20, 0);
+
+    const long LIM = 2000;
+    for (long R = 1; R < LIM; ++R)
+        for (long i = 0; i < R; ++i) {
+            const long p = R - i, q = R + i;
+            if (p < 1 || p % 2 == 0 || q % 2 == 0) continue;
+            const long Nv = p * q;
+            const int n20 = static_cast<int>(Nv % 20);
+            truth[n20][R % 10][i % 10] = 1;
+            if (rep[n20] == 0) rep[n20] = Nv;
+        }
+
+    for (int n20 = 1; n20 < 20; n20 += 2) {
+        if (rep[n20] == 0) continue;
+        const BigInt Nv = rep[n20];
+        auto got = fermat_digit_pairs(Nv);
+
+        std::vector<std::vector<char>> mark(10, std::vector<char>(10, 0));
+        for (const auto& pr : got) mark[pr.a10][pr.b10] = 1;
+
+        int missing = 0, extra = 0, tcount = 0;
+        for (int a = 0; a < 10; ++a)
+            for (int b = 0; b < 10; ++b) {
+                if (truth[n20][a][b]) ++tcount;
+                if (truth[n20][a][b] && !mark[a][b]) ++missing;
+                if (!truth[n20][a][b] && mark[a][b]) ++extra;
+            }
+
+        const bool ok = (missing == 0 && extra == 0);
+        if (!ok) ++failures;
+        std::cout << "  N=" << n20 << " (mod 20)  [N%4=" << (n20 % 4)
+                  << ", N%10=" << (n20 % 10) << "]  classes: got " << got.size()
+                  << ", truth " << tcount
+                  << (ok ? "   OK" : "   FAIL") ;
+        if (!ok) std::cout << " (missing " << missing << ", extra " << extra << ")";
+        std::cout << "\n";
+    }
+
+    std::cout << "\n=== 2. Is the digit sieve exactly the QR sieve at modulus 20? ===\n";
+    for (int n20 = 1; n20 < 20; n20 += 2) {
+        if (rep[n20] == 0) continue;
+        const BigInt Nv = rep[n20];
+
+        // digit-sieve admissible a mod 10
+        std::vector<char> A_digit(10, 0);
+        for (const auto& pr : fermat_digit_pairs(Nv)) A_digit[pr.a10] = 1;
+
+        // QR-sieve admissible a mod 20, projected to mod 10
+        std::vector<char> A_qr(10, 0);
+        const auto sq20 = squares_mod(20);
+        const std::uint64_t M20 = umod(Nv, 20);
+        for (std::uint64_t a = 0; a < 20; ++a) {
+            const std::uint64_t v = ((a * a) % 20 + 20 - M20) % 20;
+            if (sq20[v]) A_qr[a % 10] = 1;
+        }
+
+        bool same = true;
+        for (int d = 0; d < 10; ++d) if (A_digit[d] != A_qr[d]) same = false;
+        std::cout << "  N=" << n20 << " (mod 20): digit {";
+        for (int d = 0; d < 10; ++d) if (A_digit[d]) std::cout << d << " ";
+        std::cout << "}  QR20 {";
+        for (int d = 0; d < 10; ++d) if (A_qr[d]) std::cout << d << " ";
+        std::cout << "}  " << (same ? "identical" : "DIFFER") << "\n";
+    }
+
+    std::cout << "\n=== 3. Sieve strength (fraction of a surviving) ===\n";
+    {
+        const BigInt Nv("104729", 10);
+        const BigInt Ntest = BigInt("104729") * BigInt("104723");
+        (void)Nv;
+        Wheel dw = build_wheel(Ntest, 1u << 21, true,  false);
+        Wheel fw = build_wheel(Ntest, 1u << 21, false, false);
+        std::cout << "  digit sieve  (mod " << dw.W << "): density "
+                  << dw.density << "  -> " << (1.0 / dw.density) << "x\n";
+        std::cout << "  full wheel   (mod " << fw.W << ", +" << fw.sec_mod.size()
+                  << " secondary): density " << fw.density
+                  << "  -> " << (1.0 / fw.density) << "x\n";
+    }
+
+    std::cout << "\n=== 4. Wheel soundness: the true a is never sieved out ===\n";
+    {
+        // For a spread of semiprimes, the genuine a = (p+q)/2 must appear
+        // in the wheel's admissible residue list.  A sieve that ever drops
+        // it would make the engine silently incomplete.
+        std::mt19937_64 rng(12345);
+        int checked = 0, dropped = 0;
+        for (int trial = 0; trial < 400; ++trial) {
+            BigInt p = 3 + BigInt(static_cast<unsigned long>(rng() % 1000000));
+            BigInt q = 3 + BigInt(static_cast<unsigned long>(rng() % 1000000));
+            mpz_nextprime(p.get_mpz_t(), p.get_mpz_t());
+            mpz_nextprime(q.get_mpz_t(), q.get_mpz_t());
+            if (p == q) continue;
+            const BigInt Nv = p * q;
+            if (umod(Nv, 2) == 0) continue;
+
+            Wheel w = build_wheel(Nv, 1u << 16, false, false);
+            if (w.empty()) { ++dropped; continue; }
+
+            const BigInt a = (p + q) / 2;
+            const std::uint64_t ra = umod(a, w.W);
+            const bool in_primary =
+                std::binary_search(w.residues.begin(), w.residues.end(),
+                                   static_cast<std::uint32_t>(ra));
+            bool in_secondary = true;
+            for (std::size_t i = 0; i < w.sec_mod.size(); ++i)
+                if (!w.sec_ok[i][umod(a, w.sec_mod[i])]) in_secondary = false;
+
+            ++checked;
+            if (!in_primary || !in_secondary) ++dropped;
+        }
+        if (dropped) ++failures;
+        std::cout << "  checked " << checked << " semiprimes, true a dropped by the sieve: "
+                  << dropped << (dropped ? "   FAIL" : "   OK") << "\n";
+    }
+
+    std::cout << "\n=== 5. Factorization correctness ===\n";
+    struct Case { const char* n; const char* label; };
+    const std::vector<Case> cases = {
+        {"8051",                     "paper example 83*97"},
+        {"309",                      "paper example 3*103"},
+        {"143",                      "paper example 11*13"},
+        {"10963",                    "N=3 mod 4"},
+        {"1000003",                  "prime"},
+        {"10967535067",              "balanced semiprime"},
+        {"1000003000000000000000000000000000000021", "40-digit, small factors"},
+        {"10000000000000000000000000000000000000121", "41-digit prime"},
+        {"1099511627791",            "prime (2^40 + 15)"},
+        {"3825123056546413051",      "hard 62-bit"},
+        {"152415787532388367501905199875019052100",  "highly composite"},
+        {"9999999999999999999999999999999999999999", "5 | N and 3 | N (repunit-like)"},
+        {"59393383530518219041528236287",  "96-bit balanced, vertical depth j ~ 1e6"},
+        {"3168987219233877513774136225800517", "112-bit balanced, vertical depth j ~ 1e7"},
+        {"1000000016000000063",      "balanced 60-bit (1000000007*1000000009)"},
+        {"25",                       "perfect square"},
+        {"2147483647",               "Mersenne prime"},
+    };
+
+    Options o; o.quiet = true; o.threads = 4; o.b1 = 100000;
+    for (const auto& c : cases) {
+        BigInt N(c.n, 10);
+        Stats st;
+        std::vector<BigInt> fs; std::vector<std::string> hows;
+        auto t0 = std::chrono::steady_clock::now();
+        factor_recursive(N, o, st, fs, hows);
+        auto t1 = std::chrono::steady_clock::now();
+
+        BigInt prod = 1;
+        for (const auto& f : fs) prod *= f;
+        bool allprime = true;
+        for (const auto& f : fs) if (!is_probable_prime(f)) allprime = false;
+
+        const bool ok = (prod == N) && allprime;
+        if (!ok) ++failures;
+        std::sort(fs.begin(), fs.end());
+
+        std::cout << "  " << (ok ? "OK  " : "FAIL") << "  " << c.n << " = ";
+        for (std::size_t i = 0; i < fs.size(); ++i)
+            std::cout << (i ? " * " : "") << fs[i];
+        std::cout << "   [" << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count()
+                  << " ms]  (" << c.label << ")\n";
+    }
+
+    std::cout << "\n" << (failures == 0 ? "ALL TESTS PASSED" : "FAILURES: " + std::to_string(failures))
+              << "\n";
+    return failures == 0 ? 0 : 1;
+}
+
+// ---------------------------------------------------------------------
+// main
+// ---------------------------------------------------------------------
+
+static void usage() {
+    std::cout <<
+      "usage: csf <N> [options]\n"
+      "       csf --selftest\n\n"
+      "  --threads=T     worker threads (0 = hardware concurrency)\n"
+      "  --b1=B          stage-0 trial division bound (default 1000000)\n"
+      "  --no-lehman     disable the Lehman multiplier stream\n"
+      "  --hf            enable the horizontal (b-driven) Fermat stream\n"
+      "  --ia            enable the iterated-average GCD stream (Sec. 5/5.2)\n"
+      "  --digit-only    sieve with modulus 20 only (the terminal-digit sieve)\n"
+      "  --no-sieve      disable sieving entirely\n"
+      "  --only=S        run a single stream: vf|hf|ia|td|lm\n"
+      "  --quiet         print only the factorization\n"
+      "  --verbose       print stream statistics\n";
+}
+
+int main(int argc, char** argv) {
+    std::vector<std::string> args(argv + 1, argv + argc);
+    if (args.empty()) { usage(); return 1; }
+    if (args[0] == "--selftest") return selftest();
+    if (args[0] == "-h" || args[0] == "--help") { usage(); return 0; }
+
+    Options opt;
+    BigInt N;
+    bool haveN = false;
+
+    for (const auto& a : args) {
+        if (a.rfind("--threads=", 0) == 0)      opt.threads = std::stoul(a.substr(10));
+        else if (a.rfind("--b1=", 0) == 0)      opt.b1      = std::stoull(a.substr(5));
+        else if (a == "--no-lehman")            opt.lehman  = false;
+        else if (a == "--hf")                   opt.hf      = true;
+        else if (a == "--ia")                   opt.ia      = true;
+        else if (a == "--digit-only")           opt.digit_only = true;
+        else if (a == "--no-sieve")             opt.no_sieve   = true;
+        else if (a.rfind("--only=", 0) == 0)    opt.only    = a.substr(7);
+        else if (a == "--quiet")                opt.quiet   = true;
+        else if (a == "--verbose")              opt.verbose = true;
+        else if (a.rfind("--", 0) == 0) { std::cerr << "unknown option: " << a << "\n"; return 1; }
+        else {
+            if (N.get_mpz_t()->_mp_size == 0 && !haveN) {
+                if (mpz_set_str(N.get_mpz_t(), a.c_str(), 10) != 0) {
+                    std::cerr << "bad integer: " << a << "\n"; return 1;
+                }
+                haveN = true;
+            }
+        }
+    }
+    if (!haveN) { usage(); return 1; }
+    if (N < 2)  { std::cout << N << " has no prime factorization\n"; return 0; }
+
+    Stats stats;
+    std::vector<BigInt> fs;
+    std::vector<std::string> hows;
+
+    const auto t0 = std::chrono::steady_clock::now();
+    factor_recursive(N, opt, stats, fs, hows);
+    const auto t1 = std::chrono::steady_clock::now();
+
+    std::sort(fs.begin(), fs.end());
+
+    if (!opt.quiet) {
+        std::cout << "N      = " << N << "\n";
+        std::cout << "bits   = " << mpz_sizeinbase(N.get_mpz_t(), 2)
+                  << ", digits = " << N.get_str().size()
+                  << ", N mod 4 = " << umod(N, 4)
+                  << ", N mod 10 = " << umod(N, 10) << "\n";
+    }
+
+    std::cout << (opt.quiet ? "" : "factors= ");
+    for (std::size_t i = 0; i < fs.size(); ++i)
+        std::cout << (i ? " * " : "") << fs[i];
+    std::cout << "\n";
+
+    if (!opt.quiet) {
+        std::cout << "time   = "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count()
+                  << " ms\n";
+        if (!hows.empty()) {
+            std::cout << "splits = ";
+            for (std::size_t i = 0; i < hows.size(); ++i)
+                std::cout << (i ? ", " : "") << hows[i];
+            std::cout << "\n";
+        }
+    }
+
+    if (opt.verbose) {
+        std::cout << "-- stream statistics --\n";
+        std::cout << "  vertical-fermat residues visited : " << stats.vf_scanned.load() << "\n";
+        std::cout << "  vertical-fermat sqrt tests       : " << stats.vf_candidates.load() << "\n";
+        std::cout << "  trial-division divisors tested   : " << stats.td_tested.load() << "\n";
+        std::cout << "  horizontal-fermat sqrt tests     : " << stats.hf_candidates.load() << "\n";
+        std::cout << "  lehman sqrt tests                : " << stats.lm_candidates.load() << "\n";
+        std::cout << "  iterated-average gcds            : " << stats.ia_gcds.load() << "\n";
+    }
+    return 0;
+}
