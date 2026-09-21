@@ -694,16 +694,29 @@ struct SmallSieve {
     std::vector<std::uint8_t> ok[9];
     std::uint64_t start_mod[9];
 
-    void build(const BigInt& M, const BigInt& lo) {
+    // k-independent, so built once per thread rather than once per k.
+    std::vector<std::uint8_t> sq[9];
+    std::vector<std::uint32_t> sqr[9];   // r^2 mod m, also k-independent
+
+    SmallSieve() {
         for (int i = 0; i < 9; ++i) {
             const std::uint32_t m = MODS[i];
-            const std::vector<std::uint8_t> sq = squares_mod(m);
-            const std::uint64_t Mm = umod(M, m);
+            sq[i] = squares_mod(m);
+            sqr[i].resize(m);
+            for (std::uint32_t r = 0; r < m; ++r) sqr[i][r] = (r * r) % m;
             ok[i].assign(m, 0);
-            for (std::uint32_t r = 0; r < m; ++r) {
-                const std::uint64_t v = ((1ull * r * r) % m + m - Mm) % m;
-                ok[i][r] = sq[v] ? 1 : 0;
-            }
+        }
+    }
+
+    // Per k: only the M-dependent shift changes. This used to rebuild
+    // squares_mod for all nine moduli on every k -- allocating nine vectors
+    // and redoing O(m^2) work per multiplier, with k running to N^(1/3).
+    void rebuild(const BigInt& M, const BigInt& lo) {
+        for (int i = 0; i < 9; ++i) {
+            const std::uint32_t m = MODS[i];
+            const std::uint32_t Mm = static_cast<std::uint32_t>(umod(M, m));
+            for (std::uint32_t r = 0; r < m; ++r)
+                ok[i][r] = sq[i][(sqr[i][r] + m - Mm) % m];
             start_mod[i] = umod(lo, m);
         }
     }
@@ -739,7 +752,7 @@ static void lehman_stream(const BigInt& N,
         BigInt span = n16 / (4 * big_from_u64(sk)) + 2;
         const std::uint64_t span_u = u64_from_big(span, std::numeric_limits<std::uint64_t>::max());
 
-        ss.build(M, lo);
+        ss.rebuild(M, lo);
 
         std::uint64_t cur[9];
         for (int i = 0; i < 9; ++i) cur[i] = ss.start_mod[i];
