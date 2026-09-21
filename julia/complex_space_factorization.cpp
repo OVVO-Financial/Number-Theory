@@ -83,8 +83,19 @@
 //  ---------------------------------------------------------------
 //  BUILD
 //  ---------------------------------------------------------------
-//    g++ -std=c++17 -O3 -march=native complex_space_factorization.cpp \
-//        -lgmpxx -lgmp -pthread -o csf
+//    g++ -std=c++17 -O3 complex_space_factorization.cpp -lgmpxx -lgmp -pthread -o csf
+//
+//  MSYS2 / MinGW-w64 is a supported target.  uint64_t there is
+//  unsigned long long and unsigned long is only 32 bits, so every 64-bit
+//  value that meets an mpz goes through big_from_u64 / u64_from_big /
+//  divisible_by_u64 rather than gmpxx's unsigned long overloads.  To check
+//  that property without a Windows box:
+//
+//    sed 's/std::uint64_t/unsigned long long/g' complex_space_factorization.cpp > probe.cpp
+//    g++ -std=c++17 -fsyntax-only probe.cpp
+//
+//  On LP64 unsigned long long is a distinct type from unsigned long, so
+//  that substitution reproduces the MinGW overload set exactly.
 //
 //  RUN
 //    ./csf <N> [options]
@@ -153,7 +164,45 @@ static inline bool is_probable_prime(const BigInt& n) {
 }
 
 static inline std::uint64_t umod(const BigInt& n, std::uint64_t m) {
-    return static_cast<std::uint64_t>(mpz_fdiv_ui(n.get_mpz_t(), m));
+    // Every modulus used here is < 2^32 (build_wheel caps W), so the cast to
+    // unsigned long is exact on LLP64 as well as LP64.
+    return static_cast<std::uint64_t>(
+        mpz_fdiv_ui(n.get_mpz_t(), static_cast<unsigned long>(m)));
+}
+
+// ---------------------------------------------------------------------
+// Portable 64-bit <-> mpz helpers.
+//
+// On LP64 (Linux, macOS) uint64_t IS unsigned long, so gmpxx's unsigned
+// long overloads cover everything and plain BigInt(x) compiles.  On LLP64
+// (MinGW-w64, MSVC) unsigned long is 32 bits and uint64_t is unsigned long
+// long, which gmpxx has no constructor for: BigInt(x) is then ambiguous,
+// and mpz_*_ui / mpz_get_ui silently truncate to 32 bits.
+//
+// These three helpers are used everywhere a 64-bit value meets an mpz, so
+// the same source is correct on both models.
+// ---------------------------------------------------------------------
+
+static inline BigInt big_from_u64(std::uint64_t v) {
+    BigInt r;
+    mpz_import(r.get_mpz_t(), 1, -1, sizeof(v), 0, 0, &v);
+    return r;
+}
+
+// Saturating export: returns `cap` when z does not fit in 64 bits.
+static inline std::uint64_t u64_from_big(const BigInt& z, std::uint64_t cap) {
+    if (mpz_sgn(z.get_mpz_t()) <= 0) return 0;
+    if (mpz_sizeinbase(z.get_mpz_t(), 2) > 64) return cap;
+    std::uint64_t v = 0;
+    std::size_t words = 0;
+    mpz_export(&v, &words, -1, sizeof(v), 0, 0, z.get_mpz_t());
+    return words ? v : 0;
+}
+
+static inline bool divisible_by_u64(const BigInt& n, std::uint64_t d) {
+    if (d <= static_cast<std::uint64_t>(std::numeric_limits<unsigned long>::max()))
+        return mpz_divisible_ui_p(n.get_mpz_t(), static_cast<unsigned long>(d)) != 0;
+    return mpz_divisible_p(n.get_mpz_t(), big_from_u64(d).get_mpz_t()) != 0;
 }
 
 // Set of squares modulo m.  For a perfect square x, x mod m must lie in
@@ -448,7 +497,7 @@ static void fermat_scan_chunked(const BigInt& N,
     const std::uint64_t CHUNK = std::min<std::uint64_t>(R, 4096);
     const std::uint64_t chunks_per_block = (R + CHUNK - 1) / CHUNK;
 
-    const BigInt base0 = x_lo - BigInt(umod(x_lo, W));
+    const BigInt base0 = x_lo - big_from_u64(umod(x_lo, W));
 
     BigInt x, t, y, g, base;
     std::vector<std::uint64_t> base_mod(w.sec_mod.size());
@@ -463,7 +512,7 @@ static void fermat_scan_chunked(const BigInt& N,
 
         if (blk != cur_blk) {
             cur_blk = blk;
-            base = base0 + BigInt(blk) * W;
+            base = base0 + big_from_u64(blk) * big_from_u64(W);
             if (base > x_hi) break;
             for (std::size_t i = 0; i < w.sec_mod.size(); ++i)
                 base_mod[i] = umod(base, w.sec_mod[i]);
@@ -529,8 +578,8 @@ static void trial_division_stream(const BigInt& N,
             if (d < start || d < 7) continue;
             if (d > limit) { counter += tested; return; }
             ++tested;
-            if (mpz_divisible_ui_p(N.get_mpz_t(), d)) {
-                found.submit(N, BigInt(d), "trial-division");
+            if (divisible_by_u64(N, d)) {
+                found.submit(N, big_from_u64(d), "trial-division");
                 counter += tested;
                 return;
             }
@@ -599,7 +648,7 @@ static void lehman_stream(const BigInt& N,
         const std::uint64_t k = next_k.fetch_add(1, std::memory_order_relaxed);
         if (k < 1 || k > k_max) break;
 
-        const BigInt M  = 4 * BigInt(k) * N;
+        const BigInt M  = 4 * big_from_u64(k) * N;
         const BigInt lo = isqrt_ceil(M);
 
         // span = n16 / (4 sqrt k), rounded up.  Using floor(sqrt(k)) makes
@@ -607,10 +656,8 @@ static void lehman_stream(const BigInt& N,
         // superset of Lehman's -- never a miss.
         std::uint64_t sk = static_cast<std::uint64_t>(std::sqrt(static_cast<double>(k)));
         if (sk < 1) sk = 1;
-        BigInt span = n16 / (4 * BigInt(sk)) + 2;
-        std::uint64_t span_u = mpz_fits_ulong_p(span.get_mpz_t())
-                             ? mpz_get_ui(span.get_mpz_t())
-                             : std::numeric_limits<std::uint64_t>::max();
+        BigInt span = n16 / (4 * big_from_u64(sk)) + 2;
+        const std::uint64_t span_u = u64_from_big(span, std::numeric_limits<std::uint64_t>::max());
 
         ss.build(M, lo);
 
@@ -625,7 +672,7 @@ static void lehman_stream(const BigInt& N,
 
             if (pass) {
                 ++local;
-                x = lo + off;
+                x = lo + big_from_u64(off);
                 t = x * x - M;
                 if (t >= 0 && is_perfect_square(t, &y)) {
                     d = x > y ? x - y : y - x;
@@ -699,9 +746,7 @@ static void yellow_path_stream(const BigInt& N,
 
     BigInt jmax_big = (N / S - 3) / 2;
     if (jmax_big < 0) return;
-    const std::uint64_t jmax = mpz_fits_ulong_p(jmax_big.get_mpz_t())
-                             ? mpz_get_ui(jmax_big.get_mpz_t())
-                             : std::numeric_limits<std::uint64_t>::max();
+    const std::uint64_t jmax = u64_from_big(jmax_big, std::numeric_limits<std::uint64_t>::max());
 
     // Admissible-residue tables: R for V = R^2 - N, i for H = i^2 + N.
     static const std::uint32_t MODS[7] = {64, 27, 25, 7, 11, 13, 17};
@@ -730,8 +775,8 @@ static void yellow_path_stream(const BigInt& N,
         if (j0 > jmax) break;
         const std::uint64_t j1 = std::min(jmax, j0 + CHUNK - 1);
 
-        R = r + BigInt(j0);
-        I = m - BigInt(j0);
+        R = r + big_from_u64(j0);
+        I = m - big_from_u64(j0);
         if (I < 0) break;
         V = R * R - N;                       // one multiply per chunk
         H = I * I + N;
@@ -857,7 +902,7 @@ static std::optional<BigInt> crt_b_residue(int db, const BigInt& r2, int k) {
     for (std::uint64_t i = 1; i < 5; ++i) if ((p5 * i) % 5 == 1) { inv = i; break; }
     const std::uint64_t s = (tgt * inv) % 5;
 
-    BigInt b = r2 + pow2 * BigInt(s);
+    BigInt b = r2 + pow2 * big_from_u64(s);
     BigInt mod = 5 * pow2;
     b %= mod; if (b < 0) b += mod;
     return b;
@@ -989,17 +1034,17 @@ static std::optional<BigInt> split_once(const BigInt& N,
         std::uint64_t d_found = 0;
         static const std::uint64_t small[3] = {3, 5, 7};
         for (std::uint64_t d : small)
-            if (mpz_divisible_ui_p(N.get_mpz_t(), d)) { d_found = d; break; }
+            if (divisible_by_u64(N, d)) { d_found = d; break; }
         if (!d_found) {
             static const std::uint64_t W30[8] = {1, 7, 11, 13, 17, 19, 23, 29};
             for (std::uint64_t base = 0; base <= opt.b1 && !d_found; base += 30)
                 for (std::uint64_t off : W30) {
                     const std::uint64_t d = base + off;
                     if (d < 11 || d > opt.b1) continue;
-                    if (mpz_divisible_ui_p(N.get_mpz_t(), d)) { d_found = d; break; }
+                    if (divisible_by_u64(N, d)) { d_found = d; break; }
                 }
         }
-        if (d_found) { how = "trial-division(stage0)"; return BigInt(d_found); }
+        if (d_found) { how = "trial-division(stage0)"; return big_from_u64(d_found); }
     }
 
     if (is_probable_prime(N)) return std::nullopt;
@@ -1013,7 +1058,7 @@ static std::optional<BigInt> split_once(const BigInt& N,
     const BigInt cbrtN = icbrt_ceil(N);
 
     // After stage 0 no factor is <= b1, so a = (p + N/p)/2 is bounded.
-    const BigInt b1b = BigInt(opt.b1 < 3 ? 3 : opt.b1);
+    const BigInt b1b = big_from_u64(opt.b1 < 3 ? 3 : opt.b1);
     BigInt vf_hi = (b1b + N / b1b) / 2 + 1;
     const BigInt vf_lo = isqrt_ceil(N);
     if (vf_hi < vf_lo) vf_hi = vf_lo;
@@ -1025,9 +1070,7 @@ static std::optional<BigInt> split_once(const BigInt& N,
 
     std::uint64_t k_max = 0;
     if (opt.lehman || opt.only == "lm") {
-        k_max = mpz_fits_ulong_p(cbrtN.get_mpz_t())
-              ? mpz_get_ui(cbrtN.get_mpz_t())
-              : std::numeric_limits<std::uint64_t>::max();
+        k_max = u64_from_big(cbrtN, std::numeric_limits<std::uint64_t>::max());
     }
 
     std::atomic<std::uint64_t> vf_chunk{0}, hf_chunk{0}, lm_k{1}, ia_job{0}, yp_chunk{0};
@@ -1067,9 +1110,7 @@ static std::optional<BigInt> split_once(const BigInt& N,
     std::uint64_t td_limit;
     {
         const BigInt lim = sqrtN;
-        td_limit = mpz_fits_ulong_p(lim.get_mpz_t())
-                 ? mpz_get_ui(lim.get_mpz_t())
-                 : std::numeric_limits<std::uint64_t>::max();
+        td_limit = u64_from_big(lim, std::numeric_limits<std::uint64_t>::max());
     }
 
     std::vector<std::thread> pool;
