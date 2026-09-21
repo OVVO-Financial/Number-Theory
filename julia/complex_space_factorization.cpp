@@ -663,29 +663,40 @@ static void lehman_stream(const BigInt& N,
 // every 5th integer below IA_k -- which is precisely the Sec. 5.2 claim,
 // and the reason the admissible b per series is 2^(k-1).
 //
-// IMPORTANT -- the scope of the underlying identity.  Substituting
-// a0 = ceil(sqrt(N)) = a - j into the descending target gives
+// IMPORTANT -- the scope of the underlying identity.
 //
-//     N - a0 + b = N - (a - b) + j = N - p + j
-//     gcd(T, N)  = gcd( (p(q-1) + j) / 2^k , N )
+// T_k is only defined when 2^k divides (N - a0 + b) exactly.  N is odd,
+// so gcd(2^k, N) = 1 and that division cannot change a gcd with N:
 //
-// and since 2^k is coprime to p,
+//     gcd(T_k, N) = gcd(N - a0 + b, N) = gcd(a0 - b, N)   for EVERY k
 //
-//     p | T  <=>  p | j            q | T  <=>  q | (p - j)
+// Every level of the iterated average returns the identical gcd.  The k
+// iterations are not k independent chances at a factor -- they are one
+// arithmetic fact re-tested k times, stopping at k > v2(q-1) where T_k
+// ceases to be an integer.  (N = 8051: q-1 = 96 = 2^5*3, so k = 1..5.)
 //
-// With 0 <= j < p -- true unless the semiprime is wildly unbalanced --
-// both collapse to j = 0.  The iterated-average GCD returns a factor
-// exactly when ceil(sqrt(N)) already equals a.  Measured over 300 random
-// semiprimes: 51/51 when j = 0, 0/249 when j > 0.  The paper's worked
-// example N = 8051 has a = 90 = ceil(sqrt(8051)), i.e. j = 0, which is
-// why it works there and at every re-iteration of the average.
+// Substituting a0 = a - j, where j = a - ceil(sqrt(N)):
 //
-// So the Sec. 5.2 sieve is real, but what it accelerates is a blind GCD
-// scan rather than a structurally guided one, and j = 0 is precisely the
-// case where the vertical scan succeeds on its first trial.  This stream
-// is therefore OFF by default and is NOT exhaustive: when it is selected
-// alone and fails, the caller reports INCOMPLETE rather than presenting N
-// as its own factor.
+//     a0 - b = p - j        a0 + b = q - j
+//
+// so the descending branch asks whether p - j divides N and the ascending
+// branch asks the same of q - j.  Equivalently, via N - p = p(q-1),
+//
+//     p | T_k  <=>  p | j          q | T_k  <=>  q | (p - j)
+//
+// With 0 <= j < p -- true unless q/p >= 3 + 2*sqrt(2) = 5.828 -- both
+// collapse to j = 0.  Measured over 300 random semiprimes: 51/51 when
+// j = 0, 0/249 when j > 0.
+//
+// And j = 0 means b <~ sqrt(2) * N^(1/4), which is exactly the condition
+// for the vertical scan to succeed on its FIRST trial: a = ceil(sqrt(N))
+// is candidate number one.  So the identity fires only where one isqrt
+// would already have finished.
+//
+// The Sec. 5.2 sieve below is correct and is implemented, but what it
+// accelerates is a blind GCD scan.  This stream is therefore OFF by
+// default and is NOT exhaustive: when it is selected alone and fails, the
+// caller reports INCOMPLETE rather than presenting N as its own factor.
 // ---------------------------------------------------------------------
 
 static std::optional<BigInt> crt_b_residue(int db, const BigInt& r2, int k) {
