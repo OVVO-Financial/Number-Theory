@@ -1037,72 +1037,46 @@ static void yellow_path_stream(const BigInt& N,
 
 // ---------------------------------------------------------------------
 // Complex Trial Multiplication  (Prime Factorization/Complex Trial
-// Multiplication.md)
+// Multiplication.md, and the reference C++ implementation)
 //
-// The method, in the document's own words:
+// The reference runs TWO walks from ONE start point, simultaneously:
 //
-//     if p*q < n, raise q.   If p*q > n, lower p.
+//     ascending :  if p*q > n  ->  i += 10   else  R += 10
+//     descending:  if p*q < n  ->  i -= 10   else  R -= 10
 //
-// Those two moves ARE the ascend and the descend. p and q each move on
-// their own, by 10, with the other held fixed -- so p is monotone DOWN,
-// q is monotone UP, and R = (p+q)/2 oscillates. There is no monotone R.
+// The moves are on R and i, by 10 -- not on p and q independently. Both
+// branches of the ascending walk raise q = R + i by 10, and both branches
+// of the descending walk lower it by 10, so q is monotone in each: up in
+// one, down in the other. That is the ascend and the descend.
 //
-// This engine previously walked the published Julia instead, which bumps
-// TMRS or TMIS by 10 and so shifts BOTH p and q together:
+// START: the first RED point of the 135-degree traversal,
 //
-//     p*q < n  ->  R += 10  ->  p+10 AND q+10
-//     p*q > n  ->  i += 10  ->  p-10 AND q+10
+//     (R, i) = (r + j_max + 1,  m - j_max - 1)
 //
-// making q climb unconditionally. That is a different walk. Traced side
-// by side on n = 798607 the two visit different points, and only the
-// document's version expands from the strip point in both senses.
+// which for N = 8051 is 112 + 65i -- p = 47, q = 177, p*q = 8319 > N, the
+// first point past the crossing. Both walks begin there, and because
+// R + i = r + m = S on the whole traversal, both begin at q = S.
 //
-// Why it is the right one: its cost is (q-p)/10, LINEAR in the gap
-// between the factors, where the vertical Fermat leg's j_true is
-// quadratic in it. Measured steps to the factor:
+// The Fermat bracket and trial division start at the OTHER end of the same
+// traversal, (r, m) = 90 + 87i for N = 8051, and walk toward the crossing.
+// So the two methods are indexed to the same line from opposite ends.
 //
-//       n              p * q            CTM     vertical leg
-//       309            3 * 103           10               35
-//       798607       101 * 7907         781            3,110
-//       1007509      503 * 2003         150              249
-//       978508015703 752867 * 1299709 54,684           37,092
+// SIEVE: the (R, i) digit classes are the paired Fermat sieve for this N's
+// classification -- 4k+1 or 4k-1 crossed with the last digit -- and both
+// the increases and the decreases preserve them, since every move is +-10
+// on R or on i. A stream synced into a class at the start stays in it.
 //
-// so CTM wins as the factors separate and loses as they close up. That
-// is exactly the partition the document specifies: the unbalanced side is
-// CTM's, the balanced side is the vertical scan's.
+// Worked, N = 8051, class (0,7), start 112+65i synced to (120, 67):
 //
-// SIEVE. p and q each keep their terminal digit under a +-10 step, so a
-// stream seeded in an admissible (p mod 10, q mod 10) class stays in it
-// forever. Those classes come from the Fermat sieve for this N: the
-// (R, i) table gives p = R - i and q = R + i, hence
+//     120+67i  p=53 q=187  9911 > N   ->  R -= 10
+//     110+67i  p=43 q=177  7611 < N   ->  i -= 10
+//     ...
+//      90+ 7i  p=83 q= 97  8051 = N   found, 9 steps
 //
-//     (p mod 10, q mod 10) = ((a10 - b10) mod 10, (a10 + b10) mod 10)
-//
-// Verified against brute force for all ten odd residues mod 20, the
-// 9-class 5 | N case included. Several (R,i) classes collapse onto the
-// same (p,q) class, so the pair list must be de-duplicated -- stepping p
-// and q independently needs the (p,q) classes, not the (R,i) ones.
-//
-// START. At the crossing, p0 = 2*j_max + 3, where the 135-degree traversal
-// meets the hyperbola. p only descends from there, so the walk owns
-// p <= p0 -- the unbalanced side -- and cannot stray into the vertical
-// scan's half. Chunks are cut on p descending, so the chunk nearest the
-// crossing is drawn first.
+// An earlier version of this routine had only the ascending walk. From the
+// crossing, ascending can never reach a factor with q below S -- 8051's
+// q = 97 against S = 177 -- so it could not factor 8051 at all.
 // ---------------------------------------------------------------------
-
-// (p mod 10, q mod 10) classes induced by the verified (R,i) sieve.
-static std::vector<DigitPair> ctm_pq_classes(const BigInt& N) {
-    const auto ri = fermat_digit_pairs(N);
-    std::vector<DigitPair> out;
-    for (const auto& c : ri) {
-        const int p10 = ((c.a10 - c.b10) % 10 + 10) % 10;
-        const int q10 = ((c.a10 + c.b10) % 10 + 10) % 10;
-        bool seen = false;
-        for (const auto& o : out) if (o.a10 == p10 && o.b10 == q10) { seen = true; break; }
-        if (!seen) out.push_back(DigitPair{p10, q10});
-    }
-    return out;
-}
 
 static void ctm_stream(const BigInt& N,
                        Found& found,
@@ -1117,115 +1091,108 @@ static void ctm_stream(const BigInt& N,
     const BigInt jm = (N / S - 3) / 2;
     if (jm < 0) return;
 
-    // START AT BALANCE, p ~ q ~ r.  NOT at the crossing.
-    //
-    // p only descends, so the seed is the largest p the walk can ever test.
-    // Seeding at the crossing p0 = 2*j_max+3 caps it there and throws away
-    // the whole balanced half: for N = 8051 = 83*97 the crossing is p0 = 45,
-    // and 83 > 45, so the walk starts past the answer and moves away from it.
-    // That is defect #1 of the published Julia -- `real = r+1` skipping
-    // R = r, with 8051 as its own example -- reintroduced by a different
-    // route.
-    //
-    // From balance the walk covers p in [3, r] and q in [r, N/3], which is
-    // every factorisation, so CTM is complete on its own rather than owning
-    // a half. Seeded in class (3,7), 8051 gives p = 83, q = 97 and lands on
-    // the first multiplication.
-    const BigInt p0 = r;
-    if (p0 < 3) return;
-    (void)jm;
+    // The first red point. Both walks start here, at q = S.
+    const BigInt R0 = r + jm + 1;
+    const BigInt I0 = m - jm - 1;
+    if (I0 < 0) return;
 
-    const auto classes = ctm_pq_classes(N);
-    if (classes.empty()) return;
+    const auto pairs = fermat_digit_pairs(N);      // paired (R, i) classes
+    if (pairs.empty()) return;
+
+    // Ascending runs q up to N/3 (p >= 3); descending runs q down to
+    // ceil(sqrt N), where p and q meet.
+    const BigInt q_top = N / 3;
+    const BigInt q_bot = r;
 
     const std::uint64_t STEP = 10;
-    const std::uint64_t CH   = 1u << 12;          // p-span per chunk = CH*10
+    const std::uint64_t CH   = 1u << 13;
     const BigInt STEPB  = big_from_u64(STEP);
     const BigInt CHSPAN = big_from_u64(CH * STEP);
 
-    const std::uint64_t nchunk =
-        u64_from_big(p0 / CHSPAN + 1, std::numeric_limits<std::uint64_t>::max());
+    const std::uint64_t n_up =
+        (q_top > S) ? u64_from_big((q_top - S) / CHSPAN + 1,
+                                   std::numeric_limits<std::uint64_t>::max()) : 0;
+    const std::uint64_t n_dn =
+        (S > q_bot) ? u64_from_big((S - q_bot) / CHSPAN + 1,
+                                   std::numeric_limits<std::uint64_t>::max()) : 0;
+    const std::uint64_t ndraw = (n_up > n_dn ? n_up : n_dn) * 2 + 2;
 
-    BigInt p, q, prod, ph, pf, qs;
+    BigInt R, I, P, Q, prod, qa, qb, ps;
     std::uint64_t local = 0;
 
     while (!found.ready()) {
-        const std::uint64_t c = next_chunk.fetch_add(1, std::memory_order_relaxed);
-        if (c >= nchunk) break;
+        const std::uint64_t draw = next_chunk.fetch_add(1, std::memory_order_relaxed);
+        if (draw >= ndraw) break;
 
-        // Chunk c owns p in (pf, ph], descending. c = 0 is the crossing.
-        ph = p0 - big_from_u64(c) * CHSPAN;
-        if (ph < 3) break;
-        pf = ph - CHSPAN;
-        if (pf < 3) pf = 3;
+        const bool up = (draw & 1u) == 0;          // alternate the two walks
+        const std::uint64_t c = draw >> 1;
+        if (up ? (c >= n_up) : (c >= n_dn)) continue;
 
-        for (const auto& cl : classes) {
+        // Chunk bounds in q, measured out from S in the walk's direction.
+        if (up) {
+            qa = S + big_from_u64(c) * CHSPAN;                 // from
+            qb = qa + CHSPAN; if (qb > q_top) qb = q_top;      // to (higher)
+            if (qa >= q_top) continue;
+        } else {
+            qa = S - big_from_u64(c) * CHSPAN;                 // from
+            qb = qa - CHSPAN; if (qb < q_bot) qb = q_bot;      // to (lower)
+            if (qa <= q_bot) continue;
+        }
+
+        for (const auto& pr : pairs) {
             if (found.ready()) break;
 
-            // p: the largest value <= ph in this class.
-            p = ph - mod_pos_small(ph - BigInt(cl.a10), 10);
-            if (p < 3) continue;
-            // q: seeded BELOW N/p, never above. Seeding above would make the
-            // very first test read p*q > N and drop p past ph, skipping the
-            // top of the chunk; from below the walk raises q into place.
-            qs = N / p;
-            q = qs - mod_pos_small(qs - BigInt(cl.b10), 10);
-            // q < p here is harmless and must NOT drop the class: p*q < N,
-            // so the rule raises q, and q climbs past p and on to N/p by
-            // itself. Guarding it with `continue` discarded whole classes --
-            // for N = 798607 it discarded (1,7), the one holding 101*7907.
-            if (q < 3) continue;
+            // Seed on the hyperbola at this chunk's q, then sync the pair
+            // into its digit class. Both +-10 moves preserve the class.
+            ps = N / qa;
+            R = (qa + ps) / 2;
+            I = (qa - ps) / 2;
+            if (I < 0) I = 0;
+            R += mod_pos_small(BigInt(pr.a10) - R, 10);
+            I += mod_pos_small(BigInt(pr.b10) - I, 10);
 
-            // q grows to about N/pf inside this chunk, so the native path
-            // needs THAT to fit, not just the seed. (N / pf) is a gmpxx
-            // expression template, not a BigInt, so it has to be assigned
-            // before get_mpz_t() exists on it.
-            const BigInt qmax = N / pf;
-            const bool native =
-                mpz_sizeinbase(N.get_mpz_t(), 2) <= 126 &&
-                mpz_sizeinbase(q.get_mpz_t(), 2) <= 62 &&
-                mpz_sizeinbase(qmax.get_mpz_t(), 2) <= 62;
+            const bool native = mpz_sizeinbase(N.get_mpz_t(), 2) <= 126 &&
+                                mpz_sizeinbase(qb.get_mpz_t(), 2) <= 62 &&
+                                mpz_sizeinbase(qa.get_mpz_t(), 2) <= 62;
 
             if (native) {
                 const __uint128_t Nn = u128_from_big(N);
-                std::uint64_t pn = u64_from_big(p, 0), qn = u64_from_big(q, 0);
-                const std::uint64_t pfn = u64_from_big(pf, 0);
-                // q never has to exceed N/pf inside this chunk; past that the
-                // product cannot come back down to N for any p still in range.
-                const std::uint64_t qcap = u64_from_big(qmax, ~0ull);
-                while (pn >= pfn && pn >= 3) {
+                std::int64_t Rn = (std::int64_t)u64_from_big(R, 0);
+                std::int64_t In = (std::int64_t)u64_from_big(I, 0);
+                const std::int64_t lim = (std::int64_t)u64_from_big(qb, ~0ull);
+                while (In >= 0 && Rn > In) {
+                    const std::int64_t q = Rn + In;
+                    if (up ? (q > lim) : (q < lim)) break;
+                    // No p < 3 break. The reference has none, and it would
+                    // be wrong: p*q < N when p is tiny, so the rule moves i
+                    // and RAISES p by 10 -- the walk recovers. Breaking
+                    // discards the class first. N = 143 fails that way: its
+                    // seed passes through p = 1 one step before p = 11.
+                    const std::int64_t p = Rn - In;
                     ++local;
-                    const __uint128_t pr = (__uint128_t)pn * qn;
-                    if (pr == Nn) {
-                        found.submit(N, big_from_u64(pn), "ctm");
+                    const __uint128_t z = (__uint128_t)(std::uint64_t)p *
+                                          (std::uint64_t)q;
+                    if (z == Nn) {
+                        found.submit(N, big_from_u64((std::uint64_t)p), "ctm");
                         counter += local; return;
                     }
-                    if (pr < Nn) {
-                        if (qn > qcap) break;
-                        qn += STEP;
-                    } else {
-                        // pn is unsigned: subtracting past the floor wraps to
-                        // a huge value, which then reads p*q > N forever and
-                        // spins ~2^64 times. Stop instead of wrapping.
-                        if (pn < pfn + STEP || pn < 3 + STEP) break;
-                        pn -= STEP;
-                    }
+                    if (up) { if (z > Nn) In += STEP; else Rn += STEP; }
+                    else    { if (z < Nn) In -= STEP; else Rn -= STEP; }
                     if ((local & 0xFFFF) == 0 && found.ready()) break;
                 }
             } else {
-                while (p >= pf && p >= 3) {
+                while (I >= 0 && R > I) {
+                    Q = R + I;
+                    if (up ? (Q > qb) : (Q < qb)) break;
+                    P = R - I;              // no P < 3 break; see above
                     ++local;
-                    prod = p * q;
+                    prod = P * Q;
                     if (prod == N) {
-                        found.submit(N, p, "ctm");
+                        found.submit(N, P, "ctm");
                         counter += local; return;
                     }
-                    if (prod < N) {
-                        if (q > qmax) break;
-                        q += STEPB;
-                    } else {
-                        p -= STEPB;
-                    }
+                    if (up) { if (prod > N) I += STEPB; else R += STEPB; }
+                    else    { if (prod < N) I -= STEPB; else R -= STEPB; }
                     if ((local & 0xFFFF) == 0 && found.ready()) break;
                 }
             }

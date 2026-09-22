@@ -11,127 +11,86 @@ The basis of the method is simply:
 The complex Fermat sieves, [described here](../Number%20Theory%20Papers/Fermat%20Sieve%20Using%20Complex%20Numbers.pdf)
 define the sequences for `p` and `q` via their complex mapping.
 
-## Where CTM starts: at balance, not at the crossing
+## The two walks, and where they start
 
-CTM begins at `R = ceil(sqrt(n))` -- `p` and `q` both as close to `sqrt(n)` as
-their digit classes allow -- and expands outward from there.
-
-An earlier version of this section argued it should instead begin where the
-Fermat bracket stops, at the crossing `p0 = 2*j_max + 3`, and claimed the
-crossing partitions the strip so that only factors "above" it are CTM's. **That
-is wrong, and `n = 8051` shows why.**
-
-`p` only ever descends, so the seed is the largest `p` the walk can ever test.
-For `n = 8051 = 83 * 97`:
+The reference implementation runs **two walks from one start point, simultaneously**:
 
 ```
-r = ceil(sqrt 8051) = 90,  m = 87,  S = 177,  j_max = 21,  p0 = 45
+ascending :  if p*q > n  ->  TMIS  += 10   else  TMRS  += 10
+descending:  if p*q < n  ->  TMdIS -= 10   else  TMdRS -= 10
 ```
 
-The factor is `p = 83`, and `83 > 45`. A walk seeded at the crossing starts
-*past* the answer and moves away from it, so it can never find it. Seeded at
-balance, in class `(3, 7)`:
+The moves are on `R` and `i` by 10 -- *not* on `p` and `q` independently. Both
+branches of the ascending walk raise `q = R + i` by 10, and both branches of the
+descending walk lower it by 10. So `q` is monotone in each: **up in one, down in
+the other.** That is the ascend and the descend.
+
+**The start is the first red point of the 135-degree traversal**,
 
 ```
-p = largest  <= 90 with p % 10 == 3  ->  83
-q = smallest >= 90 with q % 10 == 7  ->  97
-83 * 97 = 8051 = n                       found on the first multiplication
+(R, i) = (r + j_max + 1,  m - j_max - 1)
 ```
 
-This is the same failure as defect #1 below -- `real = r + 1` skipping `R = r`,
-whose worked example is also `8051` -- reached by a different route. The crossing
-is a real geometric point, but it is where the *135-degree traversal* leaves the
-strip, not where CTM's reach begins.
+which for `n = 8051` is `112 + 65i` -- `p = 47`, `q = 177`, `p*q = 8319 > n`, the
+first point past the crossing. Because `R + i = r + m = S` all along the
+traversal, both walks begin at `q = S`.
 
-From balance the walk covers `p` in `[3, r]` and `q` in `[r, n/3]`, which is
-every factorisation of `n`. **CTM is complete on its own**; it does not own a
-half. What the crossing does mark is where CTM stops being the cheaper of the
-two, since its cost is `(q-p)/10` -- linear in the gap -- against the vertical
-leg's quadratic `j_true`.
+The Fermat bracket and trial division start at the **other end of the same
+line**, `(r, m) = 90 + 87i` for `n = 8051`, and walk toward the crossing. The two
+methods are indexed to one line from opposite ends.
 
-Running `--only=ctm --b1=1`, every case is found, balanced and unbalanced alike:
+### Sieving both directions
 
-| n | p * q | multiplications |
-| - | ----- | --------------- |
-| 8051 | 83 * 97 | 117 |
-| 143 | 11 * 13 | 1 |
-| 2923 | 37 * 79 | 130 |
-| 288419 | 379 * 761 | 38 |
-| 1007509 | 503 * 2003 | 151 |
-| 5115191 | 1597 * 3203 | 161 |
-| 17821157 | 3019 * 5903 | 289 |
-| 798607 | 101 * 7907 | 782 |
-| 10967535067 | 104723 * 104729 | 56,622 |
-| 978508015703 | 752867 * 1299709 | 323,663 |
+Every move is `+-10` on `R` or on `i`, so both the increases and the decreases
+preserve the terminal digits. A stream synced into an admissible `(R mod 10,
+i mod 10)` class at the start stays in it for the whole walk -- which is what
+lets the paired Fermat sieve for this `N`'s classification apply to a
+two-directional search unchanged.
 
-## The walk, and what the published Julia does instead
-
-The rule at the top of this page -- *raise `q`* when `p*q < n`, *lower `p`* when
-`p*q > n* -- moves `p` and `q` **independently**, each by 10, with the other held
-fixed. Those two moves are the ascend and the descend. Consequently `p` is
-monotone down, `q` is monotone up, and `R = (p+q)/2` **oscillates**: there is no
-monotone `R`.
-
-The Julia below does something different. It bumps `TMRS` or `TMIS` by 10, which
-shifts *both* `p` and `q` together:
+For `n = 8051`: `n mod 4 = 3` (4k-1), last digit 1, so the paired tables give
+`(R, i)` classes `(0,3) (0,7) (4,5) (6,5)`. The factor `83 * 97` is `R = 90`,
+`i = 7` -- class `(0,7)`. Syncing `112 + 65i` into it gives `(120, 67)`, and
+descending:
 
 ```
-p*q < n  ->  TMRS += 10  ->  p+10 AND q+10
-p*q > n  ->  TMIS += 10  ->  p-10 AND q+10
+120+67i  p=53 q=187   9911 > n  -> R -= 10
+110+67i  p=43 q=177   7611 < n  -> i -= 10
+110+57i  p=53 q=167   8851 > n  -> R -= 10
+...
+ 90+ 7i  p=83 q= 97   8051 = n     found, 9 steps
 ```
 
-so `q = R+i` climbs unconditionally and `q` becomes monotone. Traced side by side
-on `n = 798607` the two visit different points. The C++ engine originally ported
-the Julia and inherited its monotone `q`; it now implements the rule above.
+The ascending walk from the same point cannot reach it -- `q` only rises from
+177, and the factor is at `q = 97`. That is exactly why both are needed.
 
-The rule matters because its cost is `(q-p)/10` -- **linear** in the gap between
-the factors, where the vertical Fermat leg's `j_true` is quadratic in it:
+### Measured
 
-| n | p * q | CTM steps | vertical leg `j_true` |
-| - | ----- | --------- | --------------------- |
-| 309 | 3 * 103 | **10** | 35 |
-| 798607 | 101 * 7907 | **781** | 3,110 |
-| 1007509 | 503 * 2003 | **150** | 249 |
-| 978508015703 | 752867 * 1299709 | 54,684 | **37,092** |
+`--only=ctm --b1=1`, multiplications to the factor:
 
-CTM wins as the factors separate and loses as they close up -- which is exactly
-the partition this page specifies.
+| n | p * q | mults |
+| - | ----- | ----- |
+| 143 | 11 * 13 | 9 |
+| 2923 | 37 * 79 | 245 |
+| 8051 | 83 * 97 | 690 |
+| 798607 | 101 * 7907 | 612 |
+| 10963 | 19 * 577 | 863 |
+| 5115191 | 1597 * 3203 | 16,517 |
+| 1007509 | 503 * 2003 | 24,578 |
+| 288419 | 379 * 761 | 24,845 |
+| 17821157 | 3019 * 5903 | 33,023 |
+| 10967535067 | 104723 * 104729 | 96,960 |
+| 978508015703 | 752867 * 1299709 | 575,803 |
 
-### Sieving the steps
+### Two things that must not be added
 
-`p` and `q` each keep their terminal digit under a `+-10` step, so a stream seeded
-in an admissible `(p mod 10, q mod 10)` class stays in it for the whole walk. The
-classes come from the Fermat sieve for this `N`'s classification: the `(R, i)`
-table gives `p = R - i` and `q = R + i`, so
+**No `p < 3` early exit.** `p*q < n` when `p` is tiny, so the rule moves `i` and
+raises `p` by 10 again -- the walk recovers. Breaking discards the class first,
+which loses `n = 143`, whose seed passes through `p = 1` one step before
+`p = 11`.
 
-```
-(p mod 10, q mod 10) = ((a10 - b10) mod 10, (a10 + b10) mod 10)
-```
-
-Verified against brute force for all ten odd residues mod 20:
-
-| `N mod 20` | `(R,i)` classes | induced `(p,q)` classes |
-| - | - | - |
-| 1, 11 | 4 | (1,1) (3,7) (7,3) (9,9) |
-| 3, 13 | 4 | (1,3) (3,1) (7,9) (9,7) |
-| 7, 17 | 4 | (1,7) (3,9) (7,1) (9,3) |
-| 9, 19 | 4 | (1,9) (3,3) (7,7) (9,1) |
-| 5, 15 | 9 | (1,5) (3,5) (5,1) (5,3) (5,5) (5,7) (5,9) (7,5) (9,5) |
-
-Several `(R,i)` classes collapse onto the same `(p,q)` class, so the list must be
-de-duplicated -- stepping `p` and `q` independently needs the `(p,q)` classes, not
-the `(R,i)` ones.
-
-### Seeding q
-
-`q` is seeded just *below* `n/p`, never above: from below the first test reads
-`p*q < n` and the walk raises `q` into place, whereas from above it reads
-`p*q > n` and drops `p` past the seed, skipping the top of the range.
-
-Rounding `q` down into its class can put it below `p`, and that is harmless --
-`p*q < n` there, so `q` climbs past `p` by itself. Guarding it with a skip
-discards whole classes: for `n = 798607` it discarded `(1, 7)`, the one holding
-`101 * 7907`, and the factor went unfound.
+**Not one walk.** An earlier version of the C++ engine had only the ascending
+walk. From the crossing, ascending can never reach a factor whose `q` is below
+`S` -- 8051's `q = 97` against `S = 177` -- so it could not factor 8051 at all.
 
 ## Three defects in the routine above
 
