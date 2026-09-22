@@ -1337,8 +1337,9 @@ struct Options {
     bool lehman        = true;
     bool hf            = false;
     bool ia            = false;
-    bool yp            = false;
+    bool yp            = true;    // on by default; --no-yp to ablate
     bool ctm           = false;
+    bool parallel      = false;   // yellow path across the whole pool
     bool digit_only    = false;
     bool no_sieve      = false;
     bool quiet         = false;
@@ -1520,9 +1521,19 @@ static std::optional<BigInt> split_once(const BigInt& N,
     unsigned nLM = (want_lm && rest >= 2) ? 1u : 0u;
     unsigned nVF = rest - nLM;
     if (nVF == 0) { nVF = 1; nLM = 0; }
+
+    // Streams that carve their range with an atomic chunk counter take as
+    // many threads as they are given. Until measured, only vf and lm were
+    // ever handed the pool: yp and ctm were written chunk-parallel but
+    // pinned to one thread each, even under --only, so --only=yp used a
+    // single core while --only=vf used all of them.
+    unsigned nYP = want_yp ? 1u : 0u;
+    unsigned nCTM = want_ctm ? 1u : 0u;
     if (only_mode) {
-        nVF = want_vf ? T : 0;
-        nLM = want_lm ? T : 0;
+        nVF  = want_vf  ? T : 0;
+        nLM  = want_lm  ? T : 0;
+        nYP  = want_yp  ? T : 0;
+        nCTM = want_ctm ? T : 0;
     }
 
     // Trial division owns p in (b1, cross]; the vertical scan owns the rest.
@@ -1557,13 +1568,13 @@ static std::optional<BigInt> split_once(const BigInt& N,
             iterated_average_stream(N, 1u << 22, found, ia_job, stats.ia_gcds);
         });
 
-    if (want_yp)
+    for (unsigned i = 0; i < nYP; ++i)
         pool.emplace_back([&] {
             yellow_path_stream(N, found, yp_chunk, stats.yp_steps);
         });
 
     // Launched at the collapse SIMULTANEOUSLY with the bracket, never after.
-    if (want_ctm)
+    for (unsigned i = 0; i < nCTM; ++i)
         pool.emplace_back([&] {
             ctm_stream(N, found, ctm_chunk, stats.ctm_steps);
         });
@@ -1803,7 +1814,8 @@ static void usage() {
       "  --no-lehman     disable the Lehman multiplier stream\n"
       "  --hf            enable the horizontal (b-driven) Fermat stream\n"
       "  --ia            enable the iterated-average GCD stream (Sec. 5/5.2)\n"
-      "  --yp            enable the fused yellow-path stream (Sec. 4, Figure 8)\n"
+      "  --no-yp         disable the fused yellow-path stream (Sec. 4, Figure 8)\n"
+        "  --parallel      run the yellow path across every thread, alone\n"
       "  --ctm           enable complex trial multiplication from the collapse\n"
       "  --digit-only    sieve with modulus 20 only (the terminal-digit sieve)\n"
       "  --no-sieve      disable sieving entirely\n"
@@ -1829,7 +1841,11 @@ int main(int argc, char** argv) {
         else if (a == "--no-lehman")            opt.lehman  = false;
         else if (a == "--hf")                   opt.hf      = true;
         else if (a == "--ia")                   opt.ia      = true;
+        else if (a == "--no-yp")                opt.yp      = false;
+        // --yp is what enabled the stream before it became the default.
+        // Kept as an accepted no-op so existing command lines still run.
         else if (a == "--yp")                   opt.yp      = true;
+        else if (a == "--parallel")           { opt.parallel = true; opt.yp = true; }
         else if (a == "--ctm")                  opt.ctm     = true;
         else if (a == "--digit-only")           opt.digit_only = true;
         else if (a == "--no-sieve")             opt.no_sieve   = true;
@@ -1849,6 +1865,21 @@ int main(int argc, char** argv) {
     }
     if (!haveN) { usage(); return 1; }
     if (N < 2)  { std::cout << N << " has no prime factorization\n"; return 0; }
+
+    // --parallel gives the yellow path the whole pool, and stands the other
+    // streams down while it does.
+    //
+    // Standing them down is what makes it safe rather than oversubscribed:
+    // T yellow threads ON TOP OF the usual race would be T+5 runnable
+    // threads on T cores. It is also sound, because the yellow path is a
+    // complete algorithm by itself -- its trial-division leg catches
+    // p <= 2*j_max+3 and its vertical leg catches everything above, so the
+    // two legs cover each other. That is the property the strip partition
+    // rests on, used here in its own right.
+    //
+    // Resolved after the parse rather than inside it so that --parallel and
+    // --only= compose in either order; an explicit --only= always wins.
+    if (opt.parallel && opt.only.empty()) opt.only = "yp";
 
     Stats stats;
     std::vector<BigInt> fs;

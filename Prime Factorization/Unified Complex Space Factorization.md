@@ -386,8 +386,24 @@ converges to `0.2500`. Coverage: the trial-division leg catches any `p <= 2 j_ma
 two legs cover each other exactly — which is what Figure 8 shows geometrically.
 Verified on 400 semiprimes: 0 misses. For `N = 309` the whole path is `j = 0,1,2,3`.
 
-Available as `--yp`, or `--only=yp`. `8051` resolves in 1 step; `798607` in 50
+On by default, ablated with `--no-yp`, isolated with `--only=yp`, and given the whole
+thread pool with `--parallel`. `8051` resolves in 1 step; `798607` in 50
 (`p = 101`, so `2j+3 = 101` at `j = 49`).
+
+Because every quantity along the path is a closed form in `j`, a bracket can begin at
+any `j` for O(1) cost — there is no dependency chain to preserve. `--parallel` uses
+that: it hands the path the whole pool and stands the other streams down, which is
+sound because the two legs cover each other, so the path is complete on its own.
+Measured min-of-7, `--b1=1`:
+
+| case | 1 thread | 2 | 3 | 4 |
+| --- | --- | --- | --- | --- |
+| 62-bit | 11 ms | 9 ms | 8 ms | 8 ms |
+| 96-bit | 28 ms | 23 ms | 21 ms | 19 ms |
+| 112-bit | 117 ms | 62 ms | 43 ms | **33 ms** (3.5×) |
+
+Shallow cases are dominated by fixed setup, so the deeper the scan the closer it gets
+to linear.
 
 **But fusing loses to racing, and the reason is the sieve.** Locking `a = r + j` to
 `p = 2j + 3` means the wheel can suppress the `isqrt` but cannot *skip the iteration*:
