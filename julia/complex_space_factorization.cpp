@@ -1117,8 +1117,23 @@ static void ctm_stream(const BigInt& N,
     const BigInt jm = (N / S - 3) / 2;
     if (jm < 0) return;
 
-    const BigInt p0 = 2 * jm + 3;          // the crossing
+    // START AT BALANCE, p ~ q ~ r.  NOT at the crossing.
+    //
+    // p only descends, so the seed is the largest p the walk can ever test.
+    // Seeding at the crossing p0 = 2*j_max+3 caps it there and throws away
+    // the whole balanced half: for N = 8051 = 83*97 the crossing is p0 = 45,
+    // and 83 > 45, so the walk starts past the answer and moves away from it.
+    // That is defect #1 of the published Julia -- `real = r+1` skipping
+    // R = r, with 8051 as its own example -- reintroduced by a different
+    // route.
+    //
+    // From balance the walk covers p in [3, r] and q in [r, N/3], which is
+    // every factorisation, so CTM is complete on its own rather than owning
+    // a half. Seeded in class (3,7), 8051 gives p = 83, q = 97 and lands on
+    // the first multiplication.
+    const BigInt p0 = r;
     if (p0 < 3) return;
+    (void)jm;
 
     const auto classes = ctm_pq_classes(N);
     if (classes.empty()) return;
@@ -1155,7 +1170,11 @@ static void ctm_stream(const BigInt& N,
             // top of the chunk; from below the walk raises q into place.
             qs = N / p;
             q = qs - mod_pos_small(qs - BigInt(cl.b10), 10);
-            if (q < p) continue;
+            // q < p here is harmless and must NOT drop the class: p*q < N,
+            // so the rule raises q, and q climbs past p and on to N/p by
+            // itself. Guarding it with `continue` discarded whole classes --
+            // for N = 798607 it discarded (1,7), the one holding 101*7907.
+            if (q < 3) continue;
 
             // q grows to about N/pf inside this chunk, so the native path
             // needs THAT to fit, not just the seed. (N / pf) is a gmpxx

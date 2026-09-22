@@ -11,52 +11,58 @@ The basis of the method is simply:
 The complex Fermat sieves, [described here](../Number%20Theory%20Papers/Fermat%20Sieve%20Using%20Complex%20Numbers.pdf)
 define the sequences for `p` and `q` via their complex mapping.
 
-## Where CTM should start
+## Where CTM starts: at balance, not at the crossing
 
-CTM is the middle-of-the-strip method, so it should begin where the Fermat
-bracket stops rather than at `ceil(sqrt(n)) + 1`.
+CTM begins at `R = ceil(sqrt(n))` -- `p` and `q` both as close to `sqrt(n)` as
+their digit classes allow -- and expands outward from there.
 
-With `r = ceil(sqrt(n))`, `m = r - 3` and `S = r + m`, the Sec. 4 traversal runs
-down the 135-degree line through the key complex number `(r + m*i)` and halts at
-`j_max = (n/S - 3)/2`, the last point before the key number turns red. Its
-terminal point is
+An earlier version of this section argued it should instead begin where the
+Fermat bracket stops, at the crossing `p0 = 2*j_max + 3`, and claimed the
+crossing partitions the strip so that only factors "above" it are CTM's. **That
+is wrong, and `n = 8051` shows why.**
+
+`p` only ever descends, so the seed is the largest `p` the walk can ever test.
+For `n = 8051 = 83 * 97`:
 
 ```
-(R, i) = (r + j_max,  m - j_max)
+r = ceil(sqrt 8051) = 90,  m = 87,  S = 177,  j_max = 21,  p0 = 45
 ```
 
-That point is not arbitrary. The stop condition is `(R-i)(R+i) > n`, so the last
-admissible point is by definition where the 135-degree line **crosses the factor
-strip**, and the agreement tightens with n:
+The factor is `p = 83`, and `83 > 45`. A walk seeded at the crossing starts
+*past* the answer and moves away from it, so it can never find it. Seeded at
+balance, in class `(3, 7)`:
 
-| n | terminal (R, i) | strip `i` at that R |
-| - | --------------- | ------------------- |
-| 309 | (21, **12**) | 11.489 |
-| 8051 | (111, **66**) | 65.345 |
-| 798607 | (1116, **669**) | 668.468 |
-| 1000036000099 | (1250021, **750012**) | 750011.000 |
+```
+p = largest  <= 90 with p % 10 == 3  ->  83
+q = smallest >= 90 with q % 10 == 7  ->  97
+83 * 97 = 8051 = n                       found on the first multiplication
+```
 
-For `n = 309` the path is `j = 0..3` -- four steps, ending at `(21, 12)`.
+This is the same failure as defect #1 below -- `real = r + 1` skipping `R = r`,
+whose worked example is also `8051` -- reached by a different route. The crossing
+is a real geometric point, but it is where the *135-degree traversal* leaves the
+strip, not where CTM's reach begins.
 
-**The crossing partitions the strip exactly.** Measured over a spread of
-semiprimes, a factor whose `(R, i)` lies *above* the terminal point is CTM's;
-one *below* it is the vertical Fermat scan's, and CTM started at the crossing
-can never reach it (it would be walking away from the answer):
+From balance the walk covers `p` in `[3, r]` and `q` in `[r, n/3]`, which is
+every factorisation of `n`. **CTM is complete on its own**; it does not own a
+half. What the crossing does mark is where CTM stops being the cheaper of the
+two, since its cost is `(q-p)/10` -- linear in the gap -- against the vertical
+leg's quadratic `j_true`.
 
-| n | factor | region |
-| - | ------ | ------ |
-| 309 | 3*103 | above -- CTM |
-| 798607 | 101*7907 | above -- CTM |
-| 8051 | 83*97 | below -- vertical Fermat |
-| 17821157 | 3019*5903 | below -- vertical Fermat |
+Running `--only=ctm --b1=1`, every case is found, balanced and unbalanced alike:
 
-Starting at the crossing rather than at `r + 1` saves exactly the segment the
-Fermat bracket already covered. On CTM's own region that is a **1.04x**
-reduction in walk steps overall -- up to 1.16x when the factor is near the
-crossing, near 1.00x when it is far up the strip, because CTM's cost is
-dominated by the distance still to travel. The crossing's real value is as a
-**specification of ownership**: it is the unique point at which the Fermat
-bracket's coverage ends and CTM's begins, with no overlap and no gap.
+| n | p * q | multiplications |
+| - | ----- | --------------- |
+| 8051 | 83 * 97 | 117 |
+| 143 | 11 * 13 | 1 |
+| 2923 | 37 * 79 | 130 |
+| 288419 | 379 * 761 | 38 |
+| 1007509 | 503 * 2003 | 151 |
+| 5115191 | 1597 * 3203 | 161 |
+| 17821157 | 3019 * 5903 | 289 |
+| 798607 | 101 * 7907 | 782 |
+| 10967535067 | 104723 * 104729 | 56,622 |
+| 978508015703 | 752867 * 1299709 | 323,663 |
 
 ## The walk, and what the published Julia does instead
 
@@ -116,22 +122,16 @@ Several `(R,i)` classes collapse onto the same `(p,q)` class, so the list must b
 de-duplicated -- stepping `p` and `q` independently needs the `(p,q)` classes, not
 the `(R,i)` ones.
 
-### Ownership, measured
+### Seeding q
 
-Seeded at the crossing, `p` only descends, so the walk owns `p <= p0` and cannot
-stray into the vertical scan's half. Running `--only=ctm` on both sides:
+`q` is seeded just *below* `n/p`, never above: from below the first test reads
+`p*q < n` and the walk raises `q` into place, whereas from above it reads
+`p*q > n` and drops `p` past the seed, skipping the top of the range.
 
-| n | p * q | `p0` | whose | result |
-| - | ----- | ---- | ----- | ------ |
-| 309 | 3 * 103 | 9 | CTM | found |
-| 798607 | 101 * 7907 | 447 | CTM | found |
-| 3704339 | 641 * 5779 | 961 | CTM | found |
-| 8051 | 83 * 97 | 45 | vertical | correctly not found |
-| 288419 | 379 * 761 | 267 | vertical | correctly not found |
-| 5115191 | 1597 * 3203 | 1131 | vertical | correctly not found |
-
-The partition is asserted in both directions in the CUDA CPU test, so a walk that
-strayed across it would fail as loudly as one that missed its own side.
+Rounding `q` down into its class can put it below `p`, and that is harmless --
+`p*q < n` there, so `q` climbs past `p` by itself. Guarding it with a skip
+discards whole classes: for `n = 798607` it discarded `(1, 7)`, the one holding
+`101 * 7907`, and the factor went unfound.
 
 ## Three defects in the routine above
 

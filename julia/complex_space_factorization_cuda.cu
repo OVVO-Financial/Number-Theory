@@ -571,14 +571,15 @@ static int test_sieve() {
 // --- stage 2: CTM walk must recover known factorizations -------------
 //
 // Mirrors the host side of a launch: build the (p mod 10, q mod 10)
-// classes, seed each at the crossing p0 = 2*j_max+3, cut p descending
-// into chunks, then run the device walk on every (chunk, class).
+// classes, seed each at BALANCE (p ~ q ~ r), cut p descending into
+// chunks, then run the device walk on every (chunk, class).
 //
-// The method owns p <= p0 -- the unbalanced side -- because p only
-// descends. A factor with p > p0 is the vertical Fermat scan's and must
-// NOT be found here; the test asserts both directions, so a walk that
-// strayed across the partition would fail just as loudly as one that
-// missed its own side.
+// p only descends, so the seed is the largest p the walk can ever test.
+// Seeding at the crossing p0 = 2*j_max+3 caps it there and discards the
+// whole balanced half: for N = 8051 = 83*97 the crossing is p0 = 45, and
+// 83 > 45, so such a walk starts past the answer and moves away from it.
+// From balance the walk reaches every factorisation, so every case below
+// must be found -- the balanced ones included.
 static void csf_ctm_classes(std::uint64_t N, std::vector<std::pair<int,int>>& out) {
     // (R,i) with R^2 - i^2 = N (mod 20), mapped to (p,q) = (R-i, R+i) and
     // de-duplicated: several (R,i) classes collapse onto one (p,q) class.
@@ -595,17 +596,19 @@ static void csf_ctm_classes(std::uint64_t N, std::vector<std::pair<int,int>>& ou
 }
 
 static int test_ctm() {
-    struct Case { std::uint64_t N, p, q; int mine; };   // mine: p <= p0 ?
+    struct Case { std::uint64_t N, p, q; };
     const Case cases[] = {
-        {309ull,            3ull,      103ull, 1},
-        {798607ull,       101ull,     7907ull, 1},
-        {10963ull,         19ull,      577ull, 1},
-        {3704339ull,      641ull,     5779ull, 1},
-        {2056969ull,      641ull,     3209ull, 1},
-        {8051ull,          83ull,       97ull, 0},   // balanced -- not CTM's
-        {288419ull,       379ull,      761ull, 0},
-        {5115191ull,     1597ull,     3203ull, 0},
-        {17821157ull,    3019ull,     5903ull, 0},
+        {8051ull,          83ull,       97ull},
+        {143ull,           11ull,       13ull},
+        {309ull,            3ull,      103ull},
+        {798607ull,       101ull,     7907ull},
+        {2923ull,          37ull,       79ull},
+        {10963ull,         19ull,      577ull},
+        {1007509ull,      503ull,     2003ull},
+        {288419ull,       379ull,      761ull},
+        {5115191ull,     1597ull,     3203ull},
+        {17821157ull,    3019ull,     5903ull},
+        {10967535067ull, 104723ull, 104729ull},
     };
 
     int bad = 0;
@@ -615,24 +618,22 @@ static int test_ctm() {
         while (r * r < N) ++r;
         while (r > 1 && (r - 1) * (r - 1) >= N) --r;
         if (r < 4) continue;
-        const std::uint64_t m = r - 3, S = r + m;
-        const std::uint64_t jm = (N / S - 3) / 2;
-        const std::uint64_t p0 = 2 * jm + 3;
 
         std::vector<std::pair<int,int>> cls;
         csf_ctm_classes(N, cls);
 
-        const std::uint64_t CH = 4096, STEP = 10;
-        std::uint64_t got = 0, threads = 0;
-        for (std::uint64_t ph = p0; ph >= 3 && !got; ) {
-            std::uint64_t pf = (ph > CH * STEP + 3) ? ph - CH * STEP : 3;
+        const std::uint64_t CH = 65536, STEP = 10;
+        std::uint64_t got = 0;
+        for (std::uint64_t ph = r; ph >= 3 && !got; ) {
+            const std::uint64_t pf = (ph > CH * STEP + 3) ? ph - CH * STEP : 3;
             for (const auto& cl : cls) {
-                std::uint64_t pp = ph - ((ph - (std::uint64_t)cl.first) % 10);
+                const std::uint64_t pp = ph - ((ph - (std::uint64_t)cl.first) % 10);
                 if (pp < 3) continue;
-                std::uint64_t qs = N / pp;
-                std::uint64_t qq = qs - ((qs - (std::uint64_t)cl.second) % 10);
-                if (qq < pp) continue;
-                ++threads;
+                const std::uint64_t qs = N / pp;
+                const std::uint64_t qq = qs - ((qs - (std::uint64_t)cl.second) % 10);
+                // qq < pp is fine and must not drop the class: p*q < N there,
+                // so the walk raises q past p on its own.
+                if (qq < 3) continue;
                 std::uint64_t hit = 0;
                 if (csf_ctm_walk(pp, qq, pf, N / pf, 0, N, &hit)) { got = hit; break; }
             }
@@ -640,15 +641,12 @@ static int test_ctm() {
             ph = pf;
         }
 
-        const bool found_ok = c.mine ? (got == c.p || got == c.q)
-                                     : (got == 0);
-        std::printf("[ctm]   N=%-10llu %5llu*%-6llu p0=%-7llu %s got=%-8llu %s\n",
+        const bool ok = (got == c.p || got == c.q);
+        std::printf("[ctm]   N=%-13llu %6llu*%-8llu got=%-9llu %s\n",
                     (unsigned long long)N, (unsigned long long)c.p,
-                    (unsigned long long)c.q, (unsigned long long)p0,
-                    c.mine ? "CTM's " : "vf's  ", (unsigned long long)got,
-                    found_ok ? "OK" : "FAIL");
-        if (!found_ok) ++bad;
-        (void)threads;
+                    (unsigned long long)c.q, (unsigned long long)got,
+                    ok ? "OK" : "FAIL");
+        if (!ok) ++bad;
     }
     std::printf("[ctm]   %s\n", bad == 0 ? "WALK OK" : "WALK FAILED");
     return bad == 0 ? 0 : 1;
