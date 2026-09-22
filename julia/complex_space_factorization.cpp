@@ -894,7 +894,29 @@ static void yellow_path_stream(const BigInt& N,
         }
     }
 
-    const std::uint64_t CHUNK = 1u << 16;
+    // Chunk size sets how many independent bracket starts the path is cut
+    // into. Nothing here is a ladder: R_j, i_j, V_j, H_j and P_j are all
+    // closed forms in j, so a bracket can begin at ANY j and every j is
+    // visited exactly once whatever the cut. The only variable cost is the
+    // per-chunk start -- two squares plus fourteen modulos -- and measured
+    // against the step it drives (mpz, as this stream actually runs):
+    //
+    //      bits      start     step    ratio
+    //        40    211.3ns   87.1ns     2.4
+    //        62    211.6ns   87.2ns     2.4
+    //        96    211.6ns   87.9ns     2.4
+    //       112    213.5ns   87.0ns     2.5
+    //
+    // The ratio is flat in N -- both ends grow together -- so a chunk of
+    // ~120 already holds the start under 2%, at every size.
+    //
+    // 1<<16 was a CPU tuning choice and caps the path at j_max/65536 starts:
+    // only ~3,800 at 60 bits, nowhere near enough to fill a device. 1<<8 is
+    // free on CPU -- min-of-11 wall times are 4/4, 54/54 and 126/127 ms on
+    // the three cases below -- and gives ~1e6 starts at 60 bits, ~1e9 at 96.
+    // The per-chunk atomic costs 16 ns fully contended against ~22,000 ns of
+    // chunk work, so it stays far under 1%.
+    const std::uint64_t CHUNK = 1u << 8;
     BigInt R, I, V, H, y, g, P;
     std::uint64_t local = 0;
 
