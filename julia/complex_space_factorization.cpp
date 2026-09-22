@@ -88,14 +88,22 @@
 //  MSYS2 / MinGW-w64 is a supported target.  uint64_t there is
 //  unsigned long long and unsigned long is only 32 bits, so every 64-bit
 //  value that meets an mpz goes through big_from_u64 / u64_from_big /
-//  divisible_by_u64 rather than gmpxx's unsigned long overloads.  To check
-//  that property without a Windows box:
+//  divisible_by_u64 rather than gmpxx's unsigned long overloads.
+//
+//  RUN THIS BEFORE COMMITTING any code that puts a uint64_t near a BigInt.
+//  It needs no Windows box:
 //
 //    sed 's/std::uint64_t/unsigned long long/g' complex_space_factorization.cpp > probe.cpp
-//    g++ -std=c++17 -fsyntax-only probe.cpp
+//    g++ -std=c++17 -fsyntax-only probe.cpp        # must report 0 errors
 //
 //  On LP64 unsigned long long is a distinct type from unsigned long, so
-//  that substitution reproduces the MinGW overload set exactly.
+//  that substitution reproduces the MinGW overload set exactly.  It is not
+//  advisory: ctm_stream shipped with seven ambiguous-overload sites --
+//  BigInt(CH * STEP), BigInt(chunk_index) and three `R += STEP` in the mpz
+//  walk -- which built clean on Linux, broke every MinGW build, and which
+//  this probe reproduces exactly, at the same seven lines.  The trap is
+//  that LP64 hides the whole class of bug, so a clean local build proves
+//  nothing here.
 //
 //  RUN
 //    ./csf <N> [options]
@@ -1029,9 +1037,18 @@ static void ctm_stream(const BigInt& N,
 
     const std::uint64_t STEP = 10;
     const std::uint64_t CH   = 1u << 14;          // q-span per chunk = CH*10
+
+    // LLP64: CH * STEP and the chunk index are uint64_t, which is
+    // `unsigned long long` on MinGW and has no exact mpz_class constructor,
+    // so every one of these has to go through big_from_u64. Same for the
+    // mpz walk's stride -- `R += STEP` is ambiguous there for the same
+    // reason. See the portability note in the file header.
+    const BigInt STEPB  = big_from_u64(STEP);
+    const BigInt CHSPAN = big_from_u64(CH * STEP);
+
     const BigInt span = q_hi - q_lo;
     const std::uint64_t nchunk =
-        u64_from_big(span / BigInt(CH * STEP) + 1, std::numeric_limits<std::uint64_t>::max());
+        u64_from_big(span / CHSPAN + 1, std::numeric_limits<std::uint64_t>::max());
 
     BigInt R, I, P, Q, prod, qs, ps;
     std::uint64_t local = 0;
@@ -1040,8 +1057,8 @@ static void ctm_stream(const BigInt& N,
         const std::uint64_t c = next_chunk.fetch_add(1, std::memory_order_relaxed);
         if (c >= nchunk) break;
 
-        const BigInt cq_lo = q_lo + BigInt(c) * BigInt(CH * STEP);
-        BigInt cq_hi = cq_lo + BigInt(CH * STEP);
+        const BigInt cq_lo = q_lo + big_from_u64(c) * CHSPAN;
+        BigInt cq_hi = cq_lo + CHSPAN;
         if (cq_hi > q_hi) cq_hi = q_hi;
         if (cq_lo >= q_hi) break;
 
@@ -1081,14 +1098,14 @@ static void ctm_stream(const BigInt& N,
                     if (Q > cq_hi) break;
                     if (I >= R) break;
                     P = R - I;
-                    if (P < 3) { R += STEP; continue; }
+                    if (P < 3) { R += STEPB; continue; }
                     ++local;
                     prod = P * Q;
                     if (prod == N) {
                         found.submit(N, P, "ctm");
                         counter += local; return;
                     }
-                    if (prod < N) R += STEP; else I += STEP;
+                    if (prod < N) R += STEPB; else I += STEPB;
                     if ((local & 0xFFFF) == 0 && found.ready()) break;
                 }
             }
