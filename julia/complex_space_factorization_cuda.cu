@@ -3,14 +3,27 @@
 //
 //  GPU stages for complex_space_factorization.cpp.
 //
-//  Two kernels, one per hot loop the engine actually spends time in:
+//  Three kernels, one per hot loop the engine actually spends time in:
 //
 //    csf_sieve_kernel  -- the Fermat residue sieve (vertical/horizontal
 //                         legs of the bracket)
 //    csf_ctm_kernel    -- Complex Trial Multiplication along the arc
+//    csf_yp_kernel     -- the yellow path, the 135-degree traversal
 //
-//  Both device predicates are the CPU loop bodies verbatim, so the two
-//  engines cannot drift apart silently.
+//  Each device predicate is the CPU loop body verbatim, so the two engines
+//  cannot drift apart silently.
+//
+//  All three take multiple starting points, with different floors on how
+//  finely they can be cut:
+//
+//    sieve  no floor -- residues are independent, one thread each, always
+//    yellow ~120 steps per bracket  (start 211 ns vs step 87 ns, mpz)
+//    ctm    ~440 of arc in q        (seed 5.8-8.7 ns vs step ~1.1 ns)
+//
+//  Every ceiling scales as sqrt(N), so usable parallelism widens exactly as
+//  the problem gets harder. The yellow path is the most parallel of the
+//  three: it has no dependency chain at all, where CTM's ladder direction
+//  depends on the previous comparison.
 //
 //  WHY THIS SPLIT  (measured, current engine)
 //  ------------------------------------------
@@ -119,14 +132,19 @@
 //    nvcc -O3 -std=c++17 -DUSE_CUDA -c complex_space_factorization_cuda.cu
 //
 //  LOGIC TEST WITHOUT A GPU
-//    g++ -std=c++17 -O2 -DCSF_CUDA_CPU_TEST -x c++ \
+//    g++ -std=c++17 -O2 -DCSF_CUDA_CPU_TEST -x c++
 //        complex_space_factorization_cuda.cu -o t && ./t
+//    (one line; split here only to fit the margin)
 //
-//  STATUS: both device predicates are verified by the CPU test above --
-//  the sieve against a full-width recomputation, the CTM walk against
-//  known factorizations. The CUDA launch plumbing has NOT been executed;
-//  this container has no GPU. Treat the kernel wrappers as
-//  reviewed-but-unrun, and the predicates as tested.
+//  STATUS: all three device predicates are verified by the CPU test above
+//  -- the sieve against a full-width recomputation (200,000 residues), the
+//  CTM walk against six known factorizations, csf_mod128 against a
+//  __uint128_t reference (400,009 cases, 350,000 of them exercising the
+//  shift-subtract branch), and the yellow path against a from-scratch
+//  recomputation of every j plus a check that the j carrying the factor
+//  survives. The CUDA launch plumbing has NOT been executed; this
+//  container has no GPU. Treat the kernel wrappers as reviewed-but-unrun,
+//  and the predicates as tested.
 // =====================================================================
 
 #include <cstdint>
@@ -301,6 +319,158 @@ __global__ void csf_ctm_kernel(
 }
 
 // =====================================================================
+//  STAGE 3 -- the yellow path (135-degree bracket traversal)
+// =====================================================================
+//
+//  The most parallel of the three, and the reason is structural: along the
+//  135-degree line every quantity is a closed form in j --
+//
+//      R_j = r + j     i_j = m - j     P_j = 2j + 3     R_j + i_j = S
+//      V_j = R_j^2 - N                 H_j = i_j^2 + N
+//
+//  -- so a bracket can begin at ANY j for O(1) cost. There is no ladder to
+//  preserve, unlike CTM. The engine's "additions only" advance is an
+//  optimisation inside a bracket, not a constraint between them.
+//
+//  What the device actually needs is smaller than it looks. The two Fermat
+//  legs are decided by a 7-modulus residue sieve on R and i; only survivors
+//  need V or H evaluated, and those are 128-bit squares best left to GMP on
+//  the host. So the kernel never forms V or H at all -- it carries 14 small
+//  residues, advances them by +1 / -1, and emits the j values that survive.
+//  That is pure table lookup and integer increment: no division, no
+//  divergence, no wide arithmetic.
+//
+//  The trial-division leg is the exception and the one real cost. P_j | N is
+//  a 128/64 modulo per step, and on a device that is expensive -- for a
+//  64-bit N it is one hardware remainder, but above that csf_mod128 falls
+//  back to a 64-iteration shift-subtract. Two honest options:
+//
+//    * run the kernel with do_trial = 0 and leave that leg to the td stream
+//      or a segmented prime sieve, which is a far better fit for it;
+//    * or keep it on and accept that it dominates the step.
+//
+//  Note the completeness argument needs both legs (trial division catches
+//  p <= 2*j_max+3, the vertical leg catches the rest), so switching it off
+//  here means something else must cover it.
+//
+//  Sizing: the engine cuts the path at CHUNK = 1<<8 because a bracket start
+//  costs 211 ns against an 87 ns step in mpz -- a ratio of 2.4 that is flat
+//  in N -- so ~120 steps per bracket holds the start under 2% at any size.
+//  That gives ~1e6 brackets at 60 bits and ~1e9 at 96. Device-side the start
+//  is cheaper still (14 modulos, no mpz), so 1<<8 is a safe floor, not a
+//  tight one.
+
+// ---------------------------------------------------------------------
+// (hi:lo) mod P. Requires P < 2^63, which holds because P <= 2*j_max+3 and
+// j_max ~ sqrt(N)/4, so P < 2^62 for any N this engine's native path takes.
+//
+// hi == 0 is the common case below 2^64 and costs one remainder. Above
+// that it is a shift-subtract over the 64 bits of lo: r stays < P < 2^63,
+// so r<<1 cannot overflow and a single conditional subtract re-reduces.
+// ---------------------------------------------------------------------
+CSF_HD inline std::uint64_t csf_mod128(std::uint64_t hi, std::uint64_t lo,
+                                       std::uint64_t P)
+{
+    if (hi == 0) return lo % P;
+    std::uint64_t r = hi % P;
+    for (int b = 63; b >= 0; --b) {
+        r = (r << 1) | ((lo >> b) & 1ull);
+        if (r >= P) r -= P;
+    }
+    return r;
+}
+
+// ---------------------------------------------------------------------
+// The per-j predicate: which of the three legs is still live at this j.
+// Returns a bitmask -- 1 trial division, 2 vertical Fermat, 4 horizontal
+// Fermat. A zero return means this j is dead and needs no host work.
+//
+// rm[t] / im[t] are R_j and i_j reduced mod CSF_YP_MODS[t]; the caller
+// advances them by +1 / -1, which is what makes the walk division-free.
+// ok_flat holds okR then okI, concatenated, with ok_off giving the start
+// of each of the 14 tables.
+// ---------------------------------------------------------------------
+#define CSF_YP_NMOD 7
+CSF_HD inline unsigned csf_yp_one(
+    const std::uint8_t* __restrict__ rm,
+    const std::uint8_t* __restrict__ im,
+    const std::uint32_t* __restrict__ ok_off,   // 2 * CSF_YP_NMOD
+    const std::uint8_t*  __restrict__ ok_flat,
+    std::uint64_t P,
+    std::uint64_t nhi, std::uint64_t nlo,
+    int do_trial)
+{
+    unsigned out = 0;
+
+    if (do_trial && P > 1 && csf_mod128(nhi, nlo, P) == 0) out |= 1u;
+
+    unsigned okv = 1u, okh = 1u;
+    for (int t = 0; t < CSF_YP_NMOD; ++t) {
+        okv &= ok_flat[ok_off[t] + rm[t]];
+        okh &= ok_flat[ok_off[CSF_YP_NMOD + t] + im[t]];
+    }
+    out |= (okv << 1) | (okh << 2);
+    return out;
+}
+
+// ---------------------------------------------------------------------
+// Kernel: one thread per bracket. Thread t walks j in
+// [j0 + t*chunk, j0 + (t+1)*chunk), seeding its 14 residues with one
+// modulo each and then advancing them by +1 / -1.
+//
+// Survivors are packed as (j << 3) | mask and compacted through one
+// atomic. The host re-derives R = r + j, i = m - j and finishes with GMP:
+// the perfect-square tests on V and H, and the gcd.
+// ---------------------------------------------------------------------
+__global__ void csf_yp_kernel(
+    std::uint64_t r, std::uint64_t m,           // r = ceil(sqrt N), m = r-3
+    std::uint64_t j0, std::uint64_t chunk, std::uint64_t count,
+    std::uint64_t jmax,
+    const std::uint32_t* __restrict__ mods,     // CSF_YP_NMOD
+    const std::uint32_t* __restrict__ ok_off,   // 2 * CSF_YP_NMOD
+    const std::uint8_t*  __restrict__ ok_flat,
+    std::uint64_t nhi, std::uint64_t nlo,
+    int do_trial,
+    std::uint64_t* __restrict__ out,
+    unsigned int*  __restrict__ out_n,
+    unsigned int   out_cap)
+{
+#if defined(USE_CUDA) && !defined(CSF_CUDA_CPU_TEST)
+    const std::uint64_t t = blockIdx.x * (std::uint64_t)blockDim.x + threadIdx.x;
+    if (t >= count) return;
+
+    const std::uint64_t a = j0 + t * chunk;
+    if (a > jmax) return;
+    std::uint64_t b = a + chunk; if (b > jmax + 1) b = jmax + 1;
+
+    std::uint64_t R = r + a, I = m - a;
+    std::uint8_t rm[CSF_YP_NMOD], im[CSF_YP_NMOD];
+    for (int s = 0; s < CSF_YP_NMOD; ++s) {
+        rm[s] = (std::uint8_t)(R % mods[s]);
+        im[s] = (std::uint8_t)(I % mods[s]);
+    }
+
+    for (std::uint64_t j = a; j < b; ++j) {
+        const unsigned msk = csf_yp_one(rm, im, ok_off, ok_flat,
+                                        2 * j + 3, nhi, nlo, do_trial);
+        if (msk) {
+            const unsigned int slot = atomicAdd(out_n, 1u);
+            if (slot < out_cap) out[slot] = (j << 3) | msk;
+        }
+        for (int s = 0; s < CSF_YP_NMOD; ++s) {
+            const std::uint32_t p = mods[s];
+            if (++rm[s] == p) rm[s] = 0;
+            im[s] = (im[s] == 0) ? (std::uint8_t)(p - 1) : (std::uint8_t)(im[s] - 1);
+        }
+    }
+#else
+    (void)r; (void)m; (void)j0; (void)chunk; (void)count; (void)jmax;
+    (void)mods; (void)ok_off; (void)ok_flat; (void)nhi; (void)nlo;
+    (void)do_trial; (void)out; (void)out_n; (void)out_cap;
+#endif
+}
+
+// =====================================================================
 //  CPU logic tests -- exercise exactly the arithmetic the kernels do,
 //  without needing a device.
 // =====================================================================
@@ -441,11 +611,175 @@ static int test_ctm() {
     return bad == 0 ? 0 : 1;
 }
 
+// --- csf_mod128 against a __uint128_t reference ---------------------
+//
+// Every semiprime in the tests above fits 64 bits, so they exercise only
+// the hi == 0 fast path. The shift-subtract branch is what runs for a
+// 128-bit N, and it is the only new arithmetic in this stage, so it gets
+// its own check across the full width.
+static int test_mod128() {
+    std::mt19937_64 rng(11111);
+    std::size_t bad = 0, tested = 0, wide = 0;
+    for (int k = 0; k < 400000; ++k) {
+        const std::uint64_t hi = (k % 8 == 0) ? 0 : rng();
+        const std::uint64_t lo = rng();
+        std::uint64_t P = rng() >> (1 + (rng() % 40));   // P < 2^63, varied
+        P |= 1ull;
+        if (P < 3) continue;
+        const __uint128_t z = ((__uint128_t)hi << 64) | lo;
+        const std::uint64_t want = (std::uint64_t)(z % (__uint128_t)P);
+        const std::uint64_t got = csf_mod128(hi, lo, P);
+        if (got != want) ++bad;
+        if (hi) ++wide;
+        ++tested;
+    }
+    // and the boundary cases the random draw will not hit
+    const struct { std::uint64_t hi, lo, P; } edge[] = {
+        {0, 0, 3}, {0, 1, 3}, {1, 0, 3}, {~0ull, ~0ull, 3},
+        {~0ull, ~0ull, (1ull << 62) - 1}, {1, 0, (1ull << 62) - 1},
+        {0, ~0ull, 5}, {12345, 0, 7}, {1, ~0ull, 0x7FFFFFFFFFFFFFFFull},
+    };
+    for (const auto& e : edge) {
+        const __uint128_t z = ((__uint128_t)e.hi << 64) | e.lo;
+        if (csf_mod128(e.hi, e.lo, e.P) !=
+            (std::uint64_t)(z % (__uint128_t)e.P)) ++bad;
+        ++tested;
+    }
+    std::printf("[mod128] cases %zu (%zu with hi != 0), mismatches %zu -> %s\n",
+                tested, wide, bad, bad == 0 ? "OK" : "FAILED");
+    return bad == 0 ? 0 : 1;
+}
+
+// --- stage 3: yellow path must not drop the true j ------------------
+//
+// Mirrors a launch: build the 14 residue tables, cut [0, j_max] into
+// brackets, run the device walk on each, and collect survivors. Then check
+// two things -- that every j the device keeps is one a full recomputation
+// also keeps (no spurious divergence), and that the j carrying the factor
+// is among them (nothing real was sieved away).
+static std::vector<std::uint8_t> csf_sqmod(std::uint32_t m) {
+    std::vector<std::uint8_t> s(m, 0);
+    for (std::uint32_t x = 0; x < m; ++x) s[(std::uint64_t)x * x % m] = 1;
+    return s;
+}
+
+static int test_yp() {
+    const std::uint32_t MODS[CSF_YP_NMOD] = {64, 27, 25, 7, 11, 13, 17};
+    struct Case { std::uint64_t N, p, q; };
+    const Case cases[] = {
+        {8051ull,             83ull,        97ull},
+        {10967535067ull,  104723ull,    104729ull},
+        {978508015703ull, 752867ull,   1299709ull},
+        {314187ull,            3ull,    104729ull},
+        {10963ull,            19ull,       577ull},
+    };
+
+    int bad = 0;
+    for (const Case& c : cases) {
+        const std::uint64_t N = c.N;
+        std::uint64_t r = (std::uint64_t)std::sqrt((double)N);
+        while (r * r < N) ++r;
+        while (r > 1 && (r - 1) * (r - 1) >= N) --r;
+        if (r < 4) continue;
+        const std::uint64_t m = r - 3, S = r + m;
+        const std::uint64_t jmax = (N / S - 3) / 2;
+
+        // tables: okR then okI
+        std::vector<std::uint32_t> mods(MODS, MODS + CSF_YP_NMOD);
+        std::vector<std::uint32_t> ok_off(2 * CSF_YP_NMOD);
+        std::vector<std::uint8_t> ok_flat;
+        for (int pass = 0; pass < 2; ++pass)
+            for (int t = 0; t < CSF_YP_NMOD; ++t) {
+                const std::uint32_t mm = MODS[t];
+                const std::vector<std::uint8_t> sq = csf_sqmod(mm);
+                const std::uint64_t Np = N % mm, Nn = (mm - Np) % mm;
+                ok_off[pass * CSF_YP_NMOD + t] = (std::uint32_t)ok_flat.size();
+                for (std::uint32_t x = 0; x < mm; ++x) {
+                    const std::uint64_t v =
+                        (((std::uint64_t)x * x) % mm + mm - (pass ? Nn : Np)) % mm;
+                    ok_flat.push_back(sq[v] ? 1 : 0);
+                }
+            }
+
+        // walk every bracket, exactly as the kernel would
+        const std::uint64_t CH = 256;
+        std::vector<std::uint64_t> got;
+        std::uint64_t brackets = 0;
+        for (std::uint64_t a = 0; a <= jmax; a += CH) {
+            std::uint64_t b = a + CH; if (b > jmax + 1) b = jmax + 1;
+            std::uint64_t R = r + a, I = m - a;
+            std::uint8_t rm[CSF_YP_NMOD], im[CSF_YP_NMOD];
+            for (int s = 0; s < CSF_YP_NMOD; ++s) {
+                rm[s] = (std::uint8_t)(R % MODS[s]);
+                im[s] = (std::uint8_t)(I % MODS[s]);
+            }
+            ++brackets;
+            for (std::uint64_t j = a; j < b; ++j) {
+                const unsigned msk = csf_yp_one(rm, im, ok_off.data(),
+                                                ok_flat.data(), 2 * j + 3,
+                                                0, N, 1);
+                if (msk) got.push_back((j << 3) | msk);
+                for (int s = 0; s < CSF_YP_NMOD; ++s) {
+                    const std::uint32_t p = MODS[s];
+                    if (++rm[s] == p) rm[s] = 0;
+                    im[s] = (im[s] == 0) ? (std::uint8_t)(p - 1)
+                                         : (std::uint8_t)(im[s] - 1);
+                }
+            }
+        }
+
+        // reference: recompute each j from scratch, no incremental state
+        std::size_t mismatch = 0, k = 0;
+        for (std::uint64_t j = 0; j <= jmax; ++j) {
+            const std::uint64_t R = r + j, I = m - j, P = 2 * j + 3;
+            unsigned want = 0;
+            if (P > 1 && N % P == 0) want |= 1u;
+            unsigned okv = 1u, okh = 1u;
+            for (int t = 0; t < CSF_YP_NMOD; ++t) {
+                const std::uint32_t mm = MODS[t];
+                okv &= ok_flat[ok_off[t] + R % mm];
+                okh &= ok_flat[ok_off[CSF_YP_NMOD + t] + I % mm];
+            }
+            want |= (okv << 1) | (okh << 2);
+            if (want) {
+                if (k >= got.size() || got[k] != ((j << 3) | want)) ++mismatch;
+                ++k;
+            }
+        }
+        if (k != got.size()) ++mismatch;
+
+        // the factor must still be reachable: p = 2j+3 on the trial leg,
+        // or a = r + j with a^2 - N square on the vertical leg
+        const std::uint64_t a_true = (c.p + c.q) / 2;
+        const std::uint64_t j_vert = a_true >= r ? a_true - r : ~0ull;
+        const std::uint64_t j_trial = c.p >= 3 ? (c.p - 3) / 2 : ~0ull;
+        bool reachable = false;
+        for (std::uint64_t v : got) {
+            const std::uint64_t j = v >> 3;
+            if ((v & 1u) && j == j_trial) reachable = true;
+            if ((v & 2u) && j == j_vert)  reachable = true;
+        }
+        const bool ok = (mismatch == 0) && reachable;
+        std::printf("[yp]    N=%-14llu j_max=%-9llu brackets=%-7llu kept=%-7zu"
+                    " %s\n",
+                    (unsigned long long)N, (unsigned long long)jmax,
+                    (unsigned long long)brackets, got.size(),
+                    ok ? "OK" : (mismatch ? "FAIL(divergence)"
+                                          : "FAIL(factor lost)"));
+        if (!ok) ++bad;
+    }
+    std::printf("[yp]    %s\n", bad == 0 ? "WALK OK" : "WALK FAILED");
+    return bad == 0 ? 0 : 1;
+}
+
 int main() {
     const int a = test_sieve();
     const int b = test_ctm();
-    std::printf("\n%s\n", (a || b) ? "CUDA PREDICATES FAILED"
-                                   : "CUDA PREDICATES OK");
-    return (a || b) ? 1 : 0;
+    std::printf("\n");
+    const int c = test_mod128();
+    const int d = test_yp();
+    std::printf("\n%s\n", (a || b || c || d) ? "CUDA PREDICATES FAILED"
+                                             : "CUDA PREDICATES OK");
+    return (a || b || c || d) ? 1 : 0;
 }
 #endif
