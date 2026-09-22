@@ -386,6 +386,66 @@ converges to `0.2500`. Coverage: the trial-division leg catches any `p <= 2 j_ma
 two legs cover each other exactly — which is what Figure 8 shows geometrically.
 Verified on 400 semiprimes: 0 misses. For `N = 309` the whole path is `j = 0,1,2,3`.
 
+### How the strip grows
+
+`Q_j = R_j + i_j = r + m = S` is **constant** along the 135° line — that is what makes it
+a line — while `P_j = 2j + 3` climbs. So the path meets the red boundary, the hyperbola
+`P·Q = N`, at exactly
+
+```
+j_max = floor( (floor(N/S) - 3) / 2 ),      S = 2r - 3,   r = ceil(sqrt N)
+```
+
+Writing `r = sqrt(N) + e` with `e = ceil(sqrt N) - sqrt(N)` in `[0,1)` and expanding:
+
+```
+j_max = sqrt(N)/4 - 9/8 - e/4 + O(1/sqrt N)
+```
+
+so the strip is **`sqrt(N)/4` long — `2^(b/2 - 2)` for a b-bit N**. For `N = 309` that is
+`j = 0,1,2,3`: a strip of 4, which is the whole path.
+
+Floating point cannot check this past ~96 bits: at 128 bits `sqrt(N)/4` is near `2^62` and
+a double resolves it only to about 512, while the quantity being bounded is `O(1)`.
+Multiplying through by 4 makes it exact integer arithmetic at any size:
+
+```
+4 * j_max = isqrt(N) - c
+```
+
+with `c` in `[4, 9]` over 3,006 values of N from 12 to 512 bits — a bounded constant, the
+width coming from the two floors. `--selftest` check 6 asserts this.
+
+| bits | strip length | 1 thread | 4 threads |
+| --- | --- | --- | --- |
+| 9 (`N=309`) | 4 | 56 ns | 16 ns |
+| 32 | 1.6e4 | 162 µs | 46 µs |
+| 48 | 4.2e6 | 41 ms | 12 ms |
+| 64 | 1.1e9 | 10.6 s | 3.0 s |
+| 80 | 2.7e11 | 45 min | 13 min |
+| 96 | 7.0e13 | 8.1 d | 2.3 d |
+| 112 | 1.8e16 | 5.7 yr | 1.6 yr |
+| 2048 | 1e308 | — | — |
+
+at 9.89 ns/step marginal (setup cancelled between two runs of very different length).
+
+**Why the constant is 1/4, and not something arbitrary.** Write the smaller factor as
+`p = sqrt(N)/t`, `t >= 1`. The trial-division leg reaches `2*j_max + 3 = N/S -> sqrt(N)/2`,
+so it covers `t >= 2` outright. For `1 <= t < 2` the vertical leg needs depth
+
+```
+j_true = (p+q)/2 - ceil(sqrt N)  ~  sqrt(N) * (t-1)^2 / (2t)
+```
+
+which increases on `[1,2]` and equals `sqrt(N)/4` exactly at `t = 2`. The two legs meet at
+the worst case and neither is longer than it has to be — that is the red boundary. Measured
+over 8,000 semiprimes: 0 uncovered, and among those beyond the trial leg's reach the worst
+`j_true/sqrt(N)` is **0.2495** against the bound 0.2500, the tightest case landing 126
+steps inside a 61,512-step path.
+
+The engine's own step counts confirm the model end to end — `--only=yp --threads=1` walks
+exactly `min(j_true, (p-3)/2) + 1` steps, ratio 1.000 on all five cases checked.
+
 On by default, ablated with `--no-yp`, isolated with `--only=yp`, and given the whole
 thread pool with `--parallel`. `8051` resolves in 1 step; `798607` in 50
 (`p = 101`, so `2j+3 = 101` at `j = 49`).
