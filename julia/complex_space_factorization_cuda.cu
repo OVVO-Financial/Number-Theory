@@ -258,27 +258,44 @@ CSF_HD inline int csf_cmp_mul(std::uint64_t p, std::uint64_t q,
 }
 
 // ---------------------------------------------------------------------
-// One CTM ladder walk. This is the engine's native inner loop verbatim:
-// same guards, same stride, same direction rule.
+// One CTM walk. This is the engine's native inner loop verbatim, and it is
+// the METHOD's rule, not the published Julia's:
+//
+//     if p*q < n, raise q.   If p*q > n, lower p.
+//
+// p and q each move by 10 with the other held fixed, so p is monotone DOWN
+// and q monotone UP -- the ascend and the descend. R = (p+q)/2 oscillates;
+// there is no monotone R. (The Julia bumps R or i instead, shifting BOTH p
+// and q together and making q climb unconditionally. Different walk.)
+//
+// Because p and q each keep their terminal digit under a +-10 step, a
+// stream seeded in an admissible (p mod 10, q mod 10) class stays in it,
+// which is how the Fermat sieve applies here -- see csf_ctm_classes below.
+//
+// Trip count is (p_start - p_floor)/10 + (q_end - q_start)/10, so unlike
+// the old ladder it is NOT uniform across threads; a chunk low in p costs
+// more q-steps because q tracks N/p. Size chunks on p accordingly.
 //
 // Returns 1 and writes the factor to *out_p on a hit, 0 otherwise.
-// q = R + I advances by exactly 10 per iteration on both branches, so the
-// trip count is (qcap - (R+I))/10 regardless of which way the ladder
-// turns -- that is what makes the launch uniform.
 // ---------------------------------------------------------------------
-CSF_HD inline int csf_ctm_walk(std::uint64_t R, std::uint64_t I,
-                               std::uint64_t qcap,
+CSF_HD inline int csf_ctm_walk(std::uint64_t p, std::uint64_t q,
+                               std::uint64_t p_floor, std::uint64_t q_cap,
                                std::uint64_t nhi, std::uint64_t nlo,
                                std::uint64_t* __restrict__ out_p)
 {
     const std::uint64_t STEP = 10;
-    while (R + I <= qcap) {
-        if (I >= R) return 0;
-        const std::uint64_t p = R - I, q = R + I;
-        if (p < 3) { R += STEP; continue; }
+    while (p >= p_floor && p >= 3) {
         const int c = csf_cmp_mul(p, q, nhi, nlo);
         if (c == 0) { *out_p = p; return 1; }
-        if (c < 0) R += STEP; else I += STEP;
+        if (c < 0) {
+            if (q > q_cap) return 0;
+            q += STEP;
+        } else {
+            // p is unsigned: stepping past the floor wraps to a huge value,
+            // which then reads p*q > N forever and spins ~2^64 times.
+            if (p < p_floor + STEP || p < 3 + STEP) return 0;
+            p -= STEP;
+        }
     }
     return 0;
 }
@@ -294,8 +311,9 @@ CSF_HD inline int csf_ctm_walk(std::uint64_t R, std::uint64_t I,
 // a plain store after setting the flag is sufficient.
 // ---------------------------------------------------------------------
 __global__ void csf_ctm_kernel(
-    const std::uint64_t* __restrict__ seed_R,
-    const std::uint64_t* __restrict__ seed_I,
+    const std::uint64_t* __restrict__ seed_p,
+    const std::uint64_t* __restrict__ seed_q,
+    const std::uint64_t* __restrict__ seed_pfloor,
     const std::uint64_t* __restrict__ seed_qcap,
     std::uint64_t count,
     std::uint64_t nhi, std::uint64_t nlo,
@@ -308,13 +326,14 @@ __global__ void csf_ctm_kernel(
     if (*out_found) return;                 // cheap early bail once solved
 
     std::uint64_t p = 0;
-    if (csf_ctm_walk(seed_R[t], seed_I[t], seed_qcap[t], nhi, nlo, &p)) {
+    if (csf_ctm_walk(seed_p[t], seed_q[t], seed_pfloor[t], seed_qcap[t],
+                     nhi, nlo, &p)) {
         atomicExch(out_found, 1u);
         *out_p = p;
     }
 #else
-    (void)seed_R; (void)seed_I; (void)seed_qcap; (void)count;
-    (void)nhi; (void)nlo; (void)out_p; (void)out_found;
+    (void)seed_p; (void)seed_q; (void)seed_pfloor; (void)seed_qcap;
+    (void)count; (void)nhi; (void)nlo; (void)out_p; (void)out_found;
 #endif
 }
 
@@ -551,81 +570,85 @@ static int test_sieve() {
 
 // --- stage 2: CTM walk must recover known factorizations -------------
 //
-// Mirrors the host side of a launch: build the admissible digit pairs,
-// cut the arc into chunks, seed each (chunk, pair) thread, then run the
-// device walk on every one of them.
-static void ctm_pairs(std::uint64_t N, std::vector<std::pair<int,int>>& out) {
-    // (R, i) mod 10 classes with R^2 - i^2 = N (mod 20): the corrected
-    // terminal-digit sieve, which is the QR sieve at modulus 20.
+// Mirrors the host side of a launch: build the (p mod 10, q mod 10)
+// classes, seed each at the crossing p0 = 2*j_max+3, cut p descending
+// into chunks, then run the device walk on every (chunk, class).
+//
+// The method owns p <= p0 -- the unbalanced side -- because p only
+// descends. A factor with p > p0 is the vertical Fermat scan's and must
+// NOT be found here; the test asserts both directions, so a walk that
+// strayed across the partition would fail just as loudly as one that
+// missed its own side.
+static void csf_ctm_classes(std::uint64_t N, std::vector<std::pair<int,int>>& out) {
+    // (R,i) with R^2 - i^2 = N (mod 20), mapped to (p,q) = (R-i, R+i) and
+    // de-duplicated: several (R,i) classes collapse onto one (p,q) class.
     out.clear();
-    const std::uint64_t n20 = N % 20;
     for (int a = 0; a < 10; ++a)
         for (int b = 0; b < 10; ++b) {
-            // lane parity: N=1 mod 4 -> R odd, i even; N=3 mod 4 -> R even, i odd
-            const long long v = ((long long)a * a - (long long)b * b) % 20;
-            if (((v % 20) + 20) % 20 == (long long)n20) out.push_back({a, b});
+            const long long v = (((long long)a*a - (long long)b*b) % 20 + 20) % 20;
+            if (v != (long long)(N % 20)) continue;
+            const int p10 = ((a - b) % 10 + 10) % 10, q10 = (a + b) % 10;
+            bool seen = false;
+            for (const auto& o : out) if (o.first == p10 && o.second == q10) { seen = true; break; }
+            if (!seen) out.push_back({p10, q10});
         }
 }
 
 static int test_ctm() {
-    struct Case { std::uint64_t N, p, q; };
+    struct Case { std::uint64_t N, p, q; int mine; };   // mine: p <= p0 ?
     const Case cases[] = {
-        {8051ull,                83ull,          97ull},
-        {143ull,                 11ull,          13ull},
-        {10967535067ull,     104723ull,      104729ull},
-        {978508015703ull,    752867ull,     1299709ull},
-        {1000000016000000063ull, 1000000007ull, 1000000009ull},
-        {4295229443ull,       65537ull,       65539ull},
+        {309ull,            3ull,      103ull, 1},
+        {798607ull,       101ull,     7907ull, 1},
+        {10963ull,         19ull,      577ull, 1},
+        {3704339ull,      641ull,     5779ull, 1},
+        {2056969ull,      641ull,     3209ull, 1},
+        {8051ull,          83ull,       97ull, 0},   // balanced -- not CTM's
+        {288419ull,       379ull,      761ull, 0},
+        {5115191ull,     1597ull,     3203ull, 0},
+        {17821157ull,    3019ull,     5903ull, 0},
     };
 
     int bad = 0;
     for (const Case& c : cases) {
         const std::uint64_t N = c.N;
-        // arc bounds, as the engine computes them
         std::uint64_t r = (std::uint64_t)std::sqrt((double)N);
         while (r * r < N) ++r;
         while (r > 1 && (r - 1) * (r - 1) >= N) --r;
-        if (r < 4) { continue; }
-        const std::uint64_t m = r - 3;
-        std::uint64_t brt = 0;
-        if (r * r > N) { brt = (std::uint64_t)std::sqrt((double)(r * r - N));
-                         while ((brt + 1) * (brt + 1) <= r * r - N) ++brt; }
-        std::uint64_t Rtop = (std::uint64_t)std::sqrt((double)N + (double)m * m);
-        while (Rtop * Rtop < N + m * m) ++Rtop;
-        const std::uint64_t q_lo = r + brt, q_hi = Rtop + m;
+        if (r < 4) continue;
+        const std::uint64_t m = r - 3, S = r + m;
+        const std::uint64_t jm = (N / S - 3) / 2;
+        const std::uint64_t p0 = 2 * jm + 3;
 
-        std::vector<std::pair<int,int>> pairs;
-        ctm_pairs(N, pairs);
+        std::vector<std::pair<int,int>> cls;
+        csf_ctm_classes(N, cls);
 
-        const std::uint64_t nhi = 0, nlo = N;   // all cases fit 64 bits
-        const std::uint64_t CH = 1u << 14, STEP = 10;
-
-        std::uint64_t got = 0;
-        std::size_t threads = 0;
-        for (std::uint64_t cq = q_lo; cq < q_hi && !got; cq += CH * STEP) {
-            std::uint64_t cq_hi = cq + CH * STEP;
-            if (cq_hi > q_hi) cq_hi = q_hi;
-            for (const auto& pr : pairs) {
-                // host-side seed: p on the strip at this q, then round each
-                // coordinate up into its digit class
-                const std::uint64_t qs = cq ? cq : 1, ps = N / qs;
-                if (qs < ps) continue;
-                std::uint64_t R = (qs + ps) / 2, I = (qs - ps) / 2;
-                R += ((std::uint64_t)pr.first  + 10 - R % 10) % 10;
-                I += ((std::uint64_t)pr.second + 10 - I % 10) % 10;
+        const std::uint64_t CH = 4096, STEP = 10;
+        std::uint64_t got = 0, threads = 0;
+        for (std::uint64_t ph = p0; ph >= 3 && !got; ) {
+            std::uint64_t pf = (ph > CH * STEP + 3) ? ph - CH * STEP : 3;
+            for (const auto& cl : cls) {
+                std::uint64_t pp = ph - ((ph - (std::uint64_t)cl.first) % 10);
+                if (pp < 3) continue;
+                std::uint64_t qs = N / pp;
+                std::uint64_t qq = qs - ((qs - (std::uint64_t)cl.second) % 10);
+                if (qq < pp) continue;
                 ++threads;
-                std::uint64_t p = 0;
-                if (csf_ctm_walk(R, I, cq_hi, nhi, nlo, &p)) { got = p; break; }
+                std::uint64_t hit = 0;
+                if (csf_ctm_walk(pp, qq, pf, N / pf, 0, N, &hit)) { got = hit; break; }
             }
+            if (pf <= 3) break;
+            ph = pf;
         }
-        const bool ok = (got == c.p || got == c.q ||
-                         (got != 0 && N % got == 0));
-        std::printf("[ctm]   N=%-20llu expect %llu*%llu  got %-12llu %s"
-                    "  (%zu threads)\n",
+
+        const bool found_ok = c.mine ? (got == c.p || got == c.q)
+                                     : (got == 0);
+        std::printf("[ctm]   N=%-10llu %5llu*%-6llu p0=%-7llu %s got=%-8llu %s\n",
                     (unsigned long long)N, (unsigned long long)c.p,
-                    (unsigned long long)c.q, (unsigned long long)got,
-                    ok ? "OK" : "FAIL", threads);
-        if (!ok) ++bad;
+                    (unsigned long long)c.q, (unsigned long long)p0,
+                    c.mine ? "CTM's " : "vf's  ", (unsigned long long)got,
+                    found_ok ? "OK" : "FAIL");
+        if (!found_ok) ++bad;
+        (void)threads;
     }
     std::printf("[ctm]   %s\n", bad == 0 ? "WALK OK" : "WALK FAILED");
     return bad == 0 ? 0 : 1;

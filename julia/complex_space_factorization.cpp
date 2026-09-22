@@ -1036,39 +1036,73 @@ static void yellow_path_stream(const BigInt& N,
 }
 
 // ---------------------------------------------------------------------
-// Complex Trial Multiplication (Sec. "Complex Trial Multiplication")
+// Complex Trial Multiplication  (Prime Factorization/Complex Trial
+// Multiplication.md)
 //
-// CTM walks the factor strip testing p*q against N by MULTIPLICATION,
-// never dividing. It is confined to the arc spanned by the two Fermat
-// legs -- from the collapse point (r + j_max, m - j_max) up to the
-// horizontal leg's reach at R = sqrt(N + m^2) -- and never runs into the
-// high-i end, which is trial division's.
+// The method, in the document's own words:
 //
-// It is launched at the collapse SIMULTANEOUSLY with the bracket, not
-// after it: the bracket is deterministically complete at j_max, so
-// anything sequenced behind it would have nothing left to do.
+//     if p*q < n, raise q.   If p*q > n, lower p.
 //
-// Why it earns a thread, measured:
+// Those two moves ARE the ascend and the descend. p and q each move on
+// their own, by 10, with the other held fixed -- so p is monotone DOWN,
+// q is monotone UP, and R = (p+q)/2 oscillates. There is no monotone R.
 //
-//     trial division   mpz_divisible_ui_p      2.60 ns/op
-//     CTM  native      p*q compare             0.31 ns/op   0.12x
-//     CTM  native      incremental  += 2R+1    1.06 ns/op   0.41x
+// This engine previously walked the published Julia instead, which bumps
+// TMRS or TMIS by 10 and so shifts BOTH p and q together:
 //
-// CTM covers the arc in ~2.25x more operations than the bracket's
-// trial-division leg, but each costs ~0.12x, so it comes out ~3.6x ahead.
-// The asymmetry is that trial division divides a big N by ONE machine
-// word (a single limb pass) while CTM multiplies two half-width values --
-// which is cheap only if they are held at native width. Doing it with
-// mpz_mul instead measures at 10-12 ns/op and throws the advantage away.
+//     p*q < n  ->  R += 10  ->  p+10 AND q+10
+//     p*q > n  ->  i += 10  ->  p-10 AND q+10
 //
-// So: __uint128 fast path whenever p, q fit 64 bits, with a full mpz
-// fallback above that. Both paths walk identically; only the arithmetic
-// differs.
+// making q climb unconditionally. That is a different walk. Traced side
+// by side on n = 798607 the two visit different points, and only the
+// document's version expands from the strip point in both senses.
 //
-// q = R + i rises by exactly 10 on every step in either branch, which
-// makes q the monotone coordinate and lets the arc be cut into chunks and
-// handed to threads by an atomic counter.
+// Why it is the right one: its cost is (q-p)/10, LINEAR in the gap
+// between the factors, where the vertical Fermat leg's j_true is
+// quadratic in it. Measured steps to the factor:
+//
+//       n              p * q            CTM     vertical leg
+//       309            3 * 103           10               35
+//       798607       101 * 7907         781            3,110
+//       1007509      503 * 2003         150              249
+//       978508015703 752867 * 1299709 54,684           37,092
+//
+// so CTM wins as the factors separate and loses as they close up. That
+// is exactly the partition the document specifies: the unbalanced side is
+// CTM's, the balanced side is the vertical scan's.
+//
+// SIEVE. p and q each keep their terminal digit under a +-10 step, so a
+// stream seeded in an admissible (p mod 10, q mod 10) class stays in it
+// forever. Those classes come from the Fermat sieve for this N: the
+// (R, i) table gives p = R - i and q = R + i, hence
+//
+//     (p mod 10, q mod 10) = ((a10 - b10) mod 10, (a10 + b10) mod 10)
+//
+// Verified against brute force for all ten odd residues mod 20, the
+// 9-class 5 | N case included. Several (R,i) classes collapse onto the
+// same (p,q) class, so the pair list must be de-duplicated -- stepping p
+// and q independently needs the (p,q) classes, not the (R,i) ones.
+//
+// START. At the crossing, p0 = 2*j_max + 3, where the 135-degree traversal
+// meets the hyperbola. p only descends from there, so the walk owns
+// p <= p0 -- the unbalanced side -- and cannot stray into the vertical
+// scan's half. Chunks are cut on p descending, so the chunk nearest the
+// crossing is drawn first.
 // ---------------------------------------------------------------------
+
+// (p mod 10, q mod 10) classes induced by the verified (R,i) sieve.
+static std::vector<DigitPair> ctm_pq_classes(const BigInt& N) {
+    const auto ri = fermat_digit_pairs(N);
+    std::vector<DigitPair> out;
+    for (const auto& c : ri) {
+        const int p10 = ((c.a10 - c.b10) % 10 + 10) % 10;
+        const int q10 = ((c.a10 + c.b10) % 10 + 10) % 10;
+        bool seen = false;
+        for (const auto& o : out) if (o.a10 == p10 && o.b10 == q10) { seen = true; break; }
+        if (!seen) out.push_back(DigitPair{p10, q10});
+    }
+    return out;
+}
 
 static void ctm_stream(const BigInt& N,
                        Found& found,
@@ -1078,160 +1112,101 @@ static void ctm_stream(const BigInt& N,
     if (r < 4) return;
     const BigInt m = r - 3;
     if (m < 1) return;
-    const BigInt S  = r + m;
+    const BigInt S = r + m;
+    if (S <= 0) return;
     const BigInt jm = (N / S - 3) / 2;
     if (jm < 0) return;
 
-    // Arc: the whole span the two Fermat legs cover, in q = R + i.
-    //
-    //   bottom (balanced end, R = r)          q = r + sqrt(r^2 - N)
-    //   top    (horizontal leg's reach, b = m) q = sqrt(N + m^2) + m
-    //
-    // Note the collapse sits in the MIDDLE of this span, not at its lower
-    // end: at the collapse q = S = r + m, which lies strictly between the
-    // two. Taking S as the lower bound (as a first cut did) puts the whole
-    // balanced half of the arc outside the walk, so a balanced semiprime
-    // like 8051 = 83*97 (q = 97, well below S = 177) can never be seen.
-    BigInt Rtop, brt;
-    { BigInt t = N + m * m; mpz_sqrt(Rtop.get_mpz_t(), t.get_mpz_t()); }
-    { BigInt t = r * r - N;
-      if (mpz_sgn(t.get_mpz_t()) < 0) t = 0;
-      mpz_sqrt(brt.get_mpz_t(), t.get_mpz_t()); }
-    const BigInt q_lo = r + brt;
-    const BigInt q_hi = Rtop + m;
-    if (q_hi <= q_lo) return;
+    const BigInt p0 = 2 * jm + 3;          // the crossing
+    if (p0 < 3) return;
 
-    const auto pairs = fermat_digit_pairs(N);
-    if (pairs.empty()) return;
-
-    // Native path needs p*q to fit __uint128 and q to fit 64 bits.
-    const bool native = (mpz_sizeinbase(N.get_mpz_t(), 2) <= 126) &&
-                        (mpz_sizeinbase(q_hi.get_mpz_t(), 2) <= 62);
+    const auto classes = ctm_pq_classes(N);
+    if (classes.empty()) return;
 
     const std::uint64_t STEP = 10;
-    const std::uint64_t CH   = 1u << 14;          // q-span per chunk = CH*10
-
-    // LLP64: CH * STEP and the chunk index are uint64_t, which is
-    // `unsigned long long` on MinGW and has no exact mpz_class constructor,
-    // so every one of these has to go through big_from_u64. Same for the
-    // mpz walk's stride -- `R += STEP` is ambiguous there for the same
-    // reason. See the portability note in the file header.
+    const std::uint64_t CH   = 1u << 12;          // p-span per chunk = CH*10
     const BigInt STEPB  = big_from_u64(STEP);
     const BigInt CHSPAN = big_from_u64(CH * STEP);
 
-    const BigInt span = q_hi - q_lo;
     const std::uint64_t nchunk =
-        u64_from_big(span / CHSPAN + 1, std::numeric_limits<std::uint64_t>::max());
+        u64_from_big(p0 / CHSPAN + 1, std::numeric_limits<std::uint64_t>::max());
 
-    // Start at the STRIP ENDPOINT, q = S, and spiral outward -- do not start
-    // at q_lo and sweep up.
-    //
-    // The range covered is identical either way; only the ORDER changes, and
-    // the order is what decides how fast the race ends. Writing the smaller
-    // factor as p = sqrt(N)/t, so q = t*sqrt(N):
-    //
-    //     t      bracket   CTM from q_lo   CTM from S
-    //    1.0      0.0000        0.0000        0.1000
-    //    1.4      0.0571        0.0400        0.0600
-    //    2.0      0.2500        0.1000        0.0000
-    //    2.8      0.1786        0.1800        0.0800
-    //    4.0      0.1250        0.3000        0.2000
-    //
-    // (steps in units of sqrt(N); the bracket's two legs are fused on one
-    // index, so it fires at the min of them.)
-    //
-    // Starting at q_lo puts CTM's strength at t ~ 1, where the bracket is
-    // ALREADY instant -- the two are fast in the same place and slow in the
-    // same place. The bracket's worst point is t = 2, and q = S is exactly
-    // the t = 2 corner, so seeding there makes them complementary. Worst
-    // case over t, racing bracket against CTM:
-    //
-    //     bracket alone                     0.2500 sqrt(N)
-    //     + CTM from q_lo   (what this was) 0.1791 sqrt(N)   1.40x
-    //     + CTM from S      (what this is)  0.1449 sqrt(N)   1.72x
-    //
-    // Weighting by measured step costs -- 9.89 ns for a yellow-path step
-    // against ~1.1 ns for a native CTM step -- widens it to 3.61x vs 3.89x,
-    // so the ordering does not depend on the weighting.
-    //
-    // Seeding BOTH q_lo and S is no better than S alone (0.1449 either
-    // way), so this replaces the old start rather than adding to it.
-    const BigInt S_q = r + m;
-    std::uint64_t cS = 0;
-    if (S_q > q_lo) {
-        const BigInt off = (S_q - q_lo) / CHSPAN;
-        cS = u64_from_big(off, nchunk ? nchunk - 1 : 0);
-        if (nchunk && cS >= nchunk) cS = nchunk - 1;
-    }
-    // Enough draws to reach both ends from cS, walking 0, -1, +1, -2, +2, ...
-    const std::uint64_t cmax =
-        2 * std::max(cS, (nchunk ? nchunk - 1 : 0) - std::min(cS, nchunk ? nchunk - 1 : 0)) + 2;
-
-    BigInt R, I, P, Q, prod, qs, ps;
+    BigInt p, q, prod, ph, pf, qs;
     std::uint64_t local = 0;
 
     while (!found.ready()) {
-        const std::uint64_t draw = next_chunk.fetch_add(1, std::memory_order_relaxed);
-        if (draw >= cmax) break;
+        const std::uint64_t c = next_chunk.fetch_add(1, std::memory_order_relaxed);
+        if (c >= nchunk) break;
 
-        // 0, -1, +1, -2, +2, ... around cS; out-of-range draws are skipped
-        // rather than clamped, so no chunk is walked twice.
-        const std::uint64_t half = (draw + 1) / 2;
-        const std::int64_t idx = (draw & 1)
-            ? (std::int64_t)cS - (std::int64_t)half
-            : (std::int64_t)cS + (std::int64_t)half;
-        if (idx < 0 || idx >= (std::int64_t)nchunk) continue;
-        const std::uint64_t c = (std::uint64_t)idx;
+        // Chunk c owns p in (pf, ph], descending. c = 0 is the crossing.
+        ph = p0 - big_from_u64(c) * CHSPAN;
+        if (ph < 3) break;
+        pf = ph - CHSPAN;
+        if (pf < 3) pf = 3;
 
-        const BigInt cq_lo = q_lo + big_from_u64(c) * CHSPAN;
-        BigInt cq_hi = cq_lo + CHSPAN;
-        if (cq_hi > q_hi) cq_hi = q_hi;
-        if (cq_lo >= q_hi) break;
-
-        for (const auto& pr : pairs) {
+        for (const auto& cl : classes) {
             if (found.ready()) break;
 
-            // Seed on the strip at q ~ cq_lo, then round each coordinate
-            // up into its admissible digit class.
-            qs = cq_lo;
-            ps = N / qs;                       // p on the strip at this q
-            R = (qs + ps) / 2;
-            I = (qs - ps) / 2;
-            if (I < 0) I = 0;
-            R += mod_pos_small(BigInt(pr.a10) - R, 10);
-            I += mod_pos_small(BigInt(pr.b10) - I, 10);
+            // p: the largest value <= ph in this class.
+            p = ph - mod_pos_small(ph - BigInt(cl.a10), 10);
+            if (p < 3) continue;
+            // q: seeded BELOW N/p, never above. Seeding above would make the
+            // very first test read p*q > N and drop p past ph, skipping the
+            // top of the chunk; from below the walk raises q into place.
+            qs = N / p;
+            q = qs - mod_pos_small(qs - BigInt(cl.b10), 10);
+            if (q < p) continue;
+
+            // q grows to about N/pf inside this chunk, so the native path
+            // needs THAT to fit, not just the seed. (N / pf) is a gmpxx
+            // expression template, not a BigInt, so it has to be assigned
+            // before get_mpz_t() exists on it.
+            const BigInt qmax = N / pf;
+            const bool native =
+                mpz_sizeinbase(N.get_mpz_t(), 2) <= 126 &&
+                mpz_sizeinbase(q.get_mpz_t(), 2) <= 62 &&
+                mpz_sizeinbase(qmax.get_mpz_t(), 2) <= 62;
 
             if (native) {
                 const __uint128_t Nn = u128_from_big(N);
-                std::uint64_t Rn = u64_from_big(R, 0), In = u64_from_big(I, 0);
-                const std::uint64_t qcap = u64_from_big(cq_hi, ~0ull);
-                while (Rn + In <= qcap) {
-                    if (In >= Rn) break;
-                    const std::uint64_t pp = Rn - In, qq = Rn + In;
-                    if (pp < 3) { Rn += STEP; continue; }
+                std::uint64_t pn = u64_from_big(p, 0), qn = u64_from_big(q, 0);
+                const std::uint64_t pfn = u64_from_big(pf, 0);
+                // q never has to exceed N/pf inside this chunk; past that the
+                // product cannot come back down to N for any p still in range.
+                const std::uint64_t qcap = u64_from_big(qmax, ~0ull);
+                while (pn >= pfn && pn >= 3) {
                     ++local;
-                    const __uint128_t pr128 = (__uint128_t)pp * qq;
-                    if (pr128 == Nn) {
-                        found.submit(N, big_from_u64(pp), "ctm");
+                    const __uint128_t pr = (__uint128_t)pn * qn;
+                    if (pr == Nn) {
+                        found.submit(N, big_from_u64(pn), "ctm");
                         counter += local; return;
                     }
-                    if (pr128 < Nn) Rn += STEP; else In += STEP;
+                    if (pr < Nn) {
+                        if (qn > qcap) break;
+                        qn += STEP;
+                    } else {
+                        // pn is unsigned: subtracting past the floor wraps to
+                        // a huge value, which then reads p*q > N forever and
+                        // spins ~2^64 times. Stop instead of wrapping.
+                        if (pn < pfn + STEP || pn < 3 + STEP) break;
+                        pn -= STEP;
+                    }
                     if ((local & 0xFFFF) == 0 && found.ready()) break;
                 }
             } else {
-                while (true) {
-                    Q = R + I;
-                    if (Q > cq_hi) break;
-                    if (I >= R) break;
-                    P = R - I;
-                    if (P < 3) { R += STEPB; continue; }
+                while (p >= pf && p >= 3) {
                     ++local;
-                    prod = P * Q;
+                    prod = p * q;
                     if (prod == N) {
-                        found.submit(N, P, "ctm");
+                        found.submit(N, p, "ctm");
                         counter += local; return;
                     }
-                    if (prod < N) R += STEPB; else I += STEPB;
+                    if (prod < N) {
+                        if (q > qmax) break;
+                        q += STEPB;
+                    } else {
+                        p -= STEPB;
+                    }
                     if ((local & 0xFFFF) == 0 && found.ready()) break;
                 }
             }

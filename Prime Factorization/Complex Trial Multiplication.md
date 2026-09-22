@@ -58,6 +58,81 @@ dominated by the distance still to travel. The crossing's real value is as a
 **specification of ownership**: it is the unique point at which the Fermat
 bracket's coverage ends and CTM's begins, with no overlap and no gap.
 
+## The walk, and what the published Julia does instead
+
+The rule at the top of this page -- *raise `q`* when `p*q < n`, *lower `p`* when
+`p*q > n* -- moves `p` and `q` **independently**, each by 10, with the other held
+fixed. Those two moves are the ascend and the descend. Consequently `p` is
+monotone down, `q` is monotone up, and `R = (p+q)/2` **oscillates**: there is no
+monotone `R`.
+
+The Julia below does something different. It bumps `TMRS` or `TMIS` by 10, which
+shifts *both* `p` and `q` together:
+
+```
+p*q < n  ->  TMRS += 10  ->  p+10 AND q+10
+p*q > n  ->  TMIS += 10  ->  p-10 AND q+10
+```
+
+so `q = R+i` climbs unconditionally and `q` becomes monotone. Traced side by side
+on `n = 798607` the two visit different points. The C++ engine originally ported
+the Julia and inherited its monotone `q`; it now implements the rule above.
+
+The rule matters because its cost is `(q-p)/10` -- **linear** in the gap between
+the factors, where the vertical Fermat leg's `j_true` is quadratic in it:
+
+| n | p * q | CTM steps | vertical leg `j_true` |
+| - | ----- | --------- | --------------------- |
+| 309 | 3 * 103 | **10** | 35 |
+| 798607 | 101 * 7907 | **781** | 3,110 |
+| 1007509 | 503 * 2003 | **150** | 249 |
+| 978508015703 | 752867 * 1299709 | 54,684 | **37,092** |
+
+CTM wins as the factors separate and loses as they close up -- which is exactly
+the partition this page specifies.
+
+### Sieving the steps
+
+`p` and `q` each keep their terminal digit under a `+-10` step, so a stream seeded
+in an admissible `(p mod 10, q mod 10)` class stays in it for the whole walk. The
+classes come from the Fermat sieve for this `N`'s classification: the `(R, i)`
+table gives `p = R - i` and `q = R + i`, so
+
+```
+(p mod 10, q mod 10) = ((a10 - b10) mod 10, (a10 + b10) mod 10)
+```
+
+Verified against brute force for all ten odd residues mod 20:
+
+| `N mod 20` | `(R,i)` classes | induced `(p,q)` classes |
+| - | - | - |
+| 1, 11 | 4 | (1,1) (3,7) (7,3) (9,9) |
+| 3, 13 | 4 | (1,3) (3,1) (7,9) (9,7) |
+| 7, 17 | 4 | (1,7) (3,9) (7,1) (9,3) |
+| 9, 19 | 4 | (1,9) (3,3) (7,7) (9,1) |
+| 5, 15 | 9 | (1,5) (3,5) (5,1) (5,3) (5,5) (5,7) (5,9) (7,5) (9,5) |
+
+Several `(R,i)` classes collapse onto the same `(p,q)` class, so the list must be
+de-duplicated -- stepping `p` and `q` independently needs the `(p,q)` classes, not
+the `(R,i)` ones.
+
+### Ownership, measured
+
+Seeded at the crossing, `p` only descends, so the walk owns `p <= p0` and cannot
+stray into the vertical scan's half. Running `--only=ctm` on both sides:
+
+| n | p * q | `p0` | whose | result |
+| - | ----- | ---- | ----- | ------ |
+| 309 | 3 * 103 | 9 | CTM | found |
+| 798607 | 101 * 7907 | 447 | CTM | found |
+| 3704339 | 641 * 5779 | 961 | CTM | found |
+| 8051 | 83 * 97 | 45 | vertical | correctly not found |
+| 288419 | 379 * 761 | 267 | vertical | correctly not found |
+| 5115191 | 1597 * 3203 | 1131 | vertical | correctly not found |
+
+The partition is asserted in both directions in the CUDA CPU test, so a walk that
+strayed across it would fail as loudly as one that missed its own side.
+
 ## Three defects in the routine above
 
 Found by porting the Julia faithfully and testing it; all three are fixed in
