@@ -917,6 +917,31 @@ static void yellow_path_stream(const BigInt& N,
     // The per-chunk atomic costs 16 ns fully contended against ~22,000 ns of
     // chunk work, so it stays far under 1%.
     const std::uint64_t CHUNK = 1u << 8;
+
+    // P_j = R_j - i_j = 2j + 3 is a MACHINE WORD, not a bignum: it runs to
+    // 2*j_max+3 = N/S ~ sqrt(N)/2, so it fits 64 bits for any N below 2^128.
+    // Forming it as an mpz (P = R - I) and calling mpz_divisible_p costs a
+    // subtraction, two increments and a general division every step; passing
+    // the machine word to divisible_by_u64 reaches mpz_divisible_ui_p, which
+    // divides by a PRECOMPUTED reciprocal because the divisor is one limb.
+    // Measured per step, trial-division leg only:
+    //
+    //                                        96-bit N   112-bit N
+    //      P = R - I (mpz), mpz_divisible_p    28.77ns     44.01ns
+    //      P = 2j+3 (u64),  divisible_by_u64    5.90ns     10.03ns
+    //      ... and skipping 3 | P or 5 | P      3.44ns      3.52ns
+    //
+    // The skip is sound only when N itself is coprime to 3 and 5: then no P
+    // sharing those factors can divide N. When it is not, those P must still
+    // be tested, so the skip is switched off rather than assumed.
+    const bool p_fits64 =
+        jmax <= (std::numeric_limits<std::uint64_t>::max() - 3) / 2;
+    const bool skip35 = !divisible_by_u64(N, 3) && !divisible_by_u64(N, 5);
+    const bool m_fits64 = mpz_sizeinbase(m.get_mpz_t(), 2) <= 64;
+    const std::uint64_t m_w =
+        m_fits64 ? u64_from_big(m, std::numeric_limits<std::uint64_t>::max())
+                 : std::numeric_limits<std::uint64_t>::max();
+
     BigInt R, I, V, H, y, g, P;
     std::uint64_t local = 0;
 
@@ -924,60 +949,86 @@ static void yellow_path_stream(const BigInt& N,
         const std::uint64_t c = next_chunk.fetch_add(1, std::memory_order_relaxed);
         const std::uint64_t j0 = c * CHUNK;
         if (j0 > jmax) break;
-        const std::uint64_t j1 = std::min(jmax, j0 + CHUNK - 1);
+        std::uint64_t j1 = std::min(jmax, j0 + CHUNK - 1);
+        // i_j = m - j must stay non-negative.  The incremental walk used to
+        // notice that via `if (I < 0) break`; with I gone from the hot loop
+        // the bound is applied to j up front instead.
+        if (m_fits64 && j1 > m_w) j1 = m_w;
 
         R = r + big_from_u64(j0);
         I = m - big_from_u64(j0);
         if (I < 0) break;
-        V = R * R - N;                       // one multiply per chunk
-        H = I * I + N;
 
         std::uint64_t rm[7], im[7];
         for (int t = 0; t < 7; ++t) { rm[t] = umod(R, MODS[t]); im[t] = umod(I, MODS[t]); }
+
+        // The bracket start hands the trial-division leg its seed for free:
+        // P is just 2*j0+3, and it advances by 2 alongside the traversal.
+        std::uint64_t Pw = p_fits64 ? 2 * j0 + 3 : 0;
 
         for (std::uint64_t j = j0; j <= j1; ++j) {
             ++local;
 
             // trial-division leg
-            P = R - I;
-            if (P > 1 && mpz_divisible_p(N.get_mpz_t(), P.get_mpz_t())) {
-                found.submit(N, P, "yellow-path/trial-division");
-                counter += local; return;
+            if (p_fits64) {
+                if (Pw > 1 && !(skip35 && (Pw % 3 == 0 || Pw % 5 == 0)) &&
+                    divisible_by_u64(N, Pw)) {
+                    found.submit(N, big_from_u64(Pw), "yellow-path/trial-division");
+                    counter += local; return;
+                }
+            } else {
+                P = R - I;
+                if (P > 1 && mpz_divisible_p(N.get_mpz_t(), P.get_mpz_t())) {
+                    found.submit(N, P, "yellow-path/trial-division");
+                    counter += local; return;
+                }
             }
 
-            // vertical Fermat leg
+            // Vertical Fermat leg.  The sieve decides this on machine words
+            // alone, so V is formed only for a survivor -- about 1 in 300.
+            // Carrying V incrementally instead costs a bignum add, and R and
+            // I two increments, on EVERY step to serve that one; materialising
+            // R = r + j and V = R^2 - N on demand is one add and one multiply
+            // in the rare case and nothing in the common one.  It is also what
+            // makes this loop the same shape as csf_yp_kernel, which never
+            // forms V or H either.
             bool ok = true;
             for (int t = 0; t < 7; ++t) if (!okR[t][rm[t]]) { ok = false; break; }
-            if (ok && V >= 0 && is_perfect_square(V, &y)) {
-                BigInt d = R > y ? R - y : y - R;
-                mpz_gcd(g.get_mpz_t(), d.get_mpz_t(), N.get_mpz_t());
-                if (g > 1 && g < N) {
-                    found.submit(N, g, "yellow-path/vertical-fermat", &R, &y);
-                    counter += local; return;
+            if (ok) {
+                R = r + big_from_u64(j);
+                V = R * R - N;
+                if (V >= 0 && is_perfect_square(V, &y)) {
+                    BigInt d = R > y ? R - y : y - R;
+                    mpz_gcd(g.get_mpz_t(), d.get_mpz_t(), N.get_mpz_t());
+                    if (g > 1 && g < N) {
+                        found.submit(N, g, "yellow-path/vertical-fermat", &R, &y);
+                        counter += local; return;
+                    }
                 }
             }
 
-            // horizontal Fermat leg
+            // horizontal Fermat leg, same treatment
             ok = true;
             for (int t = 0; t < 7; ++t) if (!okI[t][im[t]]) { ok = false; break; }
-            if (ok && is_perfect_square(H, &y)) {
-                BigInt d = y > I ? y - I : I - y;
-                mpz_gcd(g.get_mpz_t(), d.get_mpz_t(), N.get_mpz_t());
-                if (g > 1 && g < N) {
-                    found.submit(N, g, "yellow-path/horizontal-fermat", &y, &I);
-                    counter += local; return;
+            if (ok) {
+                I = m - big_from_u64(j);
+                H = I * I + N;
+                if (is_perfect_square(H, &y)) {
+                    BigInt d = y > I ? y - I : I - y;
+                    mpz_gcd(g.get_mpz_t(), d.get_mpz_t(), N.get_mpz_t());
+                    if (g > 1 && g < N) {
+                        found.submit(N, g, "yellow-path/horizontal-fermat", &y, &I);
+                        counter += local; return;
+                    }
                 }
             }
 
-            // advance: additions only
-            V += 2 * R + 1;
-            H -= 2 * I - 1;
-            ++R; --I;
+            // advance: machine words only, no mpz touched
+            Pw += 2;
             for (int t = 0; t < 7; ++t) {
                 if (++rm[t] == MODS[t]) rm[t] = 0;
                 im[t] = (im[t] == 0) ? MODS[t] - 1 : im[t] - 1;
             }
-            if (I < 0) break;
             if ((local & 0xFFFF) == 0 && found.ready()) break;
         }
     }

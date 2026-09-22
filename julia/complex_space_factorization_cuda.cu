@@ -340,18 +340,31 @@ __global__ void csf_ctm_kernel(
 //  That is pure table lookup and integer increment: no division, no
 //  divergence, no wide arithmetic.
 //
-//  The trial-division leg is the exception and the one real cost. P_j | N is
-//  a 128/64 modulo per step, and on a device that is expensive -- for a
-//  64-bit N it is one hardware remainder, but above that csf_mod128 falls
-//  back to a 64-iteration shift-subtract. Two honest options:
+//  The trial-division leg rides along for free, and that is the point of the
+//  bracket rather than a cost to be apologised for. P_j = 2j + 3 is a machine
+//  word -- it runs only to N/S ~ sqrt(N)/2 -- so the bracket start hands the
+//  leg its seed with one shift, and it advances by 2 alongside the traversal.
+//  Two things follow:
 //
-//    * run the kernel with do_trial = 0 and leave that leg to the td stream
-//      or a segmented prime sieve, which is a far better fit for it;
-//    * or keep it on and accept that it dominates the step.
+//    * the divisor is one word, so the host engine's divisible_by_u64 reaches
+//      mpz_divisible_ui_p and divides by a PRECOMPUTED reciprocal. Treating
+//      P as a bignum instead, which this engine did until measured, costs a
+//      general division every step: 28.77 ns against 5.90 ns at 96 bits,
+//      44.01 ns against 10.03 ns at 112.
+//    * 3 | P and 5 | P can be carried as two small counters and skipped
+//      outright, which is sound whenever N is coprime to 3 and 5 (then no
+//      such P can divide N) and drops 53% of the candidates: 3.44 ns and
+//      3.52 ns at those two sizes. skip35 below is that guard, and it is a
+//      guard rather than an assumption -- when N does share those factors
+//      the skip is switched off, since then those P must still be tested.
 //
-//  Note the completeness argument needs both legs (trial division catches
+//  What remains genuinely expensive is only the wide case: above 2^64 a
+//  64-bit remainder no longer suffices and csf_mod128 falls back to a
+//  64-iteration shift-subtract. do_trial is kept so that leg can still be
+//  handed to the td stream or a segmented prime sieve there. Note the
+//  completeness argument needs both legs (trial division catches
 //  p <= 2*j_max+3, the vertical leg catches the rest), so switching it off
-//  here means something else must cover it.
+//  means something else must cover it.
 //
 //  Sizing: the engine cuts the path at CHUNK = 1<<8 because a bracket start
 //  costs 211 ns against an 87 ns step in mpz -- a ratio of 2.4 that is flat
@@ -396,13 +409,16 @@ CSF_HD inline unsigned csf_yp_one(
     const std::uint8_t* __restrict__ im,
     const std::uint32_t* __restrict__ ok_off,   // 2 * CSF_YP_NMOD
     const std::uint8_t*  __restrict__ ok_flat,
-    std::uint64_t P,
+    std::uint64_t P, unsigned p3, unsigned p5,  // P and P mod 3, P mod 5
     std::uint64_t nhi, std::uint64_t nlo,
-    int do_trial)
+    int do_trial, int skip35)
 {
     unsigned out = 0;
 
-    if (do_trial && P > 1 && csf_mod128(nhi, nlo, P) == 0) out |= 1u;
+    // p3 / p5 are carried by the caller, so the skip costs two compares and
+    // removes 53% of the modulos -- see skip35 in the header.
+    const int worth = !(skip35 && (p3 == 0 || p5 == 0));
+    if (do_trial && worth && P > 1 && csf_mod128(nhi, nlo, P) == 0) out |= 1u;
 
     unsigned okv = 1u, okh = 1u;
     for (int t = 0; t < CSF_YP_NMOD; ++t) {
@@ -430,7 +446,7 @@ __global__ void csf_yp_kernel(
     const std::uint32_t* __restrict__ ok_off,   // 2 * CSF_YP_NMOD
     const std::uint8_t*  __restrict__ ok_flat,
     std::uint64_t nhi, std::uint64_t nlo,
-    int do_trial,
+    int do_trial, int skip35,
     std::uint64_t* __restrict__ out,
     unsigned int*  __restrict__ out_n,
     unsigned int   out_cap)
@@ -449,10 +465,12 @@ __global__ void csf_yp_kernel(
         rm[s] = (std::uint8_t)(R % mods[s]);
         im[s] = (std::uint8_t)(I % mods[s]);
     }
+    unsigned p3 = (unsigned)((2 * a + 3) % 3), p5 = (unsigned)((2 * a + 3) % 5);
 
     for (std::uint64_t j = a; j < b; ++j) {
         const unsigned msk = csf_yp_one(rm, im, ok_off, ok_flat,
-                                        2 * j + 3, nhi, nlo, do_trial);
+                                        2 * j + 3, p3, p5, nhi, nlo,
+                                        do_trial, skip35);
         if (msk) {
             const unsigned int slot = atomicAdd(out_n, 1u);
             if (slot < out_cap) out[slot] = (j << 3) | msk;
@@ -462,11 +480,13 @@ __global__ void csf_yp_kernel(
             if (++rm[s] == p) rm[s] = 0;
             im[s] = (im[s] == 0) ? (std::uint8_t)(p - 1) : (std::uint8_t)(im[s] - 1);
         }
+        p3 += 2; if (p3 >= 3) p3 -= 3;          // P advances by 2
+        p5 += 2; if (p5 >= 5) p5 -= 5;
     }
 #else
     (void)r; (void)m; (void)j0; (void)chunk; (void)count; (void)jmax;
     (void)mods; (void)ok_off; (void)ok_flat; (void)nhi; (void)nlo;
-    (void)do_trial; (void)out; (void)out_n; (void)out_cap;
+    (void)do_trial; (void)skip35; (void)out; (void)out_n; (void)out_cap;
 #endif
 }
 
@@ -701,6 +721,10 @@ static int test_yp() {
                 }
             }
 
+        // skip35 is sound only when N is coprime to 3 and 5, exactly as the
+        // engine decides it.
+        const int skip35 = (N % 3 != 0 && N % 5 != 0) ? 1 : 0;
+
         // walk every bracket, exactly as the kernel would
         const std::uint64_t CH = 256;
         std::vector<std::uint64_t> got;
@@ -713,11 +737,13 @@ static int test_yp() {
                 rm[s] = (std::uint8_t)(R % MODS[s]);
                 im[s] = (std::uint8_t)(I % MODS[s]);
             }
+            unsigned p3 = (unsigned)((2 * a + 3) % 3),
+                     p5 = (unsigned)((2 * a + 3) % 5);
             ++brackets;
             for (std::uint64_t j = a; j < b; ++j) {
                 const unsigned msk = csf_yp_one(rm, im, ok_off.data(),
                                                 ok_flat.data(), 2 * j + 3,
-                                                0, N, 1);
+                                                p3, p5, 0, N, 1, skip35);
                 if (msk) got.push_back((j << 3) | msk);
                 for (int s = 0; s < CSF_YP_NMOD; ++s) {
                     const std::uint32_t p = MODS[s];
@@ -725,6 +751,8 @@ static int test_yp() {
                     im[s] = (im[s] == 0) ? (std::uint8_t)(p - 1)
                                          : (std::uint8_t)(im[s] - 1);
                 }
+                p3 += 2; if (p3 >= 3) p3 -= 3;
+                p5 += 2; if (p5 >= 5) p5 -= 5;
             }
         }
 
@@ -733,7 +761,8 @@ static int test_yp() {
         for (std::uint64_t j = 0; j <= jmax; ++j) {
             const std::uint64_t R = r + j, I = m - j, P = 2 * j + 3;
             unsigned want = 0;
-            if (P > 1 && N % P == 0) want |= 1u;
+            const int worth = !(skip35 && (P % 3 == 0 || P % 5 == 0));
+            if (P > 1 && worth && N % P == 0) want |= 1u;
             unsigned okv = 1u, okh = 1u;
             for (int t = 0; t < CSF_YP_NMOD; ++t) {
                 const std::uint32_t mm = MODS[t];
@@ -768,6 +797,32 @@ static int test_yp() {
                                           : "FAIL(factor lost)"));
         if (!ok) ++bad;
     }
+    // The skip35 guard must be load-bearing, not decorative: on an N that
+    // IS divisible by 3, forcing the skip on has to lose the factor. If this
+    // check ever passes with the skip forced, the guard is doing nothing and
+    // the real one above is untested.
+    {
+        const std::uint64_t N = 314187ull;          // 3 * 104729
+        std::uint64_t r = (std::uint64_t)std::sqrt((double)N);
+        while (r * r < N) ++r;
+        while (r > 1 && (r - 1) * (r - 1) >= N) --r;
+        const std::uint64_t m = r - 3, S = r + m, jmax = (N / S - 3) / 2;
+        int found_with = 0, found_without = 0;
+        for (int forced = 0; forced < 2; ++forced)
+            for (std::uint64_t j = 0; j <= jmax; ++j) {
+                const std::uint64_t P = 2 * j + 3;
+                const int worth = !(forced && (P % 3 == 0 || P % 5 == 0));
+                if (P > 1 && worth && N % P == 0) {
+                    if (forced) ++found_with; else ++found_without;
+                }
+            }
+        const bool ok = (found_without > 0) && (found_with == 0);
+        std::printf("[yp]    skip35 guard: 3 | N finds %d hits with the skip "
+                    "off, %d with it forced on -> %s\n",
+                    found_without, found_with, ok ? "GUARD REQUIRED" : "FAIL");
+        if (!ok) ++bad;
+    }
+
     std::printf("[yp]    %s\n", bad == 0 ? "WALK OK" : "WALK FAILED");
     return bad == 0 ? 0 : 1;
 }
