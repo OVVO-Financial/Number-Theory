@@ -13,17 +13,41 @@
 //  Each device predicate is the CPU loop body verbatim, so the two engines
 //  cannot drift apart silently.
 //
-//  All three take multiple starting points, with different floors on how
-//  finely they can be cut:
+//  LAUNCH THEM CONCURRENTLY -- this is where the device beats the host.
 //
-//    sieve  no floor -- residues are independent, one thread each, always
-//    yellow ~120 steps per bracket  (start 211 ns vs step 87 ns, mpz)
-//    ctm    ~440 of arc in q        (seed 5.8-8.7 ns vs step ~1.1 ns)
+//  On a CPU the three compete: with 4 cores and five streams wanted (td,
+//  vf, lm, yp, ctm) there is no surplus to share, and the host engine has
+//  to deal spare threads round-robin just to stop one stream starving
+//  another. A device has no such problem. Measured per-thread floors, in
+//  the DEVICE forms of each walk (112-bit N):
 //
-//  Every ceiling scales as sqrt(N), so usable parallelism widens exactly as
-//  the problem gets harder. The yellow path is the most parallel of the
-//  three: it has no dependency chain at all, where CTM's ladder direction
-//  depends on the previous comparison.
+//    sieve   no seed at all -- residues are independent, one thread each
+//    yellow  seed 42.50 ns / step 12.50 ns =  3.4 steps -> floor  31 steps
+//    ctm     seed 47.04 ns / step  1.07 ns = 44.0 steps -> floor 396 steps
+//
+//  (The yellow figure is the device form, which never builds V or H; the
+//  host's own bracket start is 211 ns against an 87 ns mpz step, so its
+//  floor is ~120. Do not carry the host numbers over.)
+//
+//  Applying those floors at 112 bits, where sqrt(N) ~ 7.2e16:
+//
+//    yellow path   j_max / 31       ~ 5.8e14 brackets
+//    ctm           arc / (396 * 10) ~ 1.8e13 chunks
+//
+//  Both are orders of magnitude past any real grid, so all three kernels
+//  can be resident and wide simultaneously -- three concurrent launches on
+//  separate CUDA streams, sized independently, with none of them starving
+//  the others. Every ceiling scales as sqrt(N), so the headroom widens as
+//  the problem gets harder.
+//
+//  Sizing rule per kernel: threads = min(grid you want, span / floor).
+//  Going wider is not wrong, just increasingly seed-bound.
+//
+//  The yellow path is the most parallel of the three: every quantity is a
+//  closed form in j, so a bracket starts anywhere for O(1) cost and there
+//  is no dependency chain at all. CTM's walks are ladders -- each step's
+//  direction depends on the previous comparison -- so they parallelise
+//  across chunks but not along one chunk's length.
 //
 //  WHY THIS SPLIT  (measured, current engine)
 //  ------------------------------------------
@@ -89,40 +113,29 @@
 //  ------------------------------
 //  Splitting the arc into more starting points is work-conserving, which is
 //  what makes an arbitrarily wide launch legitimate rather than wasteful.
-//  Sweeping the whole arc of N = 1000000016000000063 and varying only the
-//  seed count:
+//  Sweeping a whole arc and varying only the seed count, a 16,384x widening
+//  cost 1.5% more work: 64 threads did 556,846,579 multiplications,
+//  1,048,576 threads did 565,422,794.
 //
-//      threads        total multiplications
-//           64              556,846,579
-//        4,096              565,546,061
-//       65,536              565,660,492
-//    1,048,576              565,422,794
+//  The floor is per-thread, not global, and it belongs to the CURRENT walk
+//  -- the two-directional R/i form, not the old single ladder. Measured at
+//  112 bits:
 //
-//  A 16,384x widening costs 1.5% more work. (One seed is cheaper still, at
-//  424M, because a single ladder self-terminates on i >= R instead of being
-//  re-seeded past that point; from two seeds up the total is flat.)
+//      chunk seed (mpz divide + halves + digit sync) : 47.04 ns
+//      one step   (mul + cmp + add, native)          :  1.07 ns
 //
-//  The floor is per-thread, not global. Measured here:
+//  so a seed costs 44 steps and a thread needs ~396 of them -- about 3,960
+//  of arc in q -- to hold seeding under 10% of its own time. The earlier
+//  figure here was 440, taken when the seed was a native 5.8-8.7 ns; the
+//  seed is an mpz divide now, so the floor moved by an order of magnitude.
 //
-//      full seed (divide + halves + two digit rounds) : 5.8 - 8.7 ns
-//      one ladder step (mul + cmp + add)              : 1.0 - 1.2 ns
+//  At 112 bits the descending arc alone is ~sqrt(N) ~ 7.2e16, giving
+//  ~1.8e13 chunks -- far past any real grid. The ceiling scales as sqrt(N),
+//  so the headroom widens as the problem gets harder.
 //
-//  so a seed costs ~5-8 steps, and a thread needs ~50-80 steps -- about 440
-//  of arc in q -- to keep seeding under 10% of its own time. Since the arc
-//  spans ~1.414*sqrt(N), usable threads grow as sqrt(N):
-//
-//      40 bits   ~3.4e3 threads      CPU-scale only
-//      56 bits   ~8.6e5 threads      just short of a GPU
-//      64 bits   ~1.4e7 threads      saturates a GPU
-//     112 bits   ~2.3e14 threads     saturates anything
-//
-//  Crossover for a million threads is ~57 bits. Below that CTM cannot fill
-//  a GPU -- but below that the factorization is already trivial, so the
-//  limit never binds where it would matter. The parallelism widens exactly
-//  as the problem gets harder.
-//
-//  Sizing rule for a launch: threads = min(grid you want, arc_span / 440).
+//  Sizing rule for a launch: threads = min(grid you want, arc_span / 3960).
 //  Going wider than that is not wrong, just increasingly seed-bound.
+//
 //
 //  The sieve kernel has no equivalent floor -- its per-chunk setup is NS
 //  modulos (8) amortised over the whole residue block, so one thread per
