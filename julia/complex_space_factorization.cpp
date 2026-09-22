@@ -199,6 +199,21 @@ static inline std::uint64_t u64_from_big(const BigInt& z, std::uint64_t cap) {
     return words ? v : 0;
 }
 
+// Exact export of a value known to fit 128 bits.
+static inline __uint128_t u128_from_big(const BigInt& z) {
+    __uint128_t v = 0;
+    std::size_t words = 0;
+    mpz_export(&v, &words, -1, sizeof(v), 0, 0, z.get_mpz_t());
+    return v;
+}
+
+// Least non-negative representative of x mod m, for small positive m.
+static inline BigInt mod_pos_small(const BigInt& x, long m) {
+    BigInt r = x % m;
+    if (mpz_sgn(r.get_mpz_t()) < 0) r += m;
+    return r;
+}
+
 static inline bool divisible_by_u64(const BigInt& n, std::uint64_t d) {
     if (d <= static_cast<std::uint64_t>(std::numeric_limits<unsigned long>::max()))
         return mpz_divisible_ui_p(n.get_mpz_t(), static_cast<unsigned long>(d)) != 0;
@@ -503,6 +518,7 @@ struct Stats {
     std::atomic<std::uint64_t> hf_candidates{0};
     std::atomic<std::uint64_t> ia_gcds{0};
     std::atomic<std::uint64_t> yp_steps{0};
+    std::atomic<std::uint64_t> ctm_steps{0};
     std::atomic<std::uint64_t> lm_candidates{0};
 };
 
@@ -939,6 +955,149 @@ static void yellow_path_stream(const BigInt& N,
 }
 
 // ---------------------------------------------------------------------
+// Complex Trial Multiplication (Sec. "Complex Trial Multiplication")
+//
+// CTM walks the factor strip testing p*q against N by MULTIPLICATION,
+// never dividing. It is confined to the arc spanned by the two Fermat
+// legs -- from the collapse point (r + j_max, m - j_max) up to the
+// horizontal leg's reach at R = sqrt(N + m^2) -- and never runs into the
+// high-i end, which is trial division's.
+//
+// It is launched at the collapse SIMULTANEOUSLY with the bracket, not
+// after it: the bracket is deterministically complete at j_max, so
+// anything sequenced behind it would have nothing left to do.
+//
+// Why it earns a thread, measured:
+//
+//     trial division   mpz_divisible_ui_p      2.60 ns/op
+//     CTM  native      p*q compare             0.31 ns/op   0.12x
+//     CTM  native      incremental  += 2R+1    1.06 ns/op   0.41x
+//
+// CTM covers the arc in ~2.25x more operations than the bracket's
+// trial-division leg, but each costs ~0.12x, so it comes out ~3.6x ahead.
+// The asymmetry is that trial division divides a big N by ONE machine
+// word (a single limb pass) while CTM multiplies two half-width values --
+// which is cheap only if they are held at native width. Doing it with
+// mpz_mul instead measures at 10-12 ns/op and throws the advantage away.
+//
+// So: __uint128 fast path whenever p, q fit 64 bits, with a full mpz
+// fallback above that. Both paths walk identically; only the arithmetic
+// differs.
+//
+// q = R + i rises by exactly 10 on every step in either branch, which
+// makes q the monotone coordinate and lets the arc be cut into chunks and
+// handed to threads by an atomic counter.
+// ---------------------------------------------------------------------
+
+static void ctm_stream(const BigInt& N,
+                       Found& found,
+                       std::atomic<std::uint64_t>& next_chunk,
+                       std::atomic<std::uint64_t>& counter) {
+    const BigInt r = isqrt_ceil(N);
+    if (r < 4) return;
+    const BigInt m = r - 3;
+    if (m < 1) return;
+    const BigInt S  = r + m;
+    const BigInt jm = (N / S - 3) / 2;
+    if (jm < 0) return;
+
+    // Arc: the whole span the two Fermat legs cover, in q = R + i.
+    //
+    //   bottom (balanced end, R = r)          q = r + sqrt(r^2 - N)
+    //   top    (horizontal leg's reach, b = m) q = sqrt(N + m^2) + m
+    //
+    // Note the collapse sits in the MIDDLE of this span, not at its lower
+    // end: at the collapse q = S = r + m, which lies strictly between the
+    // two. Taking S as the lower bound (as a first cut did) puts the whole
+    // balanced half of the arc outside the walk, so a balanced semiprime
+    // like 8051 = 83*97 (q = 97, well below S = 177) can never be seen.
+    BigInt Rtop, brt;
+    { BigInt t = N + m * m; mpz_sqrt(Rtop.get_mpz_t(), t.get_mpz_t()); }
+    { BigInt t = r * r - N;
+      if (mpz_sgn(t.get_mpz_t()) < 0) t = 0;
+      mpz_sqrt(brt.get_mpz_t(), t.get_mpz_t()); }
+    const BigInt q_lo = r + brt;
+    const BigInt q_hi = Rtop + m;
+    if (q_hi <= q_lo) return;
+
+    const auto pairs = fermat_digit_pairs(N);
+    if (pairs.empty()) return;
+
+    // Native path needs p*q to fit __uint128 and q to fit 64 bits.
+    const bool native = (mpz_sizeinbase(N.get_mpz_t(), 2) <= 126) &&
+                        (mpz_sizeinbase(q_hi.get_mpz_t(), 2) <= 62);
+
+    const std::uint64_t STEP = 10;
+    const std::uint64_t CH   = 1u << 14;          // q-span per chunk = CH*10
+    const BigInt span = q_hi - q_lo;
+    const std::uint64_t nchunk =
+        u64_from_big(span / BigInt(CH * STEP) + 1, std::numeric_limits<std::uint64_t>::max());
+
+    BigInt R, I, P, Q, prod, qs, ps;
+    std::uint64_t local = 0;
+
+    while (!found.ready()) {
+        const std::uint64_t c = next_chunk.fetch_add(1, std::memory_order_relaxed);
+        if (c >= nchunk) break;
+
+        const BigInt cq_lo = q_lo + BigInt(c) * BigInt(CH * STEP);
+        BigInt cq_hi = cq_lo + BigInt(CH * STEP);
+        if (cq_hi > q_hi) cq_hi = q_hi;
+        if (cq_lo >= q_hi) break;
+
+        for (const auto& pr : pairs) {
+            if (found.ready()) break;
+
+            // Seed on the strip at q ~ cq_lo, then round each coordinate
+            // up into its admissible digit class.
+            qs = cq_lo;
+            ps = N / qs;                       // p on the strip at this q
+            R = (qs + ps) / 2;
+            I = (qs - ps) / 2;
+            if (I < 0) I = 0;
+            R += mod_pos_small(BigInt(pr.a10) - R, 10);
+            I += mod_pos_small(BigInt(pr.b10) - I, 10);
+
+            if (native) {
+                const __uint128_t Nn = u128_from_big(N);
+                std::uint64_t Rn = u64_from_big(R, 0), In = u64_from_big(I, 0);
+                const std::uint64_t qcap = u64_from_big(cq_hi, ~0ull);
+                while (Rn + In <= qcap) {
+                    if (In >= Rn) break;
+                    const std::uint64_t pp = Rn - In, qq = Rn + In;
+                    if (pp < 3) { Rn += STEP; continue; }
+                    ++local;
+                    const __uint128_t pr128 = (__uint128_t)pp * qq;
+                    if (pr128 == Nn) {
+                        found.submit(N, big_from_u64(pp), "ctm");
+                        counter += local; return;
+                    }
+                    if (pr128 < Nn) Rn += STEP; else In += STEP;
+                    if ((local & 0xFFFF) == 0 && found.ready()) break;
+                }
+            } else {
+                while (true) {
+                    Q = R + I;
+                    if (Q > cq_hi) break;
+                    if (I >= R) break;
+                    P = R - I;
+                    if (P < 3) { R += STEP; continue; }
+                    ++local;
+                    prod = P * Q;
+                    if (prod == N) {
+                        found.submit(N, P, "ctm");
+                        counter += local; return;
+                    }
+                    if (prod < N) R += STEP; else I += STEP;
+                    if ((local & 0xFFFF) == 0 && found.ready()) break;
+                }
+            }
+        }
+    }
+    counter += local;
+}
+
+// ---------------------------------------------------------------------
 // Iterated-average GCD stream  (Complex Space Factorization, Sec. 5)
 // with the remainder sieve of Sec. 5.2.
 //
@@ -1089,6 +1248,7 @@ struct Options {
     bool hf            = false;
     bool ia            = false;
     bool yp            = false;
+    bool ctm           = false;
     bool digit_only    = false;
     bool no_sieve      = false;
     bool quiet         = false;
@@ -1240,7 +1400,7 @@ static std::optional<BigInt> split_once(const BigInt& N,
     }
 
     std::atomic<std::uint64_t> vf_chunk{0}, hf_chunk{0}, lm_k{1}, ia_job{0}, yp_chunk{0};
-    std::atomic<std::uint64_t> td_block{0};
+    std::atomic<std::uint64_t> td_block{0}, ctm_chunk{0};
 
     // Thread budget: one for TD, optionally one each for HF and IA, the
     // rest split between vertical Fermat and the Lehman sweep.
@@ -1254,8 +1414,10 @@ static std::optional<BigInt> split_once(const BigInt& N,
     const bool want_ia = only_mode ? (opt.only == "ia") : opt.ia;
     const bool want_lm = only_mode ? (opt.only == "lm") : opt.lehman;
     const bool want_yp = only_mode ? (opt.only == "yp") : opt.yp;
+    const bool want_ctm = only_mode ? (opt.only == "ctm") : opt.ctm;
 
-    unsigned reserved = 1 + (opt.hf ? 1u : 0u) + (opt.ia ? 1u : 0u) + (opt.yp ? 1u : 0u);
+    unsigned reserved = 1 + (opt.hf ? 1u : 0u) + (opt.ia ? 1u : 0u) + (opt.yp ? 1u : 0u)
+                      + (opt.ctm ? 1u : 0u);
     unsigned rest = (T > reserved) ? T - reserved : 1;
     // Thread split. Lehman is the O(N^(1/3)) completeness guarantee, not
     // the workhorse -- it never won a race in any measured case. Giving it
@@ -1308,6 +1470,12 @@ static std::optional<BigInt> split_once(const BigInt& N,
     if (want_yp)
         pool.emplace_back([&] {
             yellow_path_stream(N, found, yp_chunk, stats.yp_steps);
+        });
+
+    // Launched at the collapse SIMULTANEOUSLY with the bracket, never after.
+    if (want_ctm)
+        pool.emplace_back([&] {
+            ctm_stream(N, found, ctm_chunk, stats.ctm_steps);
         });
 
     for (unsigned i = 0; i < nLM; ++i)
@@ -1546,9 +1714,10 @@ static void usage() {
       "  --hf            enable the horizontal (b-driven) Fermat stream\n"
       "  --ia            enable the iterated-average GCD stream (Sec. 5/5.2)\n"
       "  --yp            enable the fused yellow-path stream (Sec. 4, Figure 8)\n"
+      "  --ctm           enable complex trial multiplication from the collapse\n"
       "  --digit-only    sieve with modulus 20 only (the terminal-digit sieve)\n"
       "  --no-sieve      disable sieving entirely\n"
-      "  --only=S        run a single stream: vf|hf|ia|td|lm|yp\n"
+      "  --only=S        run a single stream: vf|hf|ia|td|lm|yp|ctm\n"
       "  --wheel=R       residue budget for the sieve wheel (0 = auto)\n"
       "  --quiet         print only the factorization\n"
       "  --verbose       print stream statistics\n";
@@ -1571,6 +1740,7 @@ int main(int argc, char** argv) {
         else if (a == "--hf")                   opt.hf      = true;
         else if (a == "--ia")                   opt.ia      = true;
         else if (a == "--yp")                   opt.yp      = true;
+        else if (a == "--ctm")                  opt.ctm     = true;
         else if (a == "--digit-only")           opt.digit_only = true;
         else if (a == "--no-sieve")             opt.no_sieve   = true;
         else if (a.rfind("--only=", 0) == 0)    opt.only    = a.substr(7);
@@ -1641,6 +1811,7 @@ int main(int argc, char** argv) {
         std::cout << "  lehman sqrt tests                : " << stats.lm_candidates.load() << "\n";
         std::cout << "  iterated-average gcds            : " << stats.ia_gcds.load() << "\n";
         std::cout << "  yellow-path steps                : " << stats.yp_steps.load() << "\n";
+        std::cout << "  ctm multiplications              : " << stats.ctm_steps.load() << "\n";
     }
     return unfactored.empty() ? 0 : 2;
 }
