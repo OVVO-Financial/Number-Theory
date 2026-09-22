@@ -866,7 +866,8 @@ static void lehman_stream(const BigInt& N,
 static void yellow_path_stream(const BigInt& N,
                                Found& found,
                                std::atomic<std::uint64_t>& next_chunk,
-                               std::atomic<std::uint64_t>& counter) {
+                               std::atomic<std::uint64_t>& counter,
+                               bool ctm_owns_top) {
     const BigInt r = isqrt_ceil(N);
     if (r < 4) return;
     const BigInt m = r - 3;
@@ -875,7 +876,32 @@ static void yellow_path_stream(const BigInt& N,
 
     BigInt jmax_big = (N / S - 3) / 2;
     if (jmax_big < 0) return;
-    const std::uint64_t jmax = u64_from_big(jmax_big, std::numeric_limits<std::uint64_t>::max());
+    std::uint64_t jmax = u64_from_big(jmax_big, std::numeric_limits<std::uint64_t>::max());
+
+    // STOP AT THE CROSSOVER WITH CTM, not at j_max.
+    //
+    // The vertical leg and CTM's descending walk cover the SAME factors --
+    // both reach exactly t in [1,2], writing the smaller factor as
+    // p = sqrt(N)/t -- but from opposite ends of that range. Steps to reach
+    // a factor, in units of sqrt(N):
+    //
+    //      t      1.0     1.2     1.408     1.6     1.9     2.0
+    //      yellow 0.000   0.017   0.0591    0.112   0.213   0.250
+    //      CTM    0.100   0.080   0.0592    0.040   0.010   0.000
+    //
+    // They cross at t = 1.4082, which is j = 0.237 * j_max. Past that the
+    // path is walking ground CTM gets to sooner, and at its own endpoint,
+    // t = 2, it needs 0.25*sqrt(N) where CTM needs ~0. Cutting there caps
+    // the worst case at 0.0592*sqrt(N) instead of 0.2500 -- 4.22x.
+    //
+    // Only when CTM is actually running. Its trial leg then reaches just
+    // p ~ 0.118*sqrt(N) rather than 0.5*sqrt(N), and what covers the rest
+    // is the separate td stream, which owns (b1, cross] with
+    // cross = 2*j_max+3 -- so nothing is dropped either way.
+    if (ctm_owns_top && jmax > 16) {
+        const std::uint64_t cut = (jmax / 1000) * 237 + ((jmax % 1000) * 237) / 1000;
+        if (cut > 0) jmax = cut;
+    }
 
     // Admissible-residue tables: R for V = R^2 - N, i for H = i^2 + N.
     static const std::uint32_t MODS[7] = {64, 27, 25, 7, 11, 13, 17};
@@ -1685,7 +1711,7 @@ static std::optional<BigInt> split_once(const BigInt& N,
 
     for (unsigned i = 0; i < nYP; ++i)
         pool.emplace_back([&] {
-            yellow_path_stream(N, found, yp_chunk, stats.yp_steps);
+            yellow_path_stream(N, found, yp_chunk, stats.yp_steps, want_ctm);
         });
 
     // Launched at the collapse SIMULTANEOUSLY with the bracket, never after.
