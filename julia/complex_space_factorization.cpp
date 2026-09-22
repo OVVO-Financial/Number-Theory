@@ -1115,7 +1115,20 @@ static void ctm_stream(const BigInt& N,
     const std::uint64_t n_dn =
         (S > q_bot) ? u64_from_big((S - q_bot) / CHSPAN + 1,
                                    std::numeric_limits<std::uint64_t>::max()) : 0;
-    const std::uint64_t ndraw = (n_up > n_dn ? n_up : n_dn) * 2 + 2;
+    // Saturate before doubling. The ascending walk runs to q = N/3, so for a
+    // 112-bit N n_up is about 1.3e28 and u64_from_big caps it at 2^64-1;
+    // (2^64-1)*2 + 2 then WRAPS TO ZERO and the draw loop breaks on its very
+    // first iteration, so the whole stream did nothing and reported
+    // INCOMPLETE in 9 ms with 0 multiplications.
+    //
+    // The differential suite could not see this: CTM is off by default, so a
+    // stream that silently does nothing never changes an answer. Only the
+    // per-stream multiplication count shows it, which is why --verbose is
+    // now part of the check.
+    std::uint64_t nmax = n_up > n_dn ? n_up : n_dn;
+    const std::uint64_t NCAP = (std::numeric_limits<std::uint64_t>::max() - 2) / 2;
+    if (nmax > NCAP) nmax = NCAP;
+    const std::uint64_t ndraw = nmax * 2 + 2;
 
     BigInt R, I, P, Q, prod, qa, qb, ps;
     std::uint64_t local = 0;
@@ -1946,6 +1959,46 @@ static int selftest() {
             std::cout << "  zero margin: N=" << c.n << " j_true=" << j_true
                       << " j_max=" << jm << " (factor on the last step)  "
                       << (ok ? "OK" : "FAIL") << "\n";
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // 7. CTM does real work at large N.
+    //
+    // This exists because a stream that silently does NOTHING is invisible
+    // to every other check here. CTM is off by default, so it never decides
+    // an answer, and the 294-case differential suite passed with it doing
+    // zero multiplications on every N above about 2^82.
+    //
+    // The cause: the ascending walk runs to q = N/3, so n_up saturates at
+    // 2^64-1 and (2^64-1)*2 + 2 wrapped to zero, breaking the draw loop on
+    // its first iteration. Reported from MinGW as a 112-bit N returning
+    // INCOMPLETE in 9 ms.
+    //
+    // So this asserts BOTH that the factor comes back AND that the
+    // multiplication counter moved -- either alone would have missed it.
+    // -----------------------------------------------------------------
+    std::cout << "\n=== 7. CTM stream does real work at large N ===\n";
+    {
+        const struct { const char* n; const char* p; } big[] = {
+            {"1237940039288107063736009593",   "17592186044423"},
+            {"19807040628574599016431485843",  "70368744177679"},
+            {"316912650057108860294913853471", "281474976710677"},
+        };
+        for (const auto& c : big) {
+            const BigInt n(c.n), want(c.p);
+            Found f;
+            std::atomic<std::uint64_t> chunk{0}, steps{0};
+            ctm_stream(n, f, chunk, steps);
+            const bool hit = f.ready() && (f.factor == want || f.factor == n / want);
+            const bool worked = steps.load() > 0;
+            const bool ok = hit && worked;
+            if (!ok) ++failures;
+            std::cout << "  " << mpz_sizeinbase(n.get_mpz_t(), 2) << "-bit: "
+                      << steps.load() << " multiplications, factor "
+                      << (f.ready() ? f.factor.get_str() : std::string("none"))
+                      << "  " << (ok ? "OK" : (worked ? "FAIL(no factor)"
+                                                      : "FAIL(zero work)")) << "\n";
         }
     }
 
