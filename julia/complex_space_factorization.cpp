@@ -1365,7 +1365,7 @@ struct Options {
     bool hf            = false;
     bool ia            = false;
     bool yp            = true;    // on by default; --no-yp to ablate
-    bool ctm           = false;
+    bool ctm           = true;    // on by default; --no-ctm to ablate
     bool parallel      = false;   // yellow path across the whole pool
     bool digit_only    = false;
     bool no_sieve      = false;
@@ -1545,9 +1545,21 @@ static std::optional<BigInt> split_once(const BigInt& N,
     //
     // One Lehman thread still sweeps every k, so the asymptotic bound is
     // unchanged; only its constant is. Everything else goes to vf.
-    unsigned nLM = (want_lm && rest >= 2) ? 1u : 0u;
-    unsigned nVF = rest - nLM;
-    if (nVF == 0) { nVF = 1; nLM = 0; }
+    // Lehman gets its thread before the optional streams do.
+    //
+    // It used to be taken from what was left after them, `rest >= 2`, which
+    // meant that switching on one more optional stream silently deleted it.
+    // On 4 cores with --ctm that is exactly what happened:
+    // N = 130000000000991000000001887 is WON by Lehman, and adding CTM took
+    // reserved to 3, rest to 1, nLM to 0 -- 20 ms became 3713 ms, a 186x
+    // regression caused by a stream that never even won a race.
+    //
+    // Optional streams may now oversubscribe by a thread or two instead.
+    // Every stream polls found.ready(), so an extra runnable thread costs
+    // scheduling, not correctness, and it is much the cheaper failure.
+    unsigned nLM = want_lm ? 1u : 0u;
+    unsigned nVF = (rest > nLM) ? rest - nLM : 1u;
+    if (nVF == 0) nVF = 1;
 
     // Streams that carve their range with an atomic chunk counter take as
     // many threads as they are given. Until measured, only vf and lm were
@@ -2022,7 +2034,7 @@ static void usage() {
       "  --ia            enable the iterated-average GCD stream (Sec. 5/5.2)\n"
       "  --no-yp         disable the fused yellow-path stream (Sec. 4, Figure 8)\n"
         "  --parallel      run the yellow path across every thread, alone\n"
-      "  --ctm           enable complex trial multiplication from the collapse\n"
+      "  --no-ctm        disable complex trial multiplication\n"
       "  --digit-only    sieve with modulus 20 only (the terminal-digit sieve)\n"
       "  --no-sieve      disable sieving entirely\n"
       "  --only=S        run a single stream: vf|hf|ia|td|lm|yp|ctm\n"
@@ -2054,6 +2066,8 @@ int main(int argc, char** argv) {
         // Kept as an accepted no-op so existing command lines still run.
         else if (a == "--yp")                   opt.yp      = true;
         else if (a == "--parallel")           { opt.parallel = true; opt.yp = true; }
+        else if (a == "--no-ctm")               opt.ctm     = false;
+        // --ctm predates the default and is kept as an accepted no-op.
         else if (a == "--ctm")                  opt.ctm     = true;
         else if (a == "--digit-only")           opt.digit_only = true;
         else if (a == "--no-sieve")             opt.no_sieve   = true;
