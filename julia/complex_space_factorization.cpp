@@ -955,6 +955,33 @@ static void yellow_path_stream(const BigInt& N,
         // the bound is applied to j up front instead.
         if (m_fits64 && j1 > m_w) j1 = m_w;
 
+        // One seed per chunk, walking up. Seeding at the chunk's MIDDLE and
+        // running both ways was tried -- every quantity is a closed form in
+        // j, so from 95 + 82i the next point is 96 + 81i going up and
+        // 94 + 83i going down, with the residues advancing -1/+1 to match,
+        // and one seed then covers two half-spans instead of one span.
+        //
+        // It is correct (same factorizations on all 294 differential cases)
+        // and it is SLOWER, because the thing it halves is already small:
+        //
+        //     CHUNK   seed share   halved saves   branch costs   net
+        //       256        1.31%          0.65%           4%    -3.4%
+        //        64        5.04%          2.46%           4%    -1.5%
+        //        32        9.60%          4.56%           4%    +0.6%
+        //        16       17.53%          7.92%           4%    +3.9%
+        //
+        // Measured single-threaded on the 112-bit case: 117 ms
+        // unidirectional, 124 ms carrying the direction as a branch, 144 ms
+        // carrying it as per-modulus delta arrays (the arrays cost more
+        // memory traffic than the branch they removed).
+        //
+        // It would pay below CHUNK ~ 32. Nothing wants that: at 112 bits
+        // CHUNK = 256 already offers ~7e13 brackets, so finer cuts buy
+        // starting points no grid can use.
+        //
+        // The walk is bounded at both ends either way -- j never goes below
+        // j0 (and chunk 0's j0 is 0) nor above j1 (and the last chunk's j1
+        // is j_max), so the extreme brackets only ever run inward.
         R = r + big_from_u64(j0);
         I = m - big_from_u64(j0);
         if (I < 0) break;
