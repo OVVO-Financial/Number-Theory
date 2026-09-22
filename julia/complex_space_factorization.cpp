@@ -1167,20 +1167,31 @@ static void ctm_stream(const BigInt& N,
     BigInt q_top = N / 3;
     const BigInt q_bot = r;
 
-    // --rsa: a balanced modulus has q <= 1.41421*sqrt(N), and S = r + m is
-    // about 2*sqrt(N). So every admissible q lies BELOW the start point:
+    // Both walks leave from q_base, the point where the traversal meets the
+    // hyperbola. Which line the traversal sits on decides everything.
     //
-    //   * the ascending walk can never reach one -- switch it off entirely;
-    //   * the descending walk should not begin at S either, since it would
-    //     spend (2 - 1.41421)*sqrt(N) of travel getting down to the top of
-    //     the window. Start it at the window's own ceiling instead.
+    // The standard strip runs along S = r + m ~ 2*sqrt(N) and meets the
+    // hyperbola at p = N/S ~ 0.5*sqrt(N), so q_base = S ~ 2*sqrt(N).
     //
-    // That turns a descent of ~sqrt(N) into one of ~0.41421*sqrt(N).
+    // --rsa reseeds it to the line S ~ sqrt(N) -- 45 + 42i for N = 8051 --
+    // whose intersection is the BALANCED corner (sqrt(N), 0). From there
+    // the whole window q in [sqrt(N), 1.41421*sqrt(N)] lies ABOVE, so
+    // ascending is the direction that covers it and descending has nothing
+    // to find, q being the larger factor:
+    //
+    //      from 2*sqrt(N), descending : cost (2-q)/10, worst 0.1000*sqrt(N)
+    //      from   sqrt(N), ascending  : cost (q-1)/10, worst 0.0414*sqrt(N)
+    //
+    // -- 2.42x better, and on 8051 the factor is ONE ascending step from
+    // the reseeded intersection (q = 90 -> 97) against nine descending from
+    // S = 177. An earlier version of this switched ascending OFF under
+    // --rsa, having reasoned about it from the old q_base; from the
+    // reseeded one that is exactly backwards.
     const bool rsa = (rsa_q_hi != nullptr);
-    BigInt desc_from = S;
+    BigInt q_base = S;
     if (rsa) {
-        q_top = S;                          // n_up will come out 0
-        if (*rsa_q_hi < S) desc_from = *rsa_q_hi;
+        q_base = r;                         // the reseeded intersection
+        q_top = *rsa_q_hi;                  // ascending stops at the window
     }
 
     const std::uint64_t STEP = 10;
@@ -1189,11 +1200,11 @@ static void ctm_stream(const BigInt& N,
     const BigInt CHSPAN = big_from_u64(CH * STEP);
 
     const std::uint64_t n_up =
-        (q_top > S) ? u64_from_big((q_top - S) / CHSPAN + 1,
-                                   std::numeric_limits<std::uint64_t>::max()) : 0;
+        (q_top > q_base) ? u64_from_big((q_top - q_base) / CHSPAN + 1,
+                                        std::numeric_limits<std::uint64_t>::max()) : 0;
     const std::uint64_t n_dn =
-        (desc_from > q_bot) ? u64_from_big((desc_from - q_bot) / CHSPAN + 1,
-                                           std::numeric_limits<std::uint64_t>::max()) : 0;
+        (q_base > q_bot) ? u64_from_big((q_base - q_bot) / CHSPAN + 1,
+                                        std::numeric_limits<std::uint64_t>::max()) : 0;
     // Saturate before doubling. The ascending walk runs to q = N/3, so for a
     // 112-bit N n_up is about 1.3e28 and u64_from_big caps it at 2^64-1;
     // (2^64-1)*2 + 2 then WRAPS TO ZERO and the draw loop breaks on its very
@@ -1222,11 +1233,11 @@ static void ctm_stream(const BigInt& N,
 
         // Chunk bounds in q, measured out from S in the walk's direction.
         if (up) {
-            qa = S + big_from_u64(c) * CHSPAN;                 // from
+            qa = q_base + big_from_u64(c) * CHSPAN;            // from
             qb = qa + CHSPAN; if (qb > q_top) qb = q_top;      // to (higher)
             if (qa >= q_top) continue;
         } else {
-            qa = desc_from - big_from_u64(c) * CHSPAN;         // from
+            qa = q_base - big_from_u64(c) * CHSPAN;            // from
             qb = qa - CHSPAN; if (qb < q_bot) qb = q_bot;      // to (lower)
             if (qa <= q_bot) continue;
         }
