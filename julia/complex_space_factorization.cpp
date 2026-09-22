@@ -643,29 +643,41 @@ static void fermat_scan_chunked(const BigInt& N,
 // Wheel-30 residues, climbing from `start` to `limit`.
 // ---------------------------------------------------------------------
 
+// Trial division over p in [start, limit], chunked by an atomic counter so a
+// thread that exhausts its own arc of the strip can migrate here rather than
+// idle. Wheel-30 residues.
 static void trial_division_stream(const BigInt& N,
                                   std::uint64_t start,
                                   std::uint64_t limit,
                                   Found& found,
+                                  std::atomic<std::uint64_t>& next_block,
                                   std::atomic<std::uint64_t>& counter) {
     static const std::uint64_t W30[8] = {1, 7, 11, 13, 17, 19, 23, 29};
-    std::uint64_t base = (start / 30) * 30;
+    const std::uint64_t TURNS = 1u << 14;
+    const std::uint64_t base0 = (start / 30) * 30;
     std::uint64_t tested = 0;
 
-    while (base <= limit && !found.ready()) {
-        for (std::uint64_t off : W30) {
-            const std::uint64_t d = base + off;
-            if (d < start || d < 7) continue;
-            if (d > limit) { counter += tested; return; }
-            ++tested;
-            if (divisible_by_u64(N, d)) {
-                found.submit(N, big_from_u64(d), "trial-division");
-                counter += tested;
-                return;
+    while (!found.ready()) {
+        const std::uint64_t blk = next_block.fetch_add(1, std::memory_order_relaxed);
+        if (blk > limit / (TURNS * 30) + 1) break;
+        const std::uint64_t lo = base0 + blk * TURNS * 30;
+        if (lo > limit) break;
+        const std::uint64_t hi = std::min(limit, lo + TURNS * 30 - 1);
+
+        for (std::uint64_t base = lo; base <= hi; base += 30) {
+            for (std::uint64_t off : W30) {
+                const std::uint64_t d = base + off;
+                if (d < start || d < 7) continue;
+                if (d > limit) { counter += tested; return; }
+                ++tested;
+                if (divisible_by_u64(N, d)) {
+                    found.submit(N, big_from_u64(d), "trial-division");
+                    counter += tested;
+                    return;
+                }
             }
+            if ((tested & 0xFFFFF) == 0 && found.ready()) { counter += tested; return; }
         }
-        if ((tested & 0xFFFFF) == 0 && found.ready()) break;
-        base += 30;
     }
     counter += tested;
 }
@@ -1167,9 +1179,53 @@ static std::optional<BigInt> split_once(const BigInt& N,
     const BigInt sqrtN = isqrt_floor(N);
     const BigInt cbrtN = icbrt_ceil(N);
 
-    // After stage 0 no factor is <= b1, so a = (p + N/p)/2 is bounded.
-    const BigInt b1b = big_from_u64(opt.b1 < 3 ? 3 : opt.b1);
-    BigInt vf_hi = (b1b + N / b1b) / 2 + 1;
+    // -----------------------------------------------------------------
+    // Partition the strip at the 135-degree traversal's own boundary, so
+    // that no two streams ever cover the same p.
+    //
+    // The Sec. 4 bracket runs down the line R + i = S through the key
+    // complex number (r + m*i), with r = ceil(sqrt N), m = r - 3,
+    // S = r + m, halting at j_max = (N/S - 3)/2. Across that traversal the
+    // two Fermat legs sweep DISJOINT arcs of the strip that abut exactly at
+    // the collapse: the measured gap between them is +0.28 to +0.60 in R,
+    // never negative, from N = 309 to 1e12. Its trial-division leg reaches
+    // p = 2*j_max + 3.
+    //
+    // Take that as the crossover, c = 2*j_max + 3:
+    //
+    //     trial division owns  p in (b1, c]
+    //     vertical Fermat owns a in [ceil(sqrt N), (c + N/c)/2]
+    //
+    // Disjoint, and complete because any p > c has a <= (c + N/c)/2. With
+    // c ~ sqrt(N)/2 the vertical arc is a in [sqrt N, 1.25 sqrt N].
+    //
+    // The old bound used b1 in place of c, so the vertical scan ran to
+    // a = (b1 + N/b1)/2 -- the entire strip, exactly the p range trial
+    // division was already sweeping. The two duplicated each other and the
+    // vertical scan could never terminate. Bounded properly it exhausts its
+    // arc in finite time and hands its threads to trial division.
+    //
+    // Note the legs need NOT advance in lockstep on j to stay disjoint --
+    // only to stay inside their own arc. That distinction matters: lockstep
+    // would forfeit the wheel, which skips ~934 of every 935 values of a
+    // and can only do so if the scan advances at its own rate.
+    // -----------------------------------------------------------------
+    BigInt cross;
+    {
+        const BigInt rr = isqrt_ceil(N);
+        const BigInt mm = rr - 3;
+        if (mm >= 1) {
+            const BigInt SS = rr + mm;
+            cross = 2 * ((N / SS - 3) / 2) + 3;
+        } else {
+            cross = sqrtN;
+        }
+        const BigInt b1b = big_from_u64(opt.b1 < 3 ? 3 : opt.b1);
+        if (cross < b1b)  cross = b1b;
+        if (cross > sqrtN) cross = sqrtN;
+        if (cross < 3)    cross = 3;
+    }
+    BigInt vf_hi = (cross + N / cross) / 2 + 1;
     const BigInt vf_lo = isqrt_ceil(N);
     if (vf_hi < vf_lo) vf_hi = vf_lo;
 
@@ -1184,6 +1240,7 @@ static std::optional<BigInt> split_once(const BigInt& N,
     }
 
     std::atomic<std::uint64_t> vf_chunk{0}, hf_chunk{0}, lm_k{1}, ia_job{0}, yp_chunk{0};
+    std::atomic<std::uint64_t> td_block{0};
 
     // Thread budget: one for TD, optionally one each for HF and IA, the
     // rest split between vertical Fermat and the Lehman sweep.
@@ -1216,32 +1273,24 @@ static std::optional<BigInt> split_once(const BigInt& N,
         nLM = want_lm ? T : 0;
     }
 
-    // Trial division always runs to sqrt(N), never capped at N^(1/3).
-    //
-    // Capping it there is tempting because Lehman's theorem only needs every
-    // prime below N^(1/3) to be covered -- but Lehman's constant is far worse
-    // than a division per candidate, so for p modestly above N^(1/3) the
-    // capped engine hands the work to the slow stream and loses. Measured at
-    // p ~ N^0.38: 127 ms capped vs 61 ms for a plain uncapped sweep.
-    //
-    // Letting it run to sqrt(N) costs nothing asymptotically, since Lehman
-    // still bounds the worst case at O(N^(1/3)) and the two race.
-    std::uint64_t td_limit;
-    {
-        const BigInt lim = sqrtN;
-        td_limit = u64_from_big(lim, std::numeric_limits<std::uint64_t>::max());
-    }
+    // Trial division owns p in (b1, cross]; the vertical scan owns the rest.
+    // Lehman still races as the O(N^(1/3)) worst-case guarantee.
+    const std::uint64_t td_limit =
+        u64_from_big(cross, std::numeric_limits<std::uint64_t>::max());
 
     std::vector<std::thread> pool;
-    if (want_td)
-        pool.emplace_back([&] {
-            trial_division_stream(N, opt.b1 + 1, td_limit, found, stats.td_tested);
-        });
+    auto run_td = [&] {
+        trial_division_stream(N, opt.b1 + 1, td_limit, found, td_block, stats.td_tested);
+    };
+    if (want_td) pool.emplace_back(run_td);
 
     for (unsigned i = 0; i < nVF; ++i)
         pool.emplace_back([&] {
             fermat_scan_chunked(N, N, wv, vf_lo, vf_hi, found, vf_chunk,
                                 stats.vf_candidates, stats.vf_scanned, "vertical-fermat");
+            // Arc exhausted with no hit: the factor must be in trial
+            // division's region, so migrate there rather than returning.
+            if (!found.ready() && want_td) run_td();
         });
 
     if (want_hf)
