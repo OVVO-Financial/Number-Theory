@@ -1123,12 +1123,65 @@ static void ctm_stream(const BigInt& N,
     const std::uint64_t nchunk =
         u64_from_big(span / CHSPAN + 1, std::numeric_limits<std::uint64_t>::max());
 
+    // Start at the STRIP ENDPOINT, q = S, and spiral outward -- do not start
+    // at q_lo and sweep up.
+    //
+    // The range covered is identical either way; only the ORDER changes, and
+    // the order is what decides how fast the race ends. Writing the smaller
+    // factor as p = sqrt(N)/t, so q = t*sqrt(N):
+    //
+    //     t      bracket   CTM from q_lo   CTM from S
+    //    1.0      0.0000        0.0000        0.1000
+    //    1.4      0.0571        0.0400        0.0600
+    //    2.0      0.2500        0.1000        0.0000
+    //    2.8      0.1786        0.1800        0.0800
+    //    4.0      0.1250        0.3000        0.2000
+    //
+    // (steps in units of sqrt(N); the bracket's two legs are fused on one
+    // index, so it fires at the min of them.)
+    //
+    // Starting at q_lo puts CTM's strength at t ~ 1, where the bracket is
+    // ALREADY instant -- the two are fast in the same place and slow in the
+    // same place. The bracket's worst point is t = 2, and q = S is exactly
+    // the t = 2 corner, so seeding there makes them complementary. Worst
+    // case over t, racing bracket against CTM:
+    //
+    //     bracket alone                     0.2500 sqrt(N)
+    //     + CTM from q_lo   (what this was) 0.1791 sqrt(N)   1.40x
+    //     + CTM from S      (what this is)  0.1449 sqrt(N)   1.72x
+    //
+    // Weighting by measured step costs -- 9.89 ns for a yellow-path step
+    // against ~1.1 ns for a native CTM step -- widens it to 3.61x vs 3.89x,
+    // so the ordering does not depend on the weighting.
+    //
+    // Seeding BOTH q_lo and S is no better than S alone (0.1449 either
+    // way), so this replaces the old start rather than adding to it.
+    const BigInt S_q = r + m;
+    std::uint64_t cS = 0;
+    if (S_q > q_lo) {
+        const BigInt off = (S_q - q_lo) / CHSPAN;
+        cS = u64_from_big(off, nchunk ? nchunk - 1 : 0);
+        if (nchunk && cS >= nchunk) cS = nchunk - 1;
+    }
+    // Enough draws to reach both ends from cS, walking 0, -1, +1, -2, +2, ...
+    const std::uint64_t cmax =
+        2 * std::max(cS, (nchunk ? nchunk - 1 : 0) - std::min(cS, nchunk ? nchunk - 1 : 0)) + 2;
+
     BigInt R, I, P, Q, prod, qs, ps;
     std::uint64_t local = 0;
 
     while (!found.ready()) {
-        const std::uint64_t c = next_chunk.fetch_add(1, std::memory_order_relaxed);
-        if (c >= nchunk) break;
+        const std::uint64_t draw = next_chunk.fetch_add(1, std::memory_order_relaxed);
+        if (draw >= cmax) break;
+
+        // 0, -1, +1, -2, +2, ... around cS; out-of-range draws are skipped
+        // rather than clamped, so no chunk is walked twice.
+        const std::uint64_t half = (draw + 1) / 2;
+        const std::int64_t idx = (draw & 1)
+            ? (std::int64_t)cS - (std::int64_t)half
+            : (std::int64_t)cS + (std::int64_t)half;
+        if (idx < 0 || idx >= (std::int64_t)nchunk) continue;
+        const std::uint64_t c = (std::uint64_t)idx;
 
         const BigInt cq_lo = q_lo + big_from_u64(c) * CHSPAN;
         BigInt cq_hi = cq_lo + CHSPAN;
