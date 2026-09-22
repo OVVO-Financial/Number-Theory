@@ -1155,23 +1155,43 @@ static void ctm_stream(const BigInt& N,
         for (const auto& pr : pairs) {
             if (found.ready()) break;
 
-            // Seed on the hyperbola at this chunk's q, then sync the pair
-            // into its digit class. Both +-10 moves preserve the class.
-            ps = N / qa;
-            R = (qa + ps) / 2;
-            I = (qa - ps) / 2;
-            if (I < 0) I = 0;
-            R += mod_pos_small(BigInt(pr.a10) - R, 10);
-            I += mod_pos_small(BigInt(pr.b10) - I, 10);
-
             const bool native = mpz_sizeinbase(N.get_mpz_t(), 2) <= 126 &&
                                 mpz_sizeinbase(qb.get_mpz_t(), 2) <= 62 &&
                                 mpz_sizeinbase(qa.get_mpz_t(), 2) <= 62;
 
+            // Seed on the hyperbola at this chunk's q, then sync the pair
+            // into its digit class. Both +-10 moves preserve the class.
+            //
+            // The divide is done at NATIVE width whenever the walk is going
+            // to be native anyway. It was an mpz divide unconditionally,
+            // which is 46.94 ns against 2.95 ns for a 128/64 -- 15.9x. The
+            // seed is per chunk, so it sets how finely the arc can be cut
+            // before seeding dominates: at 47 ns against a 1.07 ns step a
+            // thread needed ~396 steps to amortise, at 2.95 ns it needs ~25.
+            std::uint64_t Rn0 = 0, In0 = 0;
             if (native) {
                 const __uint128_t Nn = u128_from_big(N);
-                std::int64_t Rn = (std::int64_t)u64_from_big(R, 0);
-                std::int64_t In = (std::int64_t)u64_from_big(I, 0);
+                const std::uint64_t qn = u64_from_big(qa, 0);
+                if (qn == 0) continue;
+                const std::uint64_t pn = (std::uint64_t)(Nn / qn);
+                if (pn > qn) continue;
+                Rn0 = (qn + pn) / 2;
+                In0 = (qn - pn) / 2;
+                Rn0 += (10 + (std::uint64_t)pr.a10 - Rn0 % 10) % 10;
+                In0 += (10 + (std::uint64_t)pr.b10 - In0 % 10) % 10;
+            } else {
+                ps = N / qa;
+                R = (qa + ps) / 2;
+                I = (qa - ps) / 2;
+                if (I < 0) I = 0;
+                R += mod_pos_small(BigInt(pr.a10) - R, 10);
+                I += mod_pos_small(BigInt(pr.b10) - I, 10);
+            }
+
+            if (native) {
+                const __uint128_t Nn = u128_from_big(N);
+                std::int64_t Rn = (std::int64_t)Rn0;
+                std::int64_t In = (std::int64_t)In0;
                 const std::int64_t lim = (std::int64_t)u64_from_big(qb, ~0ull);
                 while (In >= 0 && Rn > In) {
                     const std::int64_t q = Rn + In;
