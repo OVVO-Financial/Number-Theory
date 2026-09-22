@@ -2041,9 +2041,11 @@ int main(int argc, char** argv) {
     BigInt N;
     bool haveN = false;
 
+    bool b1_explicit = false;
     for (const auto& a : args) {
         if (a.rfind("--threads=", 0) == 0)      opt.threads = std::stoul(a.substr(10));
-        else if (a.rfind("--b1=", 0) == 0)      opt.b1      = std::stoull(a.substr(5));
+        else if (a.rfind("--b1=", 0) == 0)    { opt.b1 = std::stoull(a.substr(5));
+                                                b1_explicit = true; }
         else if (a == "--no-lehman")            opt.lehman  = false;
         else if (a == "--hf")                   opt.hf      = true;
         else if (a == "--ia")                   opt.ia      = true;
@@ -2071,6 +2073,14 @@ int main(int argc, char** argv) {
     }
     if (!haveN) { usage(); return 1; }
     if (N < 2)  { std::cout << N << " has no prime factorization\n"; return 0; }
+
+    // --only=S must actually isolate S. Stage-0 trial division runs before
+    // any stream and sweeps every divisor up to b1 (default 1,000,000), so
+    // it answered for the named stream on anything with a small factor:
+    // `--only=ctm 8051` reported 83 * 97 with splits = trial-division(stage0)
+    // and zero CTM multiplications. Under --only, b1 drops to 1 unless the
+    // user set it explicitly, so the named stream is the one doing the work.
+    if (!opt.only.empty() && !b1_explicit) opt.b1 = 1;
 
     // --parallel gives the yellow path the whole pool, and stands the other
     // streams down while it does.
@@ -2104,6 +2114,25 @@ int main(int argc, char** argv) {
                   << ", digits = " << N.get_str().size()
                   << ", N mod 4 = " << umod(N, 4)
                   << ", N mod 10 = " << umod(N, 10) << "\n";
+
+        // The Fermat sieve actually in use, so the (R,i) classes can be
+        // checked against the published tables for this classification.
+        if (umod(N, 2) != 0) {
+            const auto dp = fermat_digit_pairs(N);
+            std::cout << "sieve  = " << (umod(N, 4) == 1 ? "4k+1" : "4k-1")
+                      << ", last digit " << umod(N, 10)
+                      << "  ->  " << dp.size() << " (R,i) mod 10 classes: ";
+            for (std::size_t i = 0; i < dp.size(); ++i)
+                std::cout << (i ? " " : "") << "(" << dp[i].a10 << "," << dp[i].b10 << ")";
+            std::cout << "\n";
+            std::cout << "         a=R (real) digits: ";
+            for (std::size_t i = 0; i < dp.size(); ++i)
+                std::cout << (i ? "," : "") << dp[i].a10;
+            std::cout << "   b=i (imag) digits: ";
+            for (std::size_t i = 0; i < dp.size(); ++i)
+                std::cout << (i ? "," : "") << dp[i].b10;
+            std::cout << "\n";
+        }
     }
 
     std::cout << (opt.quiet ? "" : "factors= ");
