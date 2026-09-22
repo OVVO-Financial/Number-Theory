@@ -72,6 +72,49 @@
 //  Chunk seeding needs p = N / q, a 128/64 division, and is done on the
 //  host: one division per thread against ~16k steps of work inside it.
 //
+//  HOW WIDE CAN THE CTM LAUNCH GO
+//  ------------------------------
+//  Splitting the arc into more starting points is work-conserving, which is
+//  what makes an arbitrarily wide launch legitimate rather than wasteful.
+//  Sweeping the whole arc of N = 1000000016000000063 and varying only the
+//  seed count:
+//
+//      threads        total multiplications
+//           64              556,846,579
+//        4,096              565,546,061
+//       65,536              565,660,492
+//    1,048,576              565,422,794
+//
+//  A 16,384x widening costs 1.5% more work. (One seed is cheaper still, at
+//  424M, because a single ladder self-terminates on i >= R instead of being
+//  re-seeded past that point; from two seeds up the total is flat.)
+//
+//  The floor is per-thread, not global. Measured here:
+//
+//      full seed (divide + halves + two digit rounds) : 5.8 - 8.7 ns
+//      one ladder step (mul + cmp + add)              : 1.0 - 1.2 ns
+//
+//  so a seed costs ~5-8 steps, and a thread needs ~50-80 steps -- about 440
+//  of arc in q -- to keep seeding under 10% of its own time. Since the arc
+//  spans ~1.414*sqrt(N), usable threads grow as sqrt(N):
+//
+//      40 bits   ~3.4e3 threads      CPU-scale only
+//      56 bits   ~8.6e5 threads      just short of a GPU
+//      64 bits   ~1.4e7 threads      saturates a GPU
+//     112 bits   ~2.3e14 threads     saturates anything
+//
+//  Crossover for a million threads is ~57 bits. Below that CTM cannot fill
+//  a GPU -- but below that the factorization is already trivial, so the
+//  limit never binds where it would matter. The parallelism widens exactly
+//  as the problem gets harder.
+//
+//  Sizing rule for a launch: threads = min(grid you want, arc_span / 440).
+//  Going wider than that is not wrong, just increasingly seed-bound.
+//
+//  The sieve kernel has no equivalent floor -- its per-chunk setup is NS
+//  modulos (8) amortised over the whole residue block, so one thread per
+//  residue is always the right mapping.
+//
 //  BUILD
 //    nvcc -O3 -std=c++17 -DUSE_CUDA -c complex_space_factorization_cuda.cu
 //
