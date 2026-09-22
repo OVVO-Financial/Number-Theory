@@ -867,7 +867,8 @@ static void yellow_path_stream(const BigInt& N,
                                Found& found,
                                std::atomic<std::uint64_t>& next_chunk,
                                std::atomic<std::uint64_t>& counter,
-                               bool ctm_owns_top) {
+                               bool ctm_owns_top,
+                               const BigInt* rsa_R_hi = nullptr) {
     const BigInt r = isqrt_ceil(N);
     if (r < 4) return;
     const BigInt m = r - 3;
@@ -898,6 +899,14 @@ static void yellow_path_stream(const BigInt& N,
     // p ~ 0.118*sqrt(N) rather than 0.5*sqrt(N), and what covers the rest
     // is the separate td stream, which owns (b1, cross] with
     // cross = 2*j_max+3 -- so nothing is dropped either way.
+    // --rsa caps R at 1.06066*sqrt(N), so the path need go no deeper than
+    // that -- 0.06066*sqrt(N) against the general 0.25*sqrt(N).
+    if (rsa_R_hi && *rsa_R_hi > r) {
+        const std::uint64_t jr = u64_from_big(*rsa_R_hi - r,
+                                    std::numeric_limits<std::uint64_t>::max());
+        if (jr < jmax) jmax = jr;
+    }
+
     if (ctm_owns_top && jmax > 16) {
         const std::uint64_t cut = (jmax / 1000) * 237 + ((jmax % 1000) * 237) / 1000;
         if (cut > 0) jmax = cut;
@@ -1134,7 +1143,8 @@ static void yellow_path_stream(const BigInt& N,
 static void ctm_stream(const BigInt& N,
                        Found& found,
                        std::atomic<std::uint64_t>& next_chunk,
-                       std::atomic<std::uint64_t>& counter) {
+                       std::atomic<std::uint64_t>& counter,
+                       const BigInt* rsa_q_hi = nullptr) {
     const BigInt r = isqrt_ceil(N);
     if (r < 4) return;
     const BigInt m = r - 3;
@@ -1154,8 +1164,24 @@ static void ctm_stream(const BigInt& N,
 
     // Ascending runs q up to N/3 (p >= 3); descending runs q down to
     // ceil(sqrt N), where p and q meet.
-    const BigInt q_top = N / 3;
+    BigInt q_top = N / 3;
     const BigInt q_bot = r;
+
+    // --rsa: a balanced modulus has q <= 1.41421*sqrt(N), and S = r + m is
+    // about 2*sqrt(N). So every admissible q lies BELOW the start point:
+    //
+    //   * the ascending walk can never reach one -- switch it off entirely;
+    //   * the descending walk should not begin at S either, since it would
+    //     spend (2 - 1.41421)*sqrt(N) of travel getting down to the top of
+    //     the window. Start it at the window's own ceiling instead.
+    //
+    // That turns a descent of ~sqrt(N) into one of ~0.41421*sqrt(N).
+    const bool rsa = (rsa_q_hi != nullptr);
+    BigInt desc_from = S;
+    if (rsa) {
+        q_top = S;                          // n_up will come out 0
+        if (*rsa_q_hi < S) desc_from = *rsa_q_hi;
+    }
 
     const std::uint64_t STEP = 10;
     const std::uint64_t CH   = 1u << 13;
@@ -1166,8 +1192,8 @@ static void ctm_stream(const BigInt& N,
         (q_top > S) ? u64_from_big((q_top - S) / CHSPAN + 1,
                                    std::numeric_limits<std::uint64_t>::max()) : 0;
     const std::uint64_t n_dn =
-        (S > q_bot) ? u64_from_big((S - q_bot) / CHSPAN + 1,
-                                   std::numeric_limits<std::uint64_t>::max()) : 0;
+        (desc_from > q_bot) ? u64_from_big((desc_from - q_bot) / CHSPAN + 1,
+                                           std::numeric_limits<std::uint64_t>::max()) : 0;
     // Saturate before doubling. The ascending walk runs to q = N/3, so for a
     // 112-bit N n_up is about 1.3e28 and u64_from_big caps it at 2^64-1;
     // (2^64-1)*2 + 2 then WRAPS TO ZERO and the draw loop breaks on its very
@@ -1200,7 +1226,7 @@ static void ctm_stream(const BigInt& N,
             qb = qa + CHSPAN; if (qb > q_top) qb = q_top;      // to (higher)
             if (qa >= q_top) continue;
         } else {
-            qa = S - big_from_u64(c) * CHSPAN;                 // from
+            qa = desc_from - big_from_u64(c) * CHSPAN;         // from
             qb = qa - CHSPAN; if (qb < q_bot) qb = q_bot;      // to (lower)
             if (qa <= q_bot) continue;
         }
@@ -1440,6 +1466,7 @@ struct Options {
     bool yp            = true;    // on by default; --no-yp to ablate
     bool ctm           = true;    // on by default; --no-ctm to ablate
     bool parallel      = false;   // yellow path across the whole pool
+    bool rsa           = false;   // assume a balanced RSA modulus, 1 < q/p < 2
     bool digit_only    = false;
     bool no_sieve      = false;
     bool quiet         = false;
@@ -1503,7 +1530,22 @@ static std::optional<BigInt> split_once(const BigInt& N,
     }
 
     // Stage 0: trial division to b1.
-    {
+    //
+    // --rsa skips it outright once the window's floor clears b1. A balanced
+    // modulus has p >= 0.70711*sqrt(N) = sqrt(N/2), so when that exceeds b1
+    // every divisor stage 0 would test is below the smallest factor that can
+    // exist, and the whole sweep is dead work. Below that crossover stage 0
+    // still covers part of the window and is kept.
+    //
+    // At b1 = 1,000,000 the crossover is N ~ 2e12, so it fires for every N
+    // of cryptographic interest and for none of the small test cases.
+    bool skip_stage0 = false;
+    if (opt.rsa) {
+        BigInt half = N / 2, sh;
+        mpz_sqrt(sh.get_mpz_t(), half.get_mpz_t());     // floor sqrt(N/2)
+        if (sh > big_from_u64(opt.b1)) skip_stage0 = true;
+    }
+    if (!skip_stage0) {
         std::uint64_t d_found = 0;
         static const std::uint64_t small[3] = {3, 5, 7};
         for (std::uint64_t d : small)
@@ -1578,6 +1620,40 @@ static std::optional<BigInt> split_once(const BigInt& N,
     }
     BigInt vf_hi = (cross + N / cross) / 2 + 1;
     const BigInt vf_lo = isqrt_ceil(N);
+
+    // --rsa: the search window for a balanced modulus, 1 < q/p < 2.
+    //
+    // Write rho = q/p. Then p = sqrt(N/rho), q = sqrt(N*rho), and with
+    // R = (p+q)/2, i = (q-p)/2, everything falls out in units of sqrt(N):
+    //
+    //      rho      p         q         R         i         S=R+i
+    //      1.00   1.00000   1.00000   1.00000   0.00000   1.00000
+    //      1.50   0.81650   1.22474   1.02062   0.20412   1.22474
+    //      2.00   0.70711   1.41421   1.06066   0.35355   1.41421
+    //
+    // So R never exceeds 1.06066*sqrt(N) = (3/2)*sqrt(N/2), which caps the
+    // Fermat depth at 0.06066*sqrt(N) against the general 0.25*sqrt(N) --
+    // 4.12x shallower. p never drops below 0.70711*sqrt(N), and q never
+    // rises above 1.41421*sqrt(N).
+    //
+    // This is an ASSERTION about the input, not a deduction from it. On an
+    // N that is not balanced the engine will report INCOMPLETE rather than
+    // a wrong answer, because every stream keeps its own bound.
+    BigInt rsa_R_hi, rsa_q_hi, rsa_p_lo;
+    bool td_useless = false;
+    if (opt.rsa) {
+        BigInt h = N / 2;
+        BigInt sh = isqrt_ceil(h);              // sqrt(N/2)
+        rsa_R_hi = (3 * sh) / 2 + 2;            // 1.06066*sqrt(N), rounded up
+        rsa_q_hi = 2 * sh + 2;                  // 1.41421*sqrt(N)
+        rsa_p_lo = sh - 1;                      // 0.70711*sqrt(N)
+        if (vf_hi > rsa_R_hi) vf_hi = rsa_R_hi;
+        // Trial division owns p in (b1, cross] with cross ~ sqrt(N)/2, and
+        // the smallest possible RSA p is 0.70711*sqrt(N). The whole range
+        // sits BELOW the window, so the stream cannot find anything -- and
+        // neither can stage-0, whenever b1 < 0.70711*sqrt(N).
+        if (cross < rsa_p_lo) td_useless = true;
+    }
     if (vf_hi < vf_lo) vf_hi = vf_lo;
 
     const std::uint64_t budget = opt.wheel ? opt.wheel : wheel_budget_for(N);
@@ -1598,7 +1674,8 @@ static std::optional<BigInt> split_once(const BigInt& N,
     // --only isolates a single stream (used for the method comparison in
     // the write-up; the default is the full race).
     const bool only_mode = !opt.only.empty();
-    const bool want_td = !only_mode || opt.only == "td";
+    bool want_td = !only_mode || opt.only == "td";
+    if (td_useless) want_td = false;
     const bool want_vf = !only_mode || opt.only == "vf";
     (void)0;
     const bool want_hf = only_mode ? (opt.only == "hf") : opt.hf;
@@ -1673,9 +1750,21 @@ static std::optional<BigInt> split_once(const BigInt& N,
 
     // Trial division owns p in (b1, cross]; the vertical scan owns the rest.
     // Lehman still races as the O(N^(1/3)) worst-case guarantee.
-    const std::uint64_t td_limit =
+    std::uint64_t td_limit =
         u64_from_big(cross, std::numeric_limits<std::uint64_t>::max());
 
+    if (td_useless) td_limit = 0;
+
+    if (opt.rsa && opt.verbose && !opt.quiet) {
+        std::cout << "rsa    = 1 < q/p < 2 assumed:"
+                  << " p >= " << rsa_p_lo
+                  << ", q <= " << rsa_q_hi
+                  << ", R <= " << rsa_R_hi << "\n"
+                  << "         Fermat depth capped at R-r = " << (rsa_R_hi - vf_lo)
+                  << " (0.0607*sqrt N, vs 0.25 general)"
+                  << (td_useless ? "; trial division stood down" : "")
+                  << "\n";
+    }
     if (opt.verbose && !opt.quiet)
         std::cout << "threads= " << T << " total: td=" << (want_td ? 1u : 0u)
                   << " vf=" << nVF << " lm=" << nLM << " yp=" << nYP
@@ -1711,13 +1800,15 @@ static std::optional<BigInt> split_once(const BigInt& N,
 
     for (unsigned i = 0; i < nYP; ++i)
         pool.emplace_back([&] {
-            yellow_path_stream(N, found, yp_chunk, stats.yp_steps, want_ctm);
+            yellow_path_stream(N, found, yp_chunk, stats.yp_steps, want_ctm,
+                               opt.rsa ? &rsa_R_hi : nullptr);
         });
 
     // Launched at the collapse SIMULTANEOUSLY with the bracket, never after.
     for (unsigned i = 0; i < nCTM; ++i)
         pool.emplace_back([&] {
-            ctm_stream(N, found, ctm_chunk, stats.ctm_steps);
+            ctm_stream(N, found, ctm_chunk, stats.ctm_steps,
+                       opt.rsa ? &rsa_q_hi : nullptr);
         });
 
     for (unsigned i = 0; i < nLM; ++i)
@@ -2136,6 +2227,7 @@ static void usage() {
       "  --ia            enable the iterated-average GCD stream (Sec. 5/5.2)\n"
       "  --no-yp         disable the fused yellow-path stream (Sec. 4, Figure 8)\n"
         "  --parallel      run the yellow path across every thread, alone\n"
+        "  --rsa           assume a balanced RSA modulus (1 < q/p < 2); see below\n"
       "  --no-ctm        disable complex trial multiplication\n"
       "  --digit-only    sieve with modulus 20 only (the terminal-digit sieve)\n"
       "  --no-sieve      disable sieving entirely\n"
@@ -2168,6 +2260,7 @@ int main(int argc, char** argv) {
         // Kept as an accepted no-op so existing command lines still run.
         else if (a == "--yp")                   opt.yp      = true;
         else if (a == "--parallel")           { opt.parallel = true; opt.yp = true; }
+        else if (a == "--rsa")                  opt.rsa     = true;
         else if (a == "--no-ctm")               opt.ctm     = false;
         // --ctm predates the default and is kept as an accepted no-op.
         else if (a == "--ctm")                  opt.ctm     = true;
