@@ -1558,8 +1558,7 @@ static std::optional<BigInt> split_once(const BigInt& N,
     // Every stream polls found.ready(), so an extra runnable thread costs
     // scheduling, not correctness, and it is much the cheaper failure.
     unsigned nLM = want_lm ? 1u : 0u;
-    unsigned nVF = (rest > nLM) ? rest - nLM : 1u;
-    if (nVF == 0) nVF = 1;
+    unsigned nVF = 1u;
 
     // Streams that carve their range with an atomic chunk counter take as
     // many threads as they are given. Until measured, only vf and lm were
@@ -1568,6 +1567,30 @@ static std::optional<BigInt> split_once(const BigInt& N,
     // single core while --only=vf used all of them.
     unsigned nYP = want_yp ? 1u : 0u;
     unsigned nCTM = want_ctm ? 1u : 0u;
+
+    // Spare threads go round-robin to ALL THREE chunk-parallel streams, not
+    // to vf alone.
+    //
+    // vf, yp and ctm each carve their range with an atomic chunk counter,
+    // so each scales with whatever it is given -- measured 3.03x for vf,
+    // 3.5x for yp (--parallel) and 3.97x for ctm (--only=ctm) on 4 threads.
+    // But the split handed every surplus thread to vf and pinned yp and ctm
+    // at one apiece however many cores there were: on 16 cores vf ran 12
+    // wide while the yellow strip and CTM each ran single-file. Now the
+    // surplus is shared, so the bracket along the strip and CTM jump-seeded
+    // along the arc both widen together.
+    {
+        unsigned used = 1u /* td */ + nLM + nVF + nYP + nCTM;
+        for (unsigned k = 0; used < T; ++k, ++used) {
+            switch (k % 3) {
+                case 0:  ++nVF; break;
+                case 1:  if (nYP)  ++nYP;  else ++nVF; break;
+                default: if (nCTM) ++nCTM; else ++nVF; break;
+            }
+        }
+    }
+    (void)rest;
+
     if (only_mode) {
         nVF  = want_vf  ? T : 0;
         nLM  = want_lm  ? T : 0;
@@ -1579,6 +1602,12 @@ static std::optional<BigInt> split_once(const BigInt& N,
     // Lehman still races as the O(N^(1/3)) worst-case guarantee.
     const std::uint64_t td_limit =
         u64_from_big(cross, std::numeric_limits<std::uint64_t>::max());
+
+    if (opt.verbose && !opt.quiet)
+        std::cout << "threads= " << T << " total: td=" << (want_td ? 1u : 0u)
+                  << " vf=" << nVF << " lm=" << nLM << " yp=" << nYP
+                  << " ctm=" << nCTM << (want_hf ? " hf=1" : "")
+                  << (want_ia ? " ia=1" : "") << "\n";
 
     std::vector<std::thread> pool;
     auto run_td = [&] {
