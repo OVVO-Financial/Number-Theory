@@ -1900,6 +1900,39 @@ static int selftest() {
         std::cout << "  600 semiprimes: " << miss << " uncovered; of the "
                   << beyond << " beyond the trial leg, worst j_true/sqrt(N) = "
                   << worst_r << " (bound 0.25)  " << (cov_ok ? "OK" : "FAIL") << "\n";
+
+        // Zero-margin cases: j_true == j_max exactly, so the factor sits on
+        // the LAST step of the strip and the path would miss it if it were
+        // one step shorter. These pin the strip length from below.
+        //
+        // Finding them takes care on two counts. First, the tight corner is
+        // NOT at t = 2: there p = sqrt(N)/2 is exactly the trial leg's reach,
+        // so the trial leg still covers and the vertical leg is never asked.
+        // The cases that bind sit just PAST the reach, where the vertical leg
+        // is the only thing left. Second, they are rare enough that a random
+        // sweep over a wide range finds none in 400,000 tries; these came
+        // from an exhaustive scan of p in [500, 40000) with q near 4p.
+        //
+        // All three are stated for r = ceil(sqrt N), which is the convention
+        // this engine uses. Under floor(sqrt N) the same strip is indexed
+        // from one point lower and these margins are not zero -- a different
+        // set of N is tight there.
+        const struct { const char* n; const char* p; } tight[] = {
+            {"1007509",  "503"},
+            {"1289923",  "569"},
+            {"17005309", "2063"},
+        };
+        for (const auto& c : tight) {
+            const BigInt n(c.n), pf(c.p), qf = n / pf;
+            const BigInt rr = isqrt_ceil(n), S = rr + (rr - 3);
+            const BigInt jm = (n / S - 3) / 2;
+            const BigInt j_true = (pf + qf) / 2 - rr;
+            const bool ok = (j_true == jm);
+            if (!ok) ++failures;
+            std::cout << "  zero margin: N=" << c.n << " j_true=" << j_true
+                      << " j_max=" << jm << " (factor on the last step)  "
+                      << (ok ? "OK" : "FAIL") << "\n";
+        }
     }
 
     std::cout << "\n" << (failures == 0 ? "ALL TESTS PASSED" : "FAILURES: " + std::to_string(failures))

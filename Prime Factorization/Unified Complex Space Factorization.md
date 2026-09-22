@@ -386,6 +386,30 @@ converges to `0.2500`. Coverage: the trial-division leg catches any `p <= 2 j_ma
 two legs cover each other exactly — which is what Figure 8 shows geometrically.
 Verified on 400 semiprimes: 0 misses. For `N = 309` the whole path is `j = 0,1,2,3`.
 
+### The cost is known before you start
+
+Because `Q = R + i = S` is invariant along the path, the strip's length follows from **one
+division**. Worked on `N = 8051`, `r = ceil(sqrt 8051) = 90`, `m = 87`, `S = 177`:
+
+| point | `P = R - i` | `Q = R + i` | `P*Q` | |
+| --- | --- | --- | --- | --- |
+| `90 + 87i` | 3 | 177 | 531 | below N |
+| `100 + 77i` | 23 | 177 | 4,071 | below N |
+| `110 + 67i` | 43 | 177 | 7,611 | below N |
+| `112 + 65i` | 47 | 177 | 8,319 | **above N — red** |
+
+`Q` never moves. So the path ends at the largest odd `P` with `P*S <= N`, i.e.
+`P <= N/S = 8051/177 = 45.48`, giving `P = 45`, and `P = 2j+3` puts that at `j = 21` —
+a strip of **22**, `j = 0..21`.
+
+That is the practical point: `N/S` is a single division, and it tells you *exactly* how
+many steps the deterministic factorization will take before a single step is walked. Most
+factoring methods cannot say what they will cost until they are done.
+
+(Starting from `floor(sqrt N)` instead indexes the same strip from one point lower and is
+also complete — checked over 20,000 semiprimes, 0 uncovered either way — but `ceil` is the
+convention here, and the two agree on the length to within 1.)
+
 ### How the strip grows
 
 `Q_j = R_j + i_j = r + m = S` is **constant** along the 135° line — that is what makes it
@@ -445,6 +469,21 @@ steps inside a 61,512-step path.
 
 The engine's own step counts confirm the model end to end — `--only=yp --threads=1` walks
 exactly `min(j_true, (p-3)/2) + 1` steps, ratio 1.000 on all five cases checked.
+
+**The strip is not one step longer than it needs to be.** There exist N where
+`j_true == j_max` exactly, so the factor sits on the very last step:
+
+| N | | strip | steps walked |
+| --- | --- | --- | --- |
+| 1,007,509 | 503 × 2,003 | 250 | 250 |
+| 1,289,923 | 569 × 2,267 | 283 | 283 |
+| 17,005,309 | 2,063 × 8,243 | 1,030 | 1,030 |
+
+`--selftest` pins these, so shortening the strip by even one step fails the suite. Finding
+them takes some care: the tight corner is *not* at `t = 2`, since there `p = sqrt(N)/2` is
+exactly the trial leg's reach and the vertical leg is never asked. The binding cases sit
+just *past* the reach, and they are rare enough that a random sweep over a wide range found
+none in 400,000 tries — these came from an exhaustive scan of `p` in `[500, 40000)`.
 
 On by default, ablated with `--no-yp`, isolated with `--only=yp`, and given the whole
 thread pool with `--parallel`. `8051` resolves in 1 step; `798607` in 50
