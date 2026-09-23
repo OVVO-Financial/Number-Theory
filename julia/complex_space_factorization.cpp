@@ -1180,7 +1180,8 @@ static void ctm_stream(const BigInt& N,
                        Found& found,
                        std::atomic<std::uint64_t>& next_chunk,
                        std::atomic<std::uint64_t>& counter,
-                       const BigInt* rsa_q_hi = nullptr) {
+                       const BigInt* rsa_q_hi = nullptr,
+                       unsigned nthreads = 1) {
     const BigInt r = isqrt_ceil(N);
     if (r < 4) return;
 
@@ -1241,13 +1242,24 @@ static void ctm_stream(const BigInt& N,
     const BigInt PAD    = big_from_u64(2 * STEP);
     const std::uint64_t U64MAX = std::numeric_limits<std::uint64_t>::max();
 
-    // The seed interval on the real axis. --rsa clips its top to the R that
-    // lands on the window edge q = 1.41421 sqrt(N), which is 1.06066 sqrt(N):
-    // the real axis and the q axis are different axes and the window is
-    // stated on q.
+    // The seed interval on the real axis. It runs to floor(sqrt 2N) --
+    // 1.41421 sqrt(N) -- ALWAYS, including under --rsa.
+    //
+    // This was clipped under --rsa to 1.06066 sqrt(N), on the reasoning
+    // that with t = q/p,
+    //
+    //     R/sqrt(N) = (1/sqrt(t) + sqrt(t)) / 2
+    //
+    // rises from 1 at t = 1 to 1.06066 at t = 2, so a factor pair obeying
+    // 1 < q/p < 2 cannot have a real part above 1.06066 sqrt(N). That
+    // algebra is right and the conclusion drawn from it was wrong: it
+    // bounds where the ANSWER sits, not where you may STAND to look for
+    // it. A seed is an entry point, and a seed above the window still
+    // descends into it. --rsa is a constraint on q, which is where it is
+    // stated and where it is enforced (q_top below); the real interval is
+    // the geometry and does not move because a flag is set.
     const BigInt R_lo = r;
     BigInt R_hi = isqrt_floor(2 * N);
-    if (rsa) { const BigInt Rc = (q_top + N / q_top) / 2; if (R_hi > Rc) R_hi = Rc; }
     if (R_hi < R_lo) R_hi = R_lo;
     const BigInt R_span = R_hi - R_lo;
 
@@ -1309,6 +1321,74 @@ static void ctm_stream(const BigInt& N,
     // Tail: q above the seed interval, up to N/3 (p >= 3). There is no real
     // axis left to stand on, so it is chunked in q. --rsa ends at the
     // window, so its tail is empty.
+    // PARALLELISE ALONG THE INTERVAL, BY THREAD COUNT.
+    //
+    // The draw counter hands out 0, 1, 2, ... in order, so T threads
+    // pulling from it land on ADJACENT seeds -- all of them bunched at the
+    // bottom of the real interval, walking the same stretch of arc T times
+    // over with different trajectories. The interval is the parallel axis,
+    // so it should be cut into T bands and a thread started in each.
+    //
+    // That is a permutation of the draw order, not a restructuring of the
+    // work stealing: draw index d maps to seed
+    //
+    //      (d mod T) * band + (d / T),      band = ceil(nA / T)
+    //
+    // so consecutive draws land one band apart and the T in-flight draws
+    // sit at T points spread across the interval. Any thread that finishes
+    // keeps drawing and picks up the next band's work, so the stealing
+    // still balances.
+    //
+    // The map is a bijection on [0, T*band), NOT on [0, nA) -- with
+    // nA = 10 and T = 3 the naive version silently never draws seed 7,
+    // and it drops seeds in 1,941 of the 3,184 (nA, T) pairs up to
+    // nA = 200. So region A spans T*band draws and the ragged images past
+    // nA are skipped.
+    //
+    // BANDING IS ONLY RIGHT WHEN THE INTERVAL IS THE WINDOW, i.e. --rsa.
+    //
+    // Un-banded, the T threads advance as a cohort from the balanced
+    // corner, so a factor at seed k is reached in k/T draws. Banded, only
+    // the thread holding band k/band works that stretch, and it costs
+    // k mod band. Those are equal in the middle of the interval and the
+    // banded form is marginally ahead at the very top, but near the bottom
+    // it is T times WORSE -- the cohort has T threads on the balanced
+    // corner and the banded form has one.
+    //
+    // Without --rsa the interval runs to 1.41421 sqrt(N) while the whole
+    // q/p in (1,2) window lies in its bottom 15%, so banding would put one
+    // lone thread on the only region CTM is better at than the other
+    // streams. Under --rsa, R_hi is clipped to 1.06066 sqrt(N) -- the real
+    // value carrying q = 1.41421 sqrt(N) -- so the interval IS the window,
+    // a factor is uniform across it, and spreading the threads costs
+    // nothing and covers it evenly.
+    const std::uint64_t Tn = (rsa && nthreads) ? nthreads : 1u;
+
+    // Band only the SEARCHABLE part of the interval. The real axis runs to
+    // 1.41421 sqrt(N) always, but --rsa caps q at the window, so seeds
+    // whose whole walk sits above it are skipped. Banding across all of
+    // them would hand most threads a stretch that provably holds nothing:
+    // measured 1.2x to 3.8x slower at T=4 before this.
+    std::uint64_t nW = nA;
+    if (q_top < qA_hi) {
+        if (dense) {
+            const BigInt Rw = (q_top + N / q_top) / 2;   // real value at q_top
+            nW = (Rw > R_lo) ? u64_from_big(Rw - R_lo, U64MAX - 2) + 2 : 2;
+        } else {
+            nW = (q_top > q_bot)
+               ? u64_from_big((q_top - q_bot) / CHSPAN, U64MAX - 2) + 2 : 2;
+        }
+        if (nW > nA) nW = nA;
+    }
+    if (nW < 1) nW = 1;
+
+    const std::uint64_t band = (nW + Tn - 1) / Tn;
+    std::uint64_t nW_ext = band * Tn;
+    if (band != 0 && nW_ext / band != Tn) nW_ext = nW;      // overflow guard
+    if (nW_ext < nW) nW_ext = nW;
+    std::uint64_t nA_ext = nW_ext + (nA - nW);
+    if (nA_ext < nW_ext) nA_ext = nA;                       // overflow guard
+
     const std::uint64_t nB = (q_top > qA_hi)
         ? u64_from_big((q_top - qA_hi) / CHSPAN + 1, U64MAX) : 0;
 
@@ -1316,8 +1396,8 @@ static void ctm_stream(const BigInt& N,
     // nB is about 1.3e28 and u64_from_big caps it at 2^64-1; (2^64-1)*2 + 2
     // then WRAPS TO ZERO, the draw loop breaks on its first iteration, and
     // the whole stream reports INCOMPLETE in 9 ms having done nothing.
-    std::uint64_t nC = nA + nB;
-    if (nC < nA) nC = U64MAX;                       // nA + nB overflowed
+    std::uint64_t nC = nA_ext + nB;
+    if (nC < nA_ext) nC = U64MAX;                   // nA_ext + nB overflowed
     const std::uint64_t NCAP = (U64MAX - 2) / 2;
     if (nC > NCAP) nC = NCAP;
     const std::uint64_t ndraw = nC * 2 + 2;
@@ -1330,10 +1410,20 @@ static void ctm_stream(const BigInt& N,
         if (draw >= ndraw) break;
 
         const bool up = (draw & 1u) == 0;          // alternate the two walks
-        const std::uint64_t c = draw >> 1;
+        std::uint64_t c = draw >> 1;
         if (c >= nC) continue;
 
-        if (c < nA) {
+        if (c < nA_ext) {
+            if (c < nW_ext) {
+                // Spread across the searchable span: band b, offset off.
+                const std::uint64_t b = c % Tn, off = c / Tn;
+                c = b * band + off;
+                if (c >= nW) continue;             // ragged tail of the map
+            } else {
+                c = nW + (c - nW_ext);             // the rest, in order
+                if (c >= nA) continue;
+            }
+
             // ENDPOINTS WALK INWARD ONLY.
             //
             // Below the first seed there is nothing to find, and that is a
@@ -1372,11 +1462,20 @@ static void ctm_stream(const BigInt& N,
                 qb = seed_q(c - 1) - PAD;
                 if (qb < q_bot) qb = q_bot;
                 if (qa <= q_bot) continue;
+                // The descending walk covers [qb, qa]. If even its lowest
+                // point is above the search range, the whole span is out
+                // and it cannot find anything. This is what makes running
+                // the real interval to 1.41421 sqrt(N) free under --rsa:
+                // the seeds above the window are still there, and the one
+                // that straddles the edge still descends into it, but the
+                // ones entirely beyond it are never drawn. Generally
+                // q_top = N/3, far above qA_hi, so this never fires.
+                if (qb > q_top) continue;
             }
         } else {
             // Tail chunk: no real-axis point to stand on, so come at it
             // from q and divide back to the pair.
-            const std::uint64_t k = c - nA;
+            const std::uint64_t k = c - nA_ext;
             qa = qA_hi + big_from_u64(k) * CHSPAN;
             if (up) {
                 qb = qa + CHSPAN + PAD; if (qb > q_top) qb = q_top;
@@ -1960,7 +2059,7 @@ static std::optional<BigInt> split_once(const BigInt& N,
     for (unsigned i = 0; i < nCTM; ++i)
         pool.emplace_back([&] {
             ctm_stream(N, found, ctm_chunk, stats.ctm_steps,
-                       opt.rsa ? &rsa_q_hi : nullptr);
+                       opt.rsa ? &rsa_q_hi : nullptr, nCTM);
         });
 
     for (unsigned i = 0; i < nLM; ++i)

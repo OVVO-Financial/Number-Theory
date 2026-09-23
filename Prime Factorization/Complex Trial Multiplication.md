@@ -63,9 +63,33 @@ hyperbola, `q = R + sqrt(R^2 - n)`, so:
 That is the whole balanced arc -- both factors, nothing outside it -- and
 `sqrt(2n)` is its top **exactly**, with no floating-point constant anywhere.
 
-The real axis and the `q` axis are different axes, and it matters: the RSA
-window is stated on `q` as `[1, 1.41421] sqrt(n)`, and the real values carrying
-it are `[1, 1.06066] sqrt(n)`.
+**The interval runs to `sqrt(2n)` always, including under `--rsa`.** It was
+briefly clipped there to `1.06066 sqrt(n)`, on the reasoning that with
+`t = q/p`,
+
+```
+R/sqrt(n) = (1/sqrt(t) + sqrt(t)) / 2
+```
+
+which rises from 1 at `t = 1` to `1.06066` at `t = 2`, so no pair obeying
+`1 < q/p < 2` can have a real part above `1.06066 sqrt(n)`. The algebra is
+right and the conclusion drawn from it was wrong: it bounds where the **answer**
+sits, not where you may **stand** to look for it. A seed is an entry point, and
+a seed above the window still descends into it. `--rsa` is a constraint on `q`,
+which is where it is stated and where it is enforced; the real interval is
+geometry and does not move because a flag is set.
+
+The distinction is exactly why the same bound *is* correct for the other two
+streams. `vf` and the yellow path's Fermat leg scan `R` as the **answer's** real
+part -- they test `R^2 - n` for squareness at each step -- so `t < 2` genuinely
+caps them at `1.06066 sqrt(n)`. CTM's `R` is a starting point. Same symbol, two
+meanings.
+
+Running the interval to `1.41421 sqrt(n)` under `--rsa` is free, because a
+descending walk whose lowest point is already above `q_top` cannot find anything
+and is never drawn. The seed that straddles the window edge still descends into
+it. Measured single-threaded, clipped against full interval: 1.00x, 1.02x,
+0.99x, 1.02x.
 
 For `n = 309` the interval is `[18, 24]` -- seven integer real values, seven
 seeds:
@@ -154,6 +178,43 @@ Both directions are still needed. A seed is only the entry point: its ascending
 walk covers `q` above it and its descending walk covers `q` below. Seed `c`
 ascends as far as seed `c+1`'s `q` and descends as far as seed `c-1`'s, with a
 pad at each handover to absorb the class rounding.
+
+### Parallelised along the interval, by thread count
+
+Under `--rsa` the draw order is permuted so the `T` in-flight draws sit at `T`
+points spread across the searchable span rather than bunched at one end:
+
+```
+draw d  ->  seed (d mod T) * band + (d / T),     band = ceil(nW / T)
+```
+
+Two things make this work.
+
+**It must be a bijection on `[0, T*band)`, not on `[0, nW)`.** Drawing only
+`nW` indices silently never reaches some seeds -- with `nW = 10` and `T = 3`,
+seed 7 is never drawn. Checked over every `(nW, T)` pair up to `nW = 200` and
+`T = 16`: the extended form misses nothing in all 3,184; the naive form drops
+seeds in **1,941** of them.
+
+**It must band only the searchable span `nW`, not the whole interval.** Banding
+is not free. Un-banded, the `T` threads advance as a cohort from the balanced
+corner and a factor at seed `k` is reached in `k/T` draws; banded it costs
+`k mod band`. Those are equal mid-interval and the banded form is marginally
+ahead at the very top, but near the bottom it is `T` times **worse** -- a cohort
+puts `T` threads on the balanced corner, banding puts one:
+
+| | `T = 4` | `T = 8` | `T = 16` |
+| --- | --- | --- | --- |
+| balanced (`k` small) | 4x worse | 8x worse | 17x worse |
+| mid-interval | same | same | same |
+| deep (`k ~ nA`) | 1.00x better | 1.00x better | 1.00x better |
+
+So without `--rsa` the cohort order is kept: the interval runs to
+`1.41421 sqrt(n)` while the whole `q/p in (1,2)` window lies in its bottom 15%,
+and banding would put one lone thread on the only region CTM beats the other
+streams at. Under `--rsa` the bands cover just the seeds whose walks can reach
+the window, so none of them idles. Banding the full interval instead measured
+1.2x to 3.8x **slower** at `T = 4`.
 
 ### Endpoints walk inward only
 
