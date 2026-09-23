@@ -1455,10 +1455,12 @@ static void ctm_stream(const BigInt& N,
             // Descending off seed 0 could only ever re-test the empty strip
             // down to sqrt(N).
             //
-            // Above the last seed is the tail, which region B owns outright
-            // -- and under --rsa there is no tail, because R_hi was clipped
-            // to the real value carrying q = 1.41421 sqrt(N) and the window
-            // ends there. Either way the top seed has nothing to ascend into.
+            // Above the last seed is the tail, which region B owns outright.
+            // Under --rsa there is no tail: q_top is the window edge
+            // 1.41421 sqrt(N), which sits below qA_hi = 2.41421 sqrt(N), so
+            // nB is 0 and the top seed's ascending draw would be dropped by
+            // the q_top test below in any case. The real interval itself is
+            // NOT clipped -- it runs to floor(sqrt 2N) whatever the flags.
             if (!up && c == 0)               continue;
             if (up  && c + 1 == nA && nA > 1) continue;
 
