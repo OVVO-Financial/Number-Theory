@@ -432,7 +432,8 @@ static void csf_ctm_build_seeds(std::uint64_t N,
                                 CsfCtmSeeds& s,
                                 std::uint64_t first_chunk = 0,
                                 std::uint64_t max_chunks  = 4096,
-                                std::uint64_t chunk_q     = 81920ull)
+                                std::uint64_t chunk_q     = 81920ull,
+                                std::uint64_t nthreads    = 1)
 {
     s.R.clear(); s.I.clear(); s.qlimit.clear(); s.up.clear();
     s.chunks = 0; s.dense = false;
@@ -460,7 +461,6 @@ static void csf_ctm_build_seeds(std::uint64_t N,
     s.dense = dense;
 
     const std::uint64_t nB = (q_top > qA_hi) ? (q_top - qA_hi) / chunk_q + 1 : 0;
-    const std::uint64_t nC = nA + nB;
 
     // The seed at index c, both ways round. c = 0 is the balanced corner.
     auto seed_at = [&](std::uint64_t c, std::int64_t& Rc, std::int64_t& Ic) {
@@ -482,11 +482,55 @@ static void csf_ctm_build_seeds(std::uint64_t N,
         return (std::uint64_t)(Rc + Ic);
     };
 
+    // PARTITION THE REAL AXIS BY THREAD COUNT.
+    //
+    // The interval [ceil(sqrt N), floor(sqrt 2N)] is cut into T equal
+    // pieces ON THE REAL AXIS -- equal in R, not in q, not in seed index --
+    // and a lane group started in each. The pieces are equal in R but not
+    // in work: the walk is paid in q and dq/dR = 1 + R/i diverges as
+    // i -> 0, so at T = 4 the q spans come out 0.403, 0.221, 0.194, 0.181
+    // of the arc. The draw order below interleaves them, so a piece that
+    // runs dry hands its slots to the others rather than idling.
+    const std::uint64_t Tn = nthreads ? nthreads : 1;
+    std::vector<std::uint64_t> bstart(Tn + 1);
+    bstart[0] = 0;
+    bstart[Tn] = nA;
+    for (std::uint64_t b = 1; b < Tn; ++b) {
+        const std::uint64_t Rb = R_lo + ((R_hi - R_lo) * b) / Tn;
+        std::uint64_t idx;
+        if (dense) {
+            idx = (Rb > R_lo) ? (Rb - R_lo) : 0;
+        } else {
+            const std::uint64_t qb_ =
+                Rb + csf_isqrt128((__uint128_t)Rb * Rb - N);
+            idx = (qb_ > q_bot) ? (qb_ - q_bot) / chunk_q : 0;
+        }
+        if (idx > nA) idx = nA;
+        if (idx < bstart[b - 1]) idx = bstart[b - 1];
+        bstart[b] = idx;
+    }
+    std::uint64_t widest = 0;
+    for (std::uint64_t b = 0; b < Tn; ++b) {
+        const std::uint64_t w = bstart[b + 1] - bstart[b];
+        if (w > widest) widest = w;
+    }
+    if (widest == 0) widest = 1;
+    std::uint64_t nA_ext = widest * Tn;
+    if (nA_ext / widest != Tn) nA_ext = nA;             // overflow guard
+    if (nA_ext < nA) nA_ext = nA;
+    const std::uint64_t nC_ext = nA_ext + nB;
+
     const std::uint64_t PAD = 20;            // absorbs the class rounding
     const std::uint64_t last =
-        (first_chunk + max_chunks < nC) ? first_chunk + max_chunks : nC;
+        (first_chunk + max_chunks < nC_ext) ? first_chunk + max_chunks : nC_ext;
 
-    for (std::uint64_t c = first_chunk; c < last; ++c) {
+    for (std::uint64_t craw = first_chunk; craw < last; ++craw) {
+        std::uint64_t c = craw;
+        if (c < nA_ext) {
+            const std::uint64_t b = c % Tn, off = c / Tn;
+            c = bstart[b] + off;
+            if (c >= bstart[b + 1] || c >= nA) { ++s.chunks; continue; }
+        }
         std::int64_t Rs, Is;
         std::uint64_t qa, q_up, q_dn;
         bool want_up = true, want_dn = true;
@@ -518,7 +562,7 @@ static void csf_ctm_build_seeds(std::uint64_t N,
             q_dn = (c > 0) ? (seed_q(c - 1) > PAD ? seed_q(c - 1) - PAD : q_bot)
                            : q_bot;
         } else {
-            const std::uint64_t k  = c - nA;
+            const std::uint64_t k  = craw - nA_ext;
             qa = qA_hi + k * chunk_q;
             if (qa == 0 || qa > q_top) continue;
             const std::uint64_t pv = N / qa;
@@ -828,10 +872,18 @@ static int test_ctm() {
         // Walk the launch waves the way the GPU driver would: build a
         // bounded batch of seeds, run every lane, advance. Each case here
         // is small enough to finish in the first wave or two.
+        // Run each case at two thread counts so the real-axis partition
+        // is exercised, not just the T = 1 path that skips it.
+        const std::uint64_t TS[2] = {1, 4};
+        std::uint64_t res[2] = {0, 0};
+        std::uint64_t lanes = 0, waves = 0;
+        bool dense_flag = false;
+      for (int ti = 0; ti < 2; ++ti) {
         CsfCtmSeeds seeds;
-        std::uint64_t got = 0, first = 0, lanes = 0, waves = 0;
+        std::uint64_t got = 0, first = 0;
+        lanes = 0; waves = 0;
         for (; waves < 64 && !got; ++waves) {
-            csf_ctm_build_seeds(N, cls, seeds, first, 256);
+            csf_ctm_build_seeds(N, cls, seeds, first, 256, 81920ull, TS[ti]);
             if (seeds.chunks == 0) break;
             first += seeds.chunks;
             lanes += seeds.R.size();
@@ -841,14 +893,19 @@ static int test_ctm() {
                                  seeds.up[t], 0, N, &hit)) { got = hit; break; }
             }
         }
+        res[ti] = got;
+        dense_flag = seeds.dense;
+      }
 
-        const bool ok = (got == c.p || got == c.q);
+        const bool ok = (res[0] == c.p || res[0] == c.q) &&
+                        (res[1] == c.p || res[1] == c.q);
         std::printf("[ctm]   N=%-13llu %6llu*%-8llu %-6s lanes=%-7llu waves=%-3llu"
-                    " got=%-9llu %s\n",
+                    " T1=%-9llu T4=%-9llu %s\n",
                     (unsigned long long)N, (unsigned long long)c.p,
-                    (unsigned long long)c.q, seeds.dense ? "dense" : "spaced",
+                    (unsigned long long)c.q, dense_flag ? "dense" : "spaced",
                     (unsigned long long)lanes, (unsigned long long)waves,
-                    (unsigned long long)got, ok ? "OK" : "FAIL");
+                    (unsigned long long)res[0], (unsigned long long)res[1],
+                    ok ? "OK" : "FAIL");
         if (!ok) ++bad;
     }
     std::printf("[ctm]   %s\n", bad == 0 ? "WALK OK" : "WALK FAILED");

@@ -181,40 +181,51 @@ pad at each handover to absorb the class rounding.
 
 ### Parallelised along the interval, by thread count
 
-Under `--rsa` the draw order is permuted so the `T` in-flight draws sit at `T`
-points spread across the searchable span rather than bunched at one end:
+The real interval is cut into `T` equal pieces **on the real axis** -- equal in
+`R`, not in `q`, not in seed index -- and a thread is started in each:
 
 ```
-draw d  ->  seed (d mod T) * band + (d / T),     band = ceil(nW / T)
+thread t starts at   R_lo + t * (R_hi - R_lo) / T
 ```
 
-Two things make this work.
+For `n = 1131258820313872541` at `T = 4` the cuts land at `R/sqrt(n)` =
+1.00000, 1.10355, 1.20711, 1.31066, 1.41421, each piece exactly 110,140,060
+wide in `R`.
 
-**It must be a bijection on `[0, T*band)`, not on `[0, nW)`.** Drawing only
-`nW` indices silently never reaches some seeds -- with `nW = 10` and `T = 3`,
-seed 7 is never drawn. Checked over every `(nW, T)` pair up to `nW = 200` and
-`T = 16`: the extended form misses nothing in all 3,184; the naive form drops
-seeds in **1,941** of them.
+**The pieces are equal in `R` but not in work.** The walk is paid in `q`, and
+`dq/dR = 1 + R/i` diverges as `i -> 0`, so the same `R` width buys very
+different arc lengths:
 
-**It must band only the searchable span `nW`, not the whole interval.** Banding
-is not free. Un-banded, the `T` threads advance as a cohort from the balanced
-corner and a factor at seed `k` is reached in `k/T` draws; banded it costs
-`k mod band`. Those are equal mid-interval and the banded form is marginally
-ahead at the very top, but near the bottom it is `T` times **worse** -- a cohort
-puts `T` threads on the balanced corner, banding puts one:
+| piece | `R` range (`/sqrt n`) | share of arc |
+| --- | --- | --- |
+| 0 | 1.00000 - 1.10355 | 0.403 |
+| 1 | 1.10355 - 1.20711 | 0.221 |
+| 2 | 1.20711 - 1.31066 | 0.194 |
+| 3 | 1.31066 - 1.41421 | 0.181 |
 
-| | `T = 4` | `T = 8` | `T = 16` |
-| --- | --- | --- | --- |
-| balanced (`k` small) | 4x worse | 8x worse | 17x worse |
-| mid-interval | same | same | same |
-| deep (`k ~ nA`) | 1.00x better | 1.00x better | 1.00x better |
+The bottom piece carries 40% against a fair 25%, and the imbalance grows as
+`sqrt(T)`. The shared draw counter absorbs it: draw `d` goes to piece `d mod T`
+at offset `d / T`, so a thread whose piece runs dry keeps drawing and picks up
+another's seeds. The cut sets where each thread **starts**, not what it is
+stuck with.
 
-So without `--rsa` the cohort order is kept: the interval runs to
-`1.41421 sqrt(n)` while the whole `q/p in (1,2)` window lies in its bottom 15%,
-and banding would put one lone thread on the only region CTM beats the other
-streams at. Under `--rsa` the bands cover just the seeds whose walks can reach
-the window, so none of them idles. Banding the full interval instead measured
-1.2x to 3.8x **slower** at `T = 4`.
+Region A therefore spans `T * widest` draws rather than `nA`, so that even the
+widest piece is walked end to end; draws landing past a narrower piece's end are
+skipped.
+
+**What it costs.** An earlier version banded over only the seeds whose walks can
+reach `q <= 1.41421 sqrt(n)` under `--rsa`. That is faster on these cases -- but
+the gain is an *ordering* effect, not parallelism. At `T = 4` on
+`n = 1131258820313872541` the real-axis partition does 296,160,101
+multiplications, exactly what one thread does, swept in order, for an honest
+4x wall-clock scaling (712 ms -> 178 ms). The span-banded form reached the
+answer after only 126,820,758 -- it got lucky about where the answer sat
+relative to its starting points. Measured over the four `--rsa` cases it is
+1.1x to 2.7x faster at `T = 2` and `T = 4`, with identical correctness.
+
+The real-axis partition is what the geometry says, and what is implemented.
+`1.06066 sqrt(n)` plays no part in CTM: the interval is `[1, 1.41421] sqrt(n)`
+on the real axis, and the `q` window is enforced on `q`.
 
 ### Endpoints walk inward only
 

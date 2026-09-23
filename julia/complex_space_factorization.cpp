@@ -1362,32 +1362,58 @@ static void ctm_stream(const BigInt& N,
     // value carrying q = 1.41421 sqrt(N) -- so the interval IS the window,
     // a factor is uniform across it, and spreading the threads costs
     // nothing and covers it evenly.
-    const std::uint64_t Tn = (rsa && nthreads) ? nthreads : 1u;
+    // PARTITION THE REAL AXIS BY THREAD COUNT.
+    //
+    // The interval [ceil(sqrt N), floor(sqrt 2N)] is cut into T equal
+    // pieces ON THE REAL AXIS -- equal in R, not in q, not in seed index --
+    // and a thread is started in each. Thread t begins at
+    //
+    //      R_lo + t * (R_hi - R_lo) / T
+    //
+    // and works its piece; the bottom piece only ascends, the top piece
+    // only descends, every interior piece does both.
+    //
+    // The pieces are equal in R but NOT equal in work, because the walk is
+    // paid in q and dq/dR = 1 + R/i diverges as i -> 0. At T = 4 the q
+    // spans come out 0.570, 0.313, 0.275, 0.256 (in units of sqrt N) --
+    // the bottom piece carries 40% of the arc against a fair 25%, and the
+    // imbalance grows as sqrt(T). It is the shared draw counter that
+    // absorbs this: a thread whose piece runs dry keeps drawing and picks
+    // up another piece's seeds, so the cut sets where each thread STARTS,
+    // not what it is stuck with.
+    const std::uint64_t Tn = nthreads ? nthreads : 1u;
 
-    // Band only the SEARCHABLE part of the interval. The real axis runs to
-    // 1.41421 sqrt(N) always, but --rsa caps q at the window, so seeds
-    // whose whole walk sits above it are skipped. Banding across all of
-    // them would hand most threads a stretch that provably holds nothing:
-    // measured 1.2x to 3.8x slower at T=4 before this.
-    std::uint64_t nW = nA;
-    if (q_top < qA_hi) {
+    // bstart[b] = index of the first seed at or above the b-th cut.
+    std::vector<std::uint64_t> bstart(Tn + 1);
+    bstart[0] = 0;
+    bstart[Tn] = nA;
+    for (std::uint64_t b = 1; b < Tn; ++b) {
+        const BigInt Rb = R_lo + (R_span * big_from_u64(b)) / big_from_u64(Tn);
+        std::uint64_t idx;
         if (dense) {
-            const BigInt Rw = (q_top + N / q_top) / 2;   // real value at q_top
-            nW = (Rw > R_lo) ? u64_from_big(Rw - R_lo, U64MAX - 2) + 2 : 2;
+            idx = (Rb > R_lo) ? u64_from_big(Rb - R_lo, U64MAX) : 0;
         } else {
-            nW = (q_top > q_bot)
-               ? u64_from_big((q_top - q_bot) / CHSPAN, U64MAX - 2) + 2 : 2;
+            const BigInt qb_ = Rb + isqrt_floor(Rb * Rb - N);
+            idx = (qb_ > q_bot) ? u64_from_big((qb_ - q_bot) / CHSPAN, U64MAX) : 0;
         }
-        if (nW > nA) nW = nA;
+        if (idx > nA) idx = nA;
+        if (idx < bstart[b - 1]) idx = bstart[b - 1];
+        bstart[b] = idx;
     }
-    if (nW < 1) nW = 1;
+    std::uint64_t widest = 0;
+    for (std::uint64_t b = 0; b < Tn; ++b) {
+        const std::uint64_t w = bstart[b + 1] - bstart[b];
+        if (w > widest) widest = w;
+    }
+    if (widest == 0) widest = 1;
 
-    const std::uint64_t band = (nW + Tn - 1) / Tn;
-    std::uint64_t nW_ext = band * Tn;
-    if (band != 0 && nW_ext / band != Tn) nW_ext = nW;      // overflow guard
-    if (nW_ext < nW) nW_ext = nW;
-    std::uint64_t nA_ext = nW_ext + (nA - nW);
-    if (nA_ext < nW_ext) nA_ext = nA;                       // overflow guard
+    // Region A spans T * widest draws: enough that every piece, including
+    // the widest, is walked end to end. Draws landing past a narrower
+    // piece's end are skipped, and a thread that hits one simply draws
+    // again -- which is how the work stealing crosses the cuts.
+    std::uint64_t nA_ext = widest * Tn;
+    if (widest != 0 && nA_ext / widest != Tn) nA_ext = nA;   // overflow guard
+    if (nA_ext < nA) nA_ext = nA;
 
     const std::uint64_t nB = (q_top > qA_hi)
         ? u64_from_big((q_top - qA_hi) / CHSPAN + 1, U64MAX) : 0;
@@ -1414,15 +1440,10 @@ static void ctm_stream(const BigInt& N,
         if (c >= nC) continue;
 
         if (c < nA_ext) {
-            if (c < nW_ext) {
-                // Spread across the searchable span: band b, offset off.
-                const std::uint64_t b = c % Tn, off = c / Tn;
-                c = b * band + off;
-                if (c >= nW) continue;             // ragged tail of the map
-            } else {
-                c = nW + (c - nW_ext);             // the rest, in order
-                if (c >= nA) continue;
-            }
+            // Which piece of the real axis, and how far into it.
+            const std::uint64_t b = c % Tn, off = c / Tn;
+            c = bstart[b] + off;
+            if (c >= bstart[b + 1] || c >= nA) continue;   // piece exhausted
 
             // ENDPOINTS WALK INWARD ONLY.
             //
