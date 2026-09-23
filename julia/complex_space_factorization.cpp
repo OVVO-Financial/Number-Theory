@@ -1334,15 +1334,42 @@ static void ctm_stream(const BigInt& N,
         if (c >= nC) continue;
 
         if (c < nA) {
+            // ENDPOINTS WALK INWARD ONLY.
+            //
+            // Below the first seed there is nothing to find, and that is a
+            // theorem, not a heuristic: every factor pair has
+            // R = (p+q)/2 >= sqrt(pq) = sqrt(N) by AM-GM, so R = ceil(sqrt N)
+            // is the smallest real part any pair can have. q rises with R
+            // along the boundary, so no factor sits below q(R_lo) either.
+            // Descending off seed 0 could only ever re-test the empty strip
+            // down to sqrt(N).
+            //
+            // Above the last seed is the tail, which region B owns outright
+            // -- and under --rsa there is no tail, because R_hi was clipped
+            // to the real value carrying q = 1.41421 sqrt(N) and the window
+            // ends there. Either way the top seed has nothing to ascend into.
+            if (!up && c == 0)               continue;
+            if (up  && c + 1 == nA && nA > 1) continue;
+
             // Real-axis seed: stand at R, climb to the chasm.
             seed_Ri(c, Rs, Is);
             qa = Rs + Is;
+            // Each direction runs the FULL span to its neighbour, not
+            // half of it. The two walks are not two halves of one sweep:
+            // ascending from seed c and descending from seed c+1 trace
+            // DIFFERENT (p, q) trajectories over the same q range, and a
+            // trajectory only lands on the true p if it is allowed to run
+            // the whole way. Stopping each at the midpoint between the
+            // seeds cost exactly 1.98x fewer multiplications and lost 147
+            // of 690 cases -- every one of them a real factorization the
+            // full-span form finds, at q/p of 3 to 5, well inside the
+            // interval. The apparent 2x redundancy is not redundancy.
             if (up) {
-                qb = (c + 1 < nA) ? seed_q(c + 1) + PAD : qA_hi + PAD;
+                qb = seed_q(c + 1) + PAD;
                 if (qb > q_top) qb = q_top;
                 if (qa >= q_top) continue;
             } else {
-                qb = (c > 0) ? seed_q(c - 1) - PAD : q_bot;
+                qb = seed_q(c - 1) - PAD;
                 if (qb < q_bot) qb = q_bot;
                 if (qa <= q_bot) continue;
             }

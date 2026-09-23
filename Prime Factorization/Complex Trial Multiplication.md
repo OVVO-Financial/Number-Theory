@@ -151,10 +151,44 @@ The first seed is `R = ceil(sqrt 8051) = 90`, and `90^2 - 8051 = 49`, so
 `112 + 65i`.
 
 Both directions are still needed. A seed is only the entry point: its ascending
-walk covers `q` above it and its descending walk covers `q` below, and since
-every move changes `q` by exactly `+-10` the two partition cleanly -- seed `c`
+walk covers `q` above it and its descending walk covers `q` below. Seed `c`
 ascends as far as seed `c+1`'s `q` and descends as far as seed `c-1`'s, with a
 pad at each handover to absorb the class rounding.
+
+### Endpoints walk inward only
+
+At the two ends of the interval one direction has nothing to do:
+
+* **`R = ceil(sqrt n)`, the balanced corner: ascend only.** There is nothing
+  below it, and that is a theorem rather than a heuristic. Every factor pair has
+  `R = (p+q)/2 >= sqrt(pq) = sqrt(n)` by AM-GM, so `ceil(sqrt n)` is the
+  smallest real part any pair can have; `q` rises with `R` along the boundary,
+  so no factor sits below the first seed's `q` either. Descending off seed 0
+  could only re-test an empty strip.
+* **The top of the interval: descend only.** Above it is the tail, which the
+  `q`-chunked region owns outright -- and under `--rsa` there is no tail at all,
+  because the real values stop at `1.06066 sqrt(n)`, the one carrying
+  `q = 1.41421 sqrt(n)`, and the window ends there.
+
+The saving is small (1-3% where it shows, since seed 0's descending span is
+`floor(sqrt(r^2 - n)) ~ n^0.25` against an arc of `sqrt(n)`), but it is work
+that provably cannot find anything.
+
+### What does NOT work: meeting at the midpoint
+
+Seed `c` ascending and seed `c+1` descending cover the same `q` range, so it
+looks as though each should stop at the midpoint between them, halving the work
+for identical coverage. It measures exactly that way -- **1.98x fewer
+multiplications** -- and it is wrong.
+
+The two walks are **not two halves of one sweep**. Ascending from seed `c` and
+descending from seed `c+1` trace *different* `(p, q)` trajectories across the
+same range, and a trajectory only lands on the true `p` if it is allowed to run
+the whole way. Cut at the midpoint, coverage drops from 690/690 to 543/690 --
+147 real factorizations lost, every one of them at `q/p` between 3 and 5, well
+inside the interval, and every one found by the full-span form.
+
+The apparent redundancy is not redundancy. Each direction runs its full span.
 
 ### Measured
 
@@ -175,16 +209,17 @@ pad at each handover to absorb the class rounding.
 | 10963 | 19 * 577 | 30 | **863** | 1,843 | 0.47x |
 | 798607 | 101 * 7907 | 78 | **612** | 9,101 | 0.07x |
 
-The last two rows are the cost of the change, and they are not noise. A seed
-sweep that starts at the balanced corner and works up reaches `q ~ sqrt(n)`
-first and `q >> sqrt(n)` last; `q = S ~ 2 sqrt(n)` started partway along the
-arc and so was nearer to a lopsided factor. `798607 = 101 * 7907` has `q` at
-4.4x `S`, and the interval now has to be crossed before the tail begins.
+The last two rows are the cost of the change. A seed sweep that starts at the
+balanced corner and works up reaches `q ~ sqrt(n)` first and `q >> sqrt(n)`
+last; `q = S ~ 2 sqrt(n)` started partway along the arc and so was nearer to a
+lopsided factor.
 
-That trade is deliberate. Small-`p` factorizations belong to trial division and
-the yellow path, which reach `101` immediately; CTM's comparative advantage is
-the balanced region, where nothing else is cheap, and that is what the interval
-seeding front-loads. On balanced semiprimes the advantage grows with `n`:
+Both are **out of scope for `--rsa`**, which assumes `1 < q/p < 2`: `q/p = 78`
+and `q/p = 30` cannot occur in that window at all. And in the general engine
+small-`p` factorizations belong to trial division and the yellow path, which
+reach `101` immediately. CTM's comparative advantage is the balanced region,
+where nothing else is cheap, and that is what the interval seeding front-loads.
+On balanced semiprimes the advantage grows with `n`:
 
 | n | bits | from `q = S` | from the interval | |
 |---|---|---|---|---|

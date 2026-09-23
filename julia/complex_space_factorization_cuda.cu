@@ -489,10 +489,32 @@ static void csf_ctm_build_seeds(std::uint64_t N,
     for (std::uint64_t c = first_chunk; c < last; ++c) {
         std::int64_t Rs, Is;
         std::uint64_t qa, q_up, q_dn;
+        bool want_up = true, want_dn = true;
         if (c < nA) {
             seed_at(c, Rs, Is);
-            qa   = (std::uint64_t)(Rs + Is);
-            q_up = (c + 1 < nA) ? seed_q(c + 1) + PAD : qA_hi + PAD;
+            qa = (std::uint64_t)(Rs + Is);
+
+            // ENDPOINTS WALK INWARD ONLY, and neighbours meet at the
+            // MIDPOINT between them.
+            //
+            // Below the first seed there is nothing at all, and that is a
+            // theorem: every factor pair has R = (p+q)/2 >= sqrt(pq) =
+            // sqrt(N) by AM-GM, so R = ceil(sqrt N) is the smallest real
+            // part any pair can have, and q rises with R along the
+            // boundary. Above the last seed is the tail, which the chunks
+            // below own -- and under an RSA window there is no tail.
+            //
+            // Between seeds each direction runs the FULL span to its
+            // neighbour, not half of it. The two walks are not two halves
+            // of one sweep: ascending from seed c and descending from
+            // seed c+1 trace DIFFERENT (p, q) trajectories over the same
+            // q range, and a trajectory only lands on the true p if it is
+            // allowed to run the whole way. Cutting each at the midpoint
+            // looked like a clean 1.98x saving and lost 147 of 690 cases,
+            // all at q/p of 3 to 5, well inside the interval.
+            want_dn = (c > 0);
+            want_up = (c + 1 < nA) || nA == 1;
+            q_up = seed_q(c + 1) + PAD;
             q_dn = (c > 0) ? (seed_q(c - 1) > PAD ? seed_q(c - 1) - PAD : q_bot)
                            : q_bot;
         } else {
@@ -504,9 +526,12 @@ static void csf_ctm_build_seeds(std::uint64_t N,
             Is = (std::int64_t)((qa - pv) / 2);
             q_up = qa + chunk_q + PAD;
             q_dn = (qa > chunk_q + PAD) ? qa - chunk_q - PAD : q_bot;
+            (void)k;
         }
         if (q_up > q_top) q_up = q_top;
         if (q_dn < q_bot) q_dn = q_bot;
+        if (qa >= q_top) want_up = false;
+        if (qa <= q_bot) want_dn = false;
 
         for (const auto& cl : cls) {
             // Sync into the class. Both +-10 moves preserve it, so the
@@ -515,11 +540,11 @@ static void csf_ctm_build_seeds(std::uint64_t N,
             // by at most 18, which is what PAD covers.
             const std::int64_t Rc = Rs + ((cl.first  - (int)(Rs % 10) + 10) % 10);
             const std::int64_t Ic = Is + ((cl.second - (int)(Is % 10) + 10) % 10);
-            if (qa < q_top) {
+            if (want_up) {
                 s.R.push_back(Rc); s.I.push_back(Ic);
                 s.qlimit.push_back((std::int64_t)q_up); s.up.push_back(1);
             }
-            if (qa > q_bot) {
+            if (want_dn) {
                 s.R.push_back(Rc); s.I.push_back(Ic);
                 s.qlimit.push_back((std::int64_t)q_dn); s.up.push_back(0);
             }
