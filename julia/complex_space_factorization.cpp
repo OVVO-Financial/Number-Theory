@@ -1111,29 +1111,65 @@ static void yellow_path_stream(const BigInt& N,
 // of the descending walk lower it by 10, so q is monotone in each: up in
 // one, down in the other. That is the ascend and the descend.
 //
-// START: the first RED point of the 135-degree traversal,
+// START: a point on the red/blue boundary, entered from the REAL axis.
 //
-//     (R, i) = (r + j_max + 1,  m - j_max - 1)
+// Fix a real value R and climb vertically, R held, i rising. The product
 //
-// which for N = 8051 is 112 + 65i -- p = 47, q = 177, p*q = 8319 > N, the
-// first point past the crossing. Both walks begin there, and because
-// R + i = r + m = S on the whole traversal, both begin at q = S.
+//     p*q = (R - i)(R + i) = R^2 - i^2
 //
-// The Fermat bracket and trial division start at the OTHER end of the same
-// traversal, (r, m) = 90 + 87i for N = 8051, and walk toward the crossing.
-// So the two methods are indexed to the same line from opposite ends.
+// falls monotonically, so for R >= sqrt(N) the climb begins red (i = 0
+// gives R^2 >= N) and ends blue. The crossing
+//
+//     i = floor(sqrt(R^2 - N))          last red point at this R
+//
+// is where the walk starts. N = 309 at R = 21: 441 - 11^2 = 320 is red,
+// 441 - 12^2 = 297 is blue, so the seed is 21 + 11i. R and i ARE the
+// coordinates, so the seed costs one isqrt and no division.
+//
+// The real values worth entering from are
+//
+//     R in [ ceil(sqrt N), floor(sqrt 2N) ]      (1 .. 1.41421 sqrt N)
+//
+// and that interval is forced, not chosen. R = (p+q)/2 with i = (q-p)/2
+// on the hyperbola gives
+//
+//     R = 1.00000 sqrt N  ->  p = 1.00000 sqrt N, q = 1.00000 sqrt N
+//     R = 1.06066 sqrt N  ->  p = 0.70711 sqrt N, q = 1.41421 sqrt N
+//     R = 1.41421 sqrt N  ->  p = 0.41421 sqrt N, q = 2.41421 sqrt N
+//
+// -- the whole balanced arc, both factors, nothing outside it, with
+// sqrt(2N) as its exact top. Note that the real axis and the q axis are
+// different axes: the RSA window is stated on q as [1, 1.41421] sqrt(N),
+// and the real values carrying it are [1, 1.06066] sqrt(N).
+//
+// Spreading seeds along that interval is the parallel axis, and each one
+// runs BOTH walks. Measured against seeding every walk at q = S ~ 2
+// sqrt(N) -- where the 135-degree traversal meets the hyperbola, which is
+// what this routine used to do -- on balanced semiprimes:
+//
+//     N = 1000000016000000063 (60-bit)   637,225,959 -> 24,582 mults
+//     N =  120686502968132437433 (67-bit)  8.79e9    ->        1 mult
+//
+// because a balanced factor sits at the bottom of the interval and the
+// old seed started a fixed fraction of sqrt(N) away from it.
+//
+// The Fermat bracket and trial division work the 135-degree traversal,
+// from (r, m) = 90 + 87i toward its crossing. CTM no longer shares that
+// line with them: it has its own geometry, and they do not collide.
 //
 // SIEVE: the (R, i) digit classes are the paired Fermat sieve for this N's
 // classification -- 4k+1 or 4k-1 crossed with the last digit -- and both
 // the increases and the decreases preserve them, since every move is +-10
 // on R or on i. A stream synced into a class at the start stays in it.
 //
-// Worked, N = 8051, class (0,7), start 112+65i synced to (120, 67):
+// Worked, N = 8051. The first seed is R = ceil(sqrt 8051) = 90, and
+// 90^2 - 8051 = 49, so i = 7 exactly:
 //
-//     120+67i  p=53 q=187  9911 > N   ->  R -= 10
-//     110+67i  p=43 q=177  7611 < N   ->  i -= 10
-//     ...
-//      90+ 7i  p=83 q= 97  8051 = N   found, 9 steps
+//      90+ 7i  p=83 q= 97  8051 = N   found on the seed itself
+//
+// (0,7) is one of the four admissible classes for 4k-1 ending in 1, so
+// the pair needs no rounding at all. The engine tries (0,3) first and so
+// spends 4 multiplications in total, against 9 from the old q = S seed.
 //
 // An earlier version of this routine had only the ascending walk. From the
 // crossing, ascending can never reach a factor with q below S -- 8051's
@@ -1147,18 +1183,12 @@ static void ctm_stream(const BigInt& N,
                        const BigInt* rsa_q_hi = nullptr) {
     const BigInt r = isqrt_ceil(N);
     if (r < 4) return;
-    const BigInt m = r - 3;
-    if (m < 1) return;
-    const BigInt S = r + m;
-    if (S <= 0) return;
-    const BigInt jm = (N / S - 3) / 2;
-    if (jm < 0) return;
 
-    // The first red point. Both walks start here, at q = S.
-    const BigInt R0 = r + jm + 1;
-    const BigInt I0 = m - jm - 1;
-    if (I0 < 0) return;
-
+    // CTM does NOT start where the 135-degree strip meets the hyperbola.
+    // That point sits at p = N/S ~ 0.5 sqrt(N), one end of the strip, and
+    // seeding there was the whole reason 8051 = 83*97 was unreachable: it
+    // put p below 83 with no way back up. The seeds come off the real axis
+    // instead -- see below -- so the strip's own geometry plays no part.
     const auto pairs = fermat_digit_pairs(N);      // paired (R, i) classes
     if (pairs.empty()) return;
 
@@ -1167,60 +1197,132 @@ static void ctm_stream(const BigInt& N,
     BigInt q_top = N / 3;
     const BigInt q_bot = r;
 
-    // Both walks leave from q_base, the point where the traversal meets the
-    // hyperbola. Which line the traversal sits on decides everything.
+    // ---- Seeding: climb the real axis, drop into the chasm -------------
     //
-    // The standard strip runs along S = r + m ~ 2*sqrt(N) and meets the
-    // hyperbola at p = N/S ~ 0.5*sqrt(N), so q_base = S ~ 2*sqrt(N).
+    // A CTM seed is not a point on the 135-degree strip. It is a point on
+    // the red/blue boundary, and the stretch of the real axis worth
+    // entering that boundary from is
     //
-    // --rsa reseeds it to the line S ~ sqrt(N) -- 45 + 42i for N = 8051 --
-    // whose intersection is the BALANCED corner (sqrt(N), 0). From there
-    // the whole window q in [sqrt(N), 1.41421*sqrt(N)] lies ABOVE, so
-    // ascending is the direction that covers it and descending has nothing
-    // to find, q being the larger factor:
+    //      R in [ ceil(sqrt N), floor(sqrt 2N) ]      (1 .. 1.41421 sqrt N)
     //
-    //      from 2*sqrt(N), descending : cost (2-q)/10, worst 0.1000*sqrt(N)
-    //      from   sqrt(N), ascending  : cost (q-1)/10, worst 0.0414*sqrt(N)
+    // Everything about that interval is forced. R = (p+q)/2 with i = (q-p)/2
+    // on the hyperbola gives i = sqrt(R^2 - N) and hence
     //
-    // -- 2.42x better, and on 8051 the factor is ONE ascending step from
-    // the reseeded intersection (q = 90 -> 97) against nine descending from
-    // S = 177. An earlier version of this switched ascending OFF under
-    // --rsa, having reasoned about it from the old q_base; from the
-    // reseeded one that is exactly backwards.
+    //      R = 1.00000 sqrt N  ->  p = 1.00000, q = 1.00000  (sqrt N)
+    //      R = 1.06066 sqrt N  ->  p = 0.70711, q = 1.41421  (RSA edge)
+    //      R = 1.41421 sqrt N  ->  p = 0.41421, q = 2.41421
+    //
+    // so [1, 1.41421] sqrt(N) on the REAL axis is the whole balanced arc --
+    // both factors, nothing outside it -- and sqrt(2N) is its top exactly,
+    // no floating-point constant needed.
+    //
+    // At a fixed R you climb vertically, i rising, and the product
+    // R^2 - i^2 falls monotonically: it starts red (R >= sqrt N makes
+    // i = 0 give R^2 >= N) and ends blue. The crossing
+    //
+    //      i = floor(sqrt(R^2 - N))           last red point at this R
+    //
+    // is the chasm. N = 309 at R = 18: i = 0,1,2,3 give 324, 323, 320, 315,
+    // all red; i = 4 gives 308, blue. The seed is (18, 3) -- and it costs
+    // one isqrt, no division, because R and i ARE the coordinates.
+    //
+    // Spreading seeds along that interval is the parallel axis, and both
+    // walks run from each one. Every CTM move changes q by exactly +-10
+    // either way, so the walks partition: seed c ascends to seed c+1's q
+    // and descends to seed c-1's q, with a 20 pad at each handover to
+    // absorb the digit-class rounding below.
     const bool rsa = (rsa_q_hi != nullptr);
-    BigInt q_base = S;
-    if (rsa) {
-        q_base = r;                         // the reseeded intersection
-        q_top = *rsa_q_hi;                  // ascending stops at the window
-    }
+    if (rsa) q_top = *rsa_q_hi;
 
     const std::uint64_t STEP = 10;
     const std::uint64_t CH   = 1u << 13;
     const BigInt STEPB  = big_from_u64(STEP);
     const BigInt CHSPAN = big_from_u64(CH * STEP);
+    const BigInt PAD    = big_from_u64(2 * STEP);
+    const std::uint64_t U64MAX = std::numeric_limits<std::uint64_t>::max();
 
-    const std::uint64_t n_up =
-        (q_top > q_base) ? u64_from_big((q_top - q_base) / CHSPAN + 1,
-                                        std::numeric_limits<std::uint64_t>::max()) : 0;
-    const std::uint64_t n_dn =
-        (q_base > q_bot) ? u64_from_big((q_base - q_bot) / CHSPAN + 1,
-                                        std::numeric_limits<std::uint64_t>::max()) : 0;
-    // Saturate before doubling. The ascending walk runs to q = N/3, so for a
-    // 112-bit N n_up is about 1.3e28 and u64_from_big caps it at 2^64-1;
-    // (2^64-1)*2 + 2 then WRAPS TO ZERO and the draw loop breaks on its very
-    // first iteration, so the whole stream did nothing and reported
-    // INCOMPLETE in 9 ms with 0 multiplications.
+    // The seed interval on the real axis. --rsa clips its top to the R that
+    // lands on the window edge q = 1.41421 sqrt(N), which is 1.06066 sqrt(N):
+    // the real axis and the q axis are different axes and the window is
+    // stated on q.
+    const BigInt R_lo = r;
+    BigInt R_hi = isqrt_floor(2 * N);
+    if (rsa) { const BigInt Rc = (q_top + N / q_top) / 2; if (R_hi > Rc) R_hi = Rc; }
+    if (R_hi < R_lo) R_hi = R_lo;
+    const BigInt R_span = R_hi - R_lo;
+
+    // q at the top of the seed interval, where the arc's tail takes over.
+    const BigInt qA_hi = R_hi + isqrt_floor(R_hi * R_hi - N);
+
+    // How many seeds, and how they are spaced.
     //
-    // The differential suite could not see this: CTM is off by default, so a
-    // stream that silently does nothing never changes an answer. Only the
-    // per-stream multiplication count shows it, which is why --verbose is
-    // now part of the check.
-    std::uint64_t nmax = n_up > n_dn ? n_up : n_dn;
-    const std::uint64_t NCAP = (std::numeric_limits<std::uint64_t>::max() - 2) / 2;
-    if (nmax > NCAP) nmax = NCAP;
-    const std::uint64_t ndraw = nmax * 2 + 2;
+    // Every seed is the same object -- a real value in the interval with
+    // the chasm underneath it -- but you cannot stand on all of them. The
+    // real interval holds 0.41421 sqrt(N) integers: 7 for N = 309, but
+    // 1.5e13 at 90 bits.
+    //
+    // Nor can you sample them evenly, because the walk out of a seed is
+    // paid in q and
+    //
+    //      dq/dR = 1 + R / i          with i = sqrt(R^2 - N)
+    //
+    // which diverges at the balanced corner, where i -> 0. At 90 bits,
+    // moving the real part by ONE integer at the bottom of the interval
+    // jumps q by 5.2e6 -- 518,000 CTM steps out of that one seed -- while
+    // a seed at the top moves q by 2.41 and does nothing. Evenly spaced in
+    // R, the first seed carries the whole arc and the rest idle.
+    //
+    // So: take every integer real value while they are few (309 -> 7 seeds,
+    // 8051 -> 37, and no division needed, R and i ARE the coordinates), and
+    // past that space them for equal work, which means equal in q. Those
+    // seeds are real values in the same interval with the same chasm under
+    // them -- R = (q + N/q)/2 and i = (q - N/q)/2 is that chasm point
+    // written from the other side -- only picked densely where the arc
+    // turns and sparsely where it runs straight.
+    const std::uint64_t nR = u64_from_big(R_span + 1, U64MAX);
+    const std::uint64_t nq = (qA_hi > q_bot)
+        ? u64_from_big((qA_hi - q_bot) / CHSPAN + 1, U64MAX) : 1;
+    const std::uint64_t DENSE_CAP = 4096;
+    const bool dense = nR <= (nq > DENSE_CAP ? nq : DENSE_CAP);
+    std::uint64_t nA = dense ? nR : nq;
+    if (nA < 1) nA = 1;
 
-    BigInt R, I, P, Q, prod, qa, qb, ps;
+    // The seed at index c, both ways round. c = 0 is the balanced corner.
+    auto seed_Ri = [&](std::uint64_t c, BigInt& Rc, BigInt& Ic) {
+        if (dense) {
+            Rc = (c >= nA) ? R_hi : R_lo + big_from_u64(c);
+            if (Rc > R_hi) Rc = R_hi;
+            Ic = isqrt_floor(Rc * Rc - N);          // the chasm, no division
+        } else {
+            BigInt qc = (c >= nA) ? qA_hi : q_bot + big_from_u64(c) * CHSPAN;
+            if (qc > qA_hi) qc = qA_hi;
+            const BigInt pc = N / qc;
+            Rc = (qc + pc) / 2;
+            Ic = (qc - pc) / 2;
+            if (Ic < 0) Ic = 0;
+        }
+    };
+    auto seed_q = [&](std::uint64_t c) -> BigInt {
+        BigInt Rc, Ic; seed_Ri(c, Rc, Ic); return Rc + Ic;
+    };
+
+    // Tail: q above the seed interval, up to N/3 (p >= 3). There is no real
+    // axis left to stand on, so it is chunked in q. --rsa ends at the
+    // window, so its tail is empty.
+    const std::uint64_t nB = (q_top > qA_hi)
+        ? u64_from_big((q_top - qA_hi) / CHSPAN + 1, U64MAX) : 0;
+
+    // Saturate before doubling. The tail runs to q = N/3, so for a 112-bit N
+    // nB is about 1.3e28 and u64_from_big caps it at 2^64-1; (2^64-1)*2 + 2
+    // then WRAPS TO ZERO, the draw loop breaks on its first iteration, and
+    // the whole stream reports INCOMPLETE in 9 ms having done nothing.
+    std::uint64_t nC = nA + nB;
+    if (nC < nA) nC = U64MAX;                       // nA + nB overflowed
+    const std::uint64_t NCAP = (U64MAX - 2) / 2;
+    if (nC > NCAP) nC = NCAP;
+    const std::uint64_t ndraw = nC * 2 + 2;
+
+    BigInt R, I, P, Q, prod, qa, qb, ps, Rs, Is;
     std::uint64_t local = 0;
 
     while (!found.ready()) {
@@ -1229,53 +1331,59 @@ static void ctm_stream(const BigInt& N,
 
         const bool up = (draw & 1u) == 0;          // alternate the two walks
         const std::uint64_t c = draw >> 1;
-        if (up ? (c >= n_up) : (c >= n_dn)) continue;
+        if (c >= nC) continue;
 
-        // Chunk bounds in q, measured out from S in the walk's direction.
-        if (up) {
-            qa = q_base + big_from_u64(c) * CHSPAN;            // from
-            qb = qa + CHSPAN; if (qb > q_top) qb = q_top;      // to (higher)
-            if (qa >= q_top) continue;
+        if (c < nA) {
+            // Real-axis seed: stand at R, climb to the chasm.
+            seed_Ri(c, Rs, Is);
+            qa = Rs + Is;
+            if (up) {
+                qb = (c + 1 < nA) ? seed_q(c + 1) + PAD : qA_hi + PAD;
+                if (qb > q_top) qb = q_top;
+                if (qa >= q_top) continue;
+            } else {
+                qb = (c > 0) ? seed_q(c - 1) - PAD : q_bot;
+                if (qb < q_bot) qb = q_bot;
+                if (qa <= q_bot) continue;
+            }
         } else {
-            qa = q_base - big_from_u64(c) * CHSPAN;            // from
-            qb = qa - CHSPAN; if (qb < q_bot) qb = q_bot;      // to (lower)
-            if (qa <= q_bot) continue;
+            // Tail chunk: no real-axis point to stand on, so come at it
+            // from q and divide back to the pair.
+            const std::uint64_t k = c - nA;
+            qa = qA_hi + big_from_u64(k) * CHSPAN;
+            if (up) {
+                qb = qa + CHSPAN + PAD; if (qb > q_top) qb = q_top;
+                if (qa >= q_top) continue;
+            } else {
+                qb = qa - CHSPAN - PAD; if (qb < q_bot) qb = q_bot;
+                if (qa <= q_bot) continue;
+            }
+            ps = N / qa;
+            if (ps > qa) continue;
+            Rs = (qa + ps) / 2;
+            Is = (qa - ps) / 2;
+            if (Is < 0) Is = 0;
         }
+
+        const bool native = mpz_sizeinbase(N.get_mpz_t(), 2) <= 126 &&
+                            mpz_sizeinbase(qb.get_mpz_t(), 2) <= 62 &&
+                            mpz_sizeinbase(qa.get_mpz_t(), 2) <= 62;
+        const std::uint64_t Rsn = native ? u64_from_big(Rs, 0) : 0;
+        const std::uint64_t Isn = native ? u64_from_big(Is, 0) : 0;
 
         for (const auto& pr : pairs) {
             if (found.ready()) break;
 
-            const bool native = mpz_sizeinbase(N.get_mpz_t(), 2) <= 126 &&
-                                mpz_sizeinbase(qb.get_mpz_t(), 2) <= 62 &&
-                                mpz_sizeinbase(qa.get_mpz_t(), 2) <= 62;
-
-            // Seed on the hyperbola at this chunk's q, then sync the pair
-            // into its digit class. Both +-10 moves preserve the class.
-            //
-            // The divide is done at NATIVE width whenever the walk is going
-            // to be native anyway. It was an mpz divide unconditionally,
-            // which is 46.94 ns against 2.95 ns for a 128/64 -- 15.9x. The
-            // seed is per chunk, so it sets how finely the arc can be cut
-            // before seeding dominates: at 47 ns against a 1.07 ns step a
-            // thread needed ~396 steps to amortise, at 2.95 ns it needs ~25.
+            // Sync the seed pair into this digit class. Both +-10 moves
+            // preserve it, so the class holds for the whole walk. The
+            // rounding lifts q by at most 18, which is what PAD covers.
             std::uint64_t Rn0 = 0, In0 = 0;
             if (native) {
-                const __uint128_t Nn = u128_from_big(N);
-                const std::uint64_t qn = u64_from_big(qa, 0);
-                if (qn == 0) continue;
-                const std::uint64_t pn = (std::uint64_t)(Nn / qn);
-                if (pn > qn) continue;
-                Rn0 = (qn + pn) / 2;
-                In0 = (qn - pn) / 2;
-                Rn0 += (10 + (std::uint64_t)pr.a10 - Rn0 % 10) % 10;
-                In0 += (10 + (std::uint64_t)pr.b10 - In0 % 10) % 10;
+                Rn0 = Rsn + (10 + (std::uint64_t)pr.a10 - Rsn % 10) % 10;
+                In0 = Isn + (10 + (std::uint64_t)pr.b10 - Isn % 10) % 10;
             } else {
-                ps = N / qa;
-                R = (qa + ps) / 2;
-                I = (qa - ps) / 2;
-                if (I < 0) I = 0;
-                R += mod_pos_small(BigInt(pr.a10) - R, 10);
-                I += mod_pos_small(BigInt(pr.b10) - I, 10);
+                R = Rs + mod_pos_small(BigInt(pr.a10) - Rs, 10);
+                I = Is + mod_pos_small(BigInt(pr.b10) - Is, 10);
             }
 
             if (native) {
@@ -1558,9 +1666,15 @@ static std::optional<BigInt> split_once(const BigInt& N,
     }
     if (!skip_stage0) {
         std::uint64_t d_found = 0;
+        // These obey b1 like every other divisor. They used to run
+        // unconditionally, which meant `--only=ctm 309` answered
+        // 3 * 103 with splits = trial-division(stage0) -- 309 never
+        // reached CTM at all. Nothing downstream needs them gone:
+        // fermat_digit_pairs handles 5 | N on its own (five_divides_N),
+        // and N is already odd by here.
         static const std::uint64_t small[3] = {3, 5, 7};
         for (std::uint64_t d : small)
-            if (divisible_by_u64(N, d)) { d_found = d; break; }
+            if (d <= opt.b1 && divisible_by_u64(N, d)) { d_found = d; break; }
         if (!d_found) {
             static const std::uint64_t W30[8] = {1, 7, 11, 13, 17, 19, 23, 29};
             for (std::uint64_t base = 0; base <= opt.b1 && !d_found; base += 30)
@@ -2194,27 +2308,66 @@ static int selftest() {
     // So this asserts BOTH that the factor comes back AND that the
     // multiplication counter moved -- either alone would have missed it.
     // -----------------------------------------------------------------
-    std::cout << "\n=== 7. CTM stream does real work at large N ===\n";
+    std::cout << "\n=== 7. CTM stream: real work at large N, and balanced finds ===\n";
     {
-        const struct { const char* n; const char* p; } big[] = {
-            {"1237940039288107063736009593",   "17592186044423"},
-            {"19807040628574599016431485843",  "70368744177679"},
-            {"316912650057108860294913853471", "281474976710677"},
+        // (a) The zero-work regression. ndraw is nC*2+2; when nC came back
+        // as 2^64-1 the doubling WRAPPED TO ZERO, the draw loop broke on
+        // its first iteration, and `--only=ctm` on a 112-bit N reported
+        // INCOMPLETE in 9 ms having done nothing. The assertion is that the
+        // stream does work, not that it wins -- these three have q = 2*sqrt(N)
+        // exactly, out where the arc is too long for any seeding to exhaust.
+        // (They used to be asserted as finds, which only passed because the
+        // old code seeded at q = S ~ 2*sqrt(N) and landed on them by
+        // construction, not because CTM had reached them.)
+        const char* big[] = {"1237940039288107063736009593",
+                             "19807040628574599016431485843",
+                             "316912650057108860294913853471"};
+        const char* bigp[] = {"17592186044423", "70368744177679",
+                              "281474976710677"};
+        for (int k = 0; k < 3; ++k) {
+            const BigInt n(big[k]), truef(bigp[k]);
+            Found f;
+            std::atomic<std::uint64_t> chunk{0}, steps{0};
+            std::thread w([&]{ ctm_stream(n, f, chunk, steps); });
+            const auto t0 = std::chrono::steady_clock::now();
+            while (!f.ready() &&
+                   std::chrono::steady_clock::now() - t0 <
+                       std::chrono::milliseconds(250))
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            f.submit(n, truef, "watchdog");      // stop the walk
+            w.join();
+            const bool ok = steps.load() > 0;
+            if (!ok) ++failures;
+            std::cout << "  " << mpz_sizeinbase(n.get_mpz_t(), 2) << "-bit: "
+                      << steps.load() << " multiplications in 250 ms  "
+                      << (ok ? "OK" : "FAIL(zero work)") << "\n";
+        }
+
+        // (b) What the real-axis seeding is actually for. Seeds run from the
+        // balanced corner R = ceil(sqrt N) upward, so a balanced semiprime
+        // sits within the first few of them and CTM must split it outright.
+        const struct { const char* n; const char* p; } bal[] = {
+            {"10967535067",         "104723"},        // 104723 * 104729
+            {"1000000016000000063", "1000000007"},    // 1000000007 * 1000000009
+            {"1000000028000000147", "1000000007"},    // 1000000007 * 1000000021
+            {"32399",               "179"},           // 179 * 181
         };
-        for (const auto& c : big) {
+        for (const auto& c : bal) {
             const BigInt n(c.n), want(c.p);
             Found f;
             std::atomic<std::uint64_t> chunk{0}, steps{0};
+            const auto t0 = std::chrono::steady_clock::now();
             ctm_stream(n, f, chunk, steps);
-            const bool hit = f.ready() && (f.factor == want || f.factor == n / want);
-            const bool worked = steps.load() > 0;
-            const bool ok = hit && worked;
+            const long ms = (long)std::chrono::duration_cast<
+                std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - t0).count();
+            const bool ok = f.ready() && (f.factor == want || f.factor == n / want);
             if (!ok) ++failures;
-            std::cout << "  " << mpz_sizeinbase(n.get_mpz_t(), 2) << "-bit: "
-                      << steps.load() << " multiplications, factor "
+            std::cout << "  balanced " << mpz_sizeinbase(n.get_mpz_t(), 2)
+                      << "-bit: " << steps.load() << " multiplications, "
+                      << ms << " ms, factor "
                       << (f.ready() ? f.factor.get_str() : std::string("none"))
-                      << "  " << (ok ? "OK" : (worked ? "FAIL(no factor)"
-                                                      : "FAIL(zero work)")) << "\n";
+                      << "  " << (ok ? "OK" : "FAIL") << "\n";
         }
     }
 

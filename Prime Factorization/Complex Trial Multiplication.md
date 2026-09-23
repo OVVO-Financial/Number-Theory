@@ -25,19 +25,107 @@ branches of the ascending walk raise `q = R + i` by 10, and both branches of the
 descending walk lower it by 10. So `q` is monotone in each: **up in one, down in
 the other.** That is the ascend and the descend.
 
-**The start is the first red point of the 135-degree traversal**,
+**The start is a point on the red/blue boundary, entered from the real axis.**
+
+Fix a real value `R` and climb vertically -- `R` held, `i` rising. The product
 
 ```
-(R, i) = (r + j_max + 1,  m - j_max - 1)
+p*q = (R - i)(R + i) = R^2 - i^2
 ```
 
-which for `n = 8051` is `112 + 65i` -- `p = 47`, `q = 177`, `p*q = 8319 > n`, the
-first point past the crossing. Because `R + i = r + m = S` all along the
-traversal, both walks begin at `q = S`.
+falls monotonically, so for `R >= sqrt(n)` the climb begins red (`i = 0` gives
+`R^2 >= n`) and ends blue. The crossing is the seed:
 
-The Fermat bracket and trial division start at the **other end of the same
-line**, `(r, m) = 90 + 87i` for `n = 8051`, and walk toward the crossing. The two
-methods are indexed to one line from opposite ends.
+```
+i = floor(sqrt(R^2 - n))          the last red point at this R
+```
+
+For `n = 309` at `R = 21`: `(21-x)(21+x) = 309` gives `x^2 = 132`, `x = 11.489`,
+so `441 - 11^2 = 320` is red and `441 - 12^2 = 297` is blue. The seed is
+**`21 + 11i`**. Note what this costs: `R` and `i` *are* the coordinates, so a
+seed is one integer square root and **no division**.
+
+### Which real values
+
+```
+R in [ ceil(sqrt n), floor(sqrt 2n) ]          1 .. 1.41421 sqrt(n)
+```
+
+The interval is forced, not chosen. With `R = (p+q)/2` and `i = (q-p)/2` on the
+hyperbola, `q = R + sqrt(R^2 - n)`, so:
+
+| `R / sqrt(n)` | `i / sqrt(n)` | `p / sqrt(n)` | `q / sqrt(n)` |
+|---|---|---|---|
+| 1.00000 | 0.00000 | 1.00000 | 1.00000 |
+| 1.06066 | 0.35355 | 0.70711 | 1.41421 |
+| 1.41421 | 0.99999 | 0.41421 | 2.41421 |
+
+That is the whole balanced arc -- both factors, nothing outside it -- and
+`sqrt(2n)` is its top **exactly**, with no floating-point constant anywhere.
+
+The real axis and the `q` axis are different axes, and it matters: the RSA
+window is stated on `q` as `[1, 1.41421] sqrt(n)`, and the real values carrying
+it are `[1, 1.06066] sqrt(n)`.
+
+For `n = 309` the interval is `[18, 24]` -- seven integer real values, seven
+seeds:
+
+| R | `R^2 - n` | `i` | `p` | `q` | `p*q` | next `i` |
+|---|---|---|---|---|---|---|
+| 18 | 15 | 3 | 15 | 21 | 315 red | 308 blue |
+| 19 | 52 | 7 | 12 | 26 | 312 red | 297 blue |
+| 20 | 91 | 9 | 11 | 29 | 319 red | 300 blue |
+| 21 | 132 | 11 | 10 | 32 | 320 red | 297 blue |
+| 22 | 175 | 13 | 9 | 35 | 315 red | 288 blue |
+| 23 | 220 | 14 | 9 | 37 | 333 red | 304 blue |
+| 24 | 267 | 16 | 8 | 40 | 320 red | 287 blue |
+
+### Spacing the seeds
+
+Spreading seeds along that interval is the parallel axis, and each seed runs
+**both** walks. But they cannot be spaced evenly in `R`, because the walk out of
+a seed is paid in `q` and
+
+```
+dq/dR = 1 + R / i          with i = sqrt(R^2 - n)
+```
+
+diverges at the balanced corner, where `i -> 0`. At 90 bits, moving the real
+part by **one** integer at the bottom of the interval jumps `q` by `5.2e6` --
+518,000 walk steps out of that single seed -- while a seed at the top moves `q`
+by 2.41 and does nothing. Evenly spaced in `R`, the first seed carries the whole
+arc and the rest idle. On a GPU that is the entire launch waiting on lane 0.
+
+So: take every integer real value while they are few (`309` -> 7 seeds, `8051`
+-> 37), and past that space them for equal work, which means equal in `q`. Those
+are real values on the same interval with the same crossing beneath them --
+`R = (q + n/q)/2`, `i = (q - n/q)/2` is that crossing written from the other
+side -- sampled densely where the arc turns and sparsely where it runs straight.
+
+### What this replaced
+
+CTM used to seed every walk at the first red point of the 135-degree traversal,
+`(r + j_max + 1, m - j_max - 1)` -- `112 + 65i` for `n = 8051` -- where the
+strip meets the hyperbola at `q = S ~ 2 sqrt(n)`. Measured, `--only=ctm`,
+multiplications to the factor:
+
+| n | bits | from `q = S` | from the real interval | |
+|---|---|---|---|---|
+| 422491 | 19 | 26,923 | 1 | 13,462x |
+| 247401437 | 28 | 37,489 | 4,453 | 8.4x |
+| 23550892333 | 35 | 112,619 | 8,195 | 13.7x |
+| 14866993139051 | 44 | 3,114,811 | 16,388 | 190x |
+| 1183910463999919 | 51 | 27,560,289 | 8,195 | 3,363x |
+| 634309085142375407 | 60 | 637,225,959 | 24,582 | 25,921x |
+| 120686502968132437433 | 67 | 8,789,279,687 | 1 | 4.4e9x |
+
+Both seedings find the factor in all seven; the gap is distance to it, and it
+widens with `n` because a balanced factor sits at the bottom of the interval
+while `q = S` starts a fixed fraction of `sqrt(n)` away.
+
+The Fermat bracket and trial division still work the 135-degree traversal, from
+`(r, m) = 90 + 87i` toward its crossing. CTM no longer shares that line with
+them -- it has its own geometry, and they do not collide.
 
 ### Sieving both directions
 
@@ -49,37 +137,66 @@ two-directional search unchanged.
 
 For `n = 8051`: `n mod 4 = 3` (4k-1), last digit 1, so the paired tables give
 `(R, i)` classes `(0,3) (0,7) (4,5) (6,5)`. The factor `83 * 97` is `R = 90`,
-`i = 7` -- class `(0,7)`. Syncing `112 + 65i` into it gives `(120, 67)`, and
-descending:
+`i = 7` -- class `(0,7)`.
+
+The first seed is `R = ceil(sqrt 8051) = 90`, and `90^2 - 8051 = 49`, so
+`i = 7` exactly:
 
 ```
-120+67i  p=53 q=187   9911 > n  -> R -= 10
-110+67i  p=43 q=177   7611 < n  -> i -= 10
-110+57i  p=53 q=167   8851 > n  -> R -= 10
-...
- 90+ 7i  p=83 q= 97   8051 = n     found, 9 steps
+ 90+ 7i  p=83 q= 97   8051 = n     found on the seed itself
 ```
 
-The ascending walk from the same point cannot reach it -- `q` only rises from
-177, and the factor is at `q = 97`. That is exactly why both are needed.
+`(0,7)` is admissible, so the pair needs no rounding at all. The engine tries
+`(0,3)` first and spends 4 multiplications in total, against 9 descending from
+`112 + 65i`.
+
+Both directions are still needed. A seed is only the entry point: its ascending
+walk covers `q` above it and its descending walk covers `q` below, and since
+every move changes `q` by exactly `+-10` the two partition cleanly -- seed `c`
+ascends as far as seed `c+1`'s `q` and descends as far as seed `c-1`'s, with a
+pad at each handover to absorb the class rounding.
 
 ### Measured
 
-`--only=ctm --b1=1`, multiplications to the factor:
+`--only=ctm --b1=1 --threads=1`, multiplications to the factor, seeding from
+`q = S` against seeding from the real interval:
 
-| n | p * q | mults |
-| - | ----- | ----- |
-| 143 | 11 * 13 | 9 |
-| 2923 | 37 * 79 | 245 |
-| 8051 | 83 * 97 | 690 |
-| 798607 | 101 * 7907 | 612 |
-| 10963 | 19 * 577 | 863 |
-| 5115191 | 1597 * 3203 | 16,517 |
-| 1007509 | 503 * 2003 | 24,578 |
-| 288419 | 379 * 761 | 24,845 |
-| 17821157 | 3019 * 5903 | 33,023 |
-| 10967535067 | 104723 * 104729 | 96,960 |
-| 978508015703 | 752867 * 1299709 | 575,803 |
+| n | p * q | q/p | from `q = S` | from the interval | |
+| - | ----- | --- | ---- | ---- | --- |
+| 143 | 11 * 13 | 1.2 | 9 | **1** | 9x |
+| 2923 | 37 * 79 | 2.1 | 245 | **5** | 49x |
+| 8051 | 83 * 97 | 1.2 | 690 | **4** | 173x |
+| 288419 | 379 * 761 | 2.0 | 23,530 | **690** | 34x |
+| 5115191 | 1597 * 3203 | 2.0 | 32,902 | **3,415** | 9.6x |
+| 1007509 | 503 * 2003 | 4.0 | 32,769 | **5,684** | 5.8x |
+| 17821157 | 3019 * 5903 | 2.0 | 33,023 | **6,060** | 5.4x |
+| 10967535067 | 104723 * 104729 | 1.0 | 105,152 | **16,387** | 6.4x |
+| 978508015703 | 752867 * 1299709 | 1.7 | 575,818 | **186,741** | 3.1x |
+| 10963 | 19 * 577 | 30 | **863** | 1,843 | 0.47x |
+| 798607 | 101 * 7907 | 78 | **612** | 9,101 | 0.07x |
+
+The last two rows are the cost of the change, and they are not noise. A seed
+sweep that starts at the balanced corner and works up reaches `q ~ sqrt(n)`
+first and `q >> sqrt(n)` last; `q = S ~ 2 sqrt(n)` started partway along the
+arc and so was nearer to a lopsided factor. `798607 = 101 * 7907` has `q` at
+4.4x `S`, and the interval now has to be crossed before the tail begins.
+
+That trade is deliberate. Small-`p` factorizations belong to trial division and
+the yellow path, which reach `101` immediately; CTM's comparative advantage is
+the balanced region, where nothing else is cheap, and that is what the interval
+seeding front-loads. On balanced semiprimes the advantage grows with `n`:
+
+| n | bits | from `q = S` | from the interval | |
+|---|---|---|---|---|
+| 422491 | 19 | 26,923 | 1 | 13,462x |
+| 14866993139051 | 44 | 3,114,811 | 16,388 | 190x |
+| 1183910463999919 | 51 | 27,560,289 | 8,195 | 3,363x |
+| 634309085142375407 | 60 | 637,225,959 | 24,582 | 25,921x |
+| 120686502968132437433 | 67 | 8,789,279,687 | 1 | 4.4e9x |
+
+End to end, with every stream running, the default path is unchanged -- CTM is
+one stream among five and rarely the one that wins on a general `n`. What moved
+is what CTM does when it is the stream that matters.
 
 ### Two things that must not be added
 
@@ -91,6 +208,9 @@ which loses `n = 143`, whose seed passes through `p = 1` one step before
 **Not one walk.** An earlier version of the C++ engine had only the ascending
 walk. From the crossing, ascending can never reach a factor whose `q` is below
 `S` -- 8051's `q = 97` against `S = 177` -- so it could not factor 8051 at all.
+Seeding from the real interval does not retire the descending walk: it is what
+covers `q` below each seed, and without it the arc between consecutive seeds is
+only half swept.
 
 ## Three defects in the routine above
 

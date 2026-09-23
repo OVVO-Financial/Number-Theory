@@ -162,6 +162,9 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <cmath>
+#include <vector>
+#include <utility>
 
 #if defined(USE_CUDA) && !defined(CSF_CUDA_CPU_TEST)
   #include <cuda_runtime.h>
@@ -282,9 +285,13 @@ CSF_HD inline int csf_cmp_mul(std::uint64_t p, std::uint64_t q,
 // down in the other. That is the ascend and the descend, and it is what
 // makes the trip count (|q_limit - q_start|)/10 and the launch uniform.
 //
-// Both walks start at the SAME point, the first red point of the
-// 135-degree traversal, (r + j_max + 1, m - j_max - 1) -- 112 + 65i for
-// N = 8051. `up` selects which of the two this thread runs.
+// Both walks start at the SAME point -- the seed csf_ctm_build_seeds
+// handed this lane, which is a point on the red/blue boundary reached by
+// climbing vertically from a real value in [sqrt N, sqrt 2N]. `up`
+// selects which of the two directions this thread runs. It is NOT the
+// first red point of the 135-degree traversal: that sits at
+// p = N/S ~ 0.5 sqrt(N), one end of the strip, and seeding there put p
+// below the answer with no way back up (8051 = 83*97 was unreachable).
 //
 // There is deliberately no p < 3 early exit: p*q < n when p is tiny, so
 // the rule moves i and raises p by 10 again. Breaking there discards the
@@ -347,6 +354,180 @@ __global__ void csf_ctm_kernel(
     (void)count; (void)nhi; (void)nlo; (void)out_p; (void)out_found;
 #endif
 }
+
+// ---------------------------------------------------------------------
+// Host-side CTM seed builder -- one launch's worth of starting points.
+//
+// A CTM seed is NOT a point on the 135-degree strip. It is a point on the
+// red/blue boundary, entered from the real axis, and the stretch of real
+// axis worth entering from is
+//
+//      R in [ ceil(sqrt N), floor(sqrt 2N) ]      (1 .. 1.41421 sqrt N)
+//
+// Everything about that interval is forced. With R = (p+q)/2 and
+// i = (q-p)/2 on the hyperbola, i = sqrt(R^2 - N) and so
+//
+//      R = 1.00000 sqrt N  ->  p = 1.00000 sqrt N, q = 1.00000 sqrt N
+//      R = 1.06066 sqrt N  ->  p = 0.70711 sqrt N, q = 1.41421 sqrt N
+//      R = 1.41421 sqrt N  ->  p = 0.41421 sqrt N, q = 2.41421 sqrt N
+//
+// -- the whole balanced arc, both factors, nothing outside it, with
+// sqrt(2N) as its top exactly.
+//
+// Standing at a real value R and climbing vertically, R fixed and i
+// rising, the product R^2 - i^2 falls monotonically: red at i = 0 (since
+// R >= sqrt N), blue past the crossing. The crossing
+//
+//      i = floor(sqrt(R^2 - N))           last red point at this R
+//
+// is the seed. N = 309 at R = 21: 441 - 11^2 = 320 is red, 441 - 12^2 =
+// 297 is blue, so the seed is 21 + 11i. R and i ARE the coordinates, so
+// it costs one isqrt and no division.
+//
+// The seeds cannot be spaced evenly in R. The walk out of a seed is paid
+// in q, and
+//
+//      dq/dR = 1 + R / i          with i = sqrt(R^2 - N)
+//
+// diverges at the balanced corner where i -> 0. At 90 bits, moving the
+// real part by ONE integer at the bottom of the interval jumps q by
+// 5.2e6 -- 518,000 walk steps in that single thread -- while a seed at
+// the top moves q by 2.41 and does nothing. Evenly spaced in R, one lane
+// carries the arc and the rest of the warp idles on it. So: take every
+// integer real value while they are few (309 -> 7 seeds, 8051 -> 37),
+// and past that space them for equal work, which means equal in q. Those
+// are real values on the same interval with the same chasm under them --
+// R = (q + N/q)/2, i = (q - N/q)/2 is that same crossing written from
+// the other side -- sampled densely where the arc turns and sparsely
+// where it runs straight. Equal work per lane is what makes the launch
+// uniform.
+// ---------------------------------------------------------------------
+struct CsfCtmSeeds {
+    std::vector<std::int64_t> R, I, qlimit;
+    std::vector<int>          up;
+    std::uint64_t             chunks = 0;    // seeds before the class fan-out
+    bool                      dense  = false;
+};
+
+static std::uint64_t csf_isqrt128(__uint128_t n) {
+    if (n == 0) return 0;
+    std::uint64_t x = (std::uint64_t)std::sqrt((double)(long double)n);
+    if (x == 0) x = 1;
+    for (int k = 0; k < 8; ++k) {            // Newton, then exact fixup
+        const std::uint64_t y = (std::uint64_t)((x + (std::uint64_t)(n / x)) / 2);
+        if (y == x) break;
+        x = y;
+    }
+    while (x > 0 && (__uint128_t)x * x > n) --x;
+    while ((__uint128_t)(x + 1) * (x + 1) <= n) ++x;
+    return x;
+}
+
+// Emits (R, I, qlimit, up) for every (seed, admissible class, direction).
+// `max_chunks` bounds one launch; the arc above the interval runs to
+// q = N/3 and is far longer than any single launch, so the caller walks
+// `first_chunk` forward across waves.
+static void csf_ctm_build_seeds(std::uint64_t N,
+                                const std::vector<std::pair<int,int>>& cls,
+                                CsfCtmSeeds& s,
+                                std::uint64_t first_chunk = 0,
+                                std::uint64_t max_chunks  = 4096,
+                                std::uint64_t chunk_q     = 81920ull)
+{
+    s.R.clear(); s.I.clear(); s.qlimit.clear(); s.up.clear();
+    s.chunks = 0; s.dense = false;
+    if (N < 16 || cls.empty()) return;
+
+    std::uint64_t r = csf_isqrt128(N);
+    if ((__uint128_t)r * r < (__uint128_t)N) ++r;            // ceil(sqrt N)
+    if (r < 4) return;
+
+    const std::uint64_t q_bot = r;
+    const std::uint64_t q_top = N / 3;
+    const std::uint64_t R_lo  = r;
+    std::uint64_t R_hi = csf_isqrt128((__uint128_t)N * 2);   // 1.41421 sqrt N
+    if (R_hi < R_lo) R_hi = R_lo;
+
+    const std::uint64_t qA_hi =
+        R_hi + csf_isqrt128((__uint128_t)R_hi * R_hi - N);
+
+    const std::uint64_t nR = R_hi - R_lo + 1;
+    const std::uint64_t nq = (qA_hi > q_bot) ? (qA_hi - q_bot) / chunk_q + 1 : 1;
+    const std::uint64_t DENSE_CAP = 4096;
+    const bool  dense = nR <= (nq > DENSE_CAP ? nq : DENSE_CAP);
+    std::uint64_t nA  = dense ? nR : nq;
+    if (nA < 1) nA = 1;
+    s.dense = dense;
+
+    const std::uint64_t nB = (q_top > qA_hi) ? (q_top - qA_hi) / chunk_q + 1 : 0;
+    const std::uint64_t nC = nA + nB;
+
+    // The seed at index c, both ways round. c = 0 is the balanced corner.
+    auto seed_at = [&](std::uint64_t c, std::int64_t& Rc, std::int64_t& Ic) {
+        if (dense) {
+            std::uint64_t Rv = (c >= nA) ? R_hi : R_lo + c;
+            if (Rv > R_hi) Rv = R_hi;
+            Rc = (std::int64_t)Rv;
+            Ic = (std::int64_t)csf_isqrt128((__uint128_t)Rv * Rv - N);
+        } else {
+            std::uint64_t qv = (c >= nA) ? qA_hi : q_bot + c * chunk_q;
+            if (qv > qA_hi) qv = qA_hi;
+            const std::uint64_t pv = N / qv;
+            Rc = (std::int64_t)((qv + pv) / 2);
+            Ic = (std::int64_t)((qv - pv) / 2);
+        }
+    };
+    auto seed_q = [&](std::uint64_t c) -> std::uint64_t {
+        std::int64_t Rc, Ic; seed_at(c, Rc, Ic);
+        return (std::uint64_t)(Rc + Ic);
+    };
+
+    const std::uint64_t PAD = 20;            // absorbs the class rounding
+    const std::uint64_t last =
+        (first_chunk + max_chunks < nC) ? first_chunk + max_chunks : nC;
+
+    for (std::uint64_t c = first_chunk; c < last; ++c) {
+        std::int64_t Rs, Is;
+        std::uint64_t qa, q_up, q_dn;
+        if (c < nA) {
+            seed_at(c, Rs, Is);
+            qa   = (std::uint64_t)(Rs + Is);
+            q_up = (c + 1 < nA) ? seed_q(c + 1) + PAD : qA_hi + PAD;
+            q_dn = (c > 0) ? (seed_q(c - 1) > PAD ? seed_q(c - 1) - PAD : q_bot)
+                           : q_bot;
+        } else {
+            const std::uint64_t k  = c - nA;
+            qa = qA_hi + k * chunk_q;
+            if (qa == 0 || qa > q_top) continue;
+            const std::uint64_t pv = N / qa;
+            Rs = (std::int64_t)((qa + pv) / 2);
+            Is = (std::int64_t)((qa - pv) / 2);
+            q_up = qa + chunk_q + PAD;
+            q_dn = (qa > chunk_q + PAD) ? qa - chunk_q - PAD : q_bot;
+        }
+        if (q_up > q_top) q_up = q_top;
+        if (q_dn < q_bot) q_dn = q_bot;
+
+        for (const auto& cl : cls) {
+            // Sync into the class. Both +-10 moves preserve it, so the
+            // class holds for the whole walk -- that is how the sieve
+            // applies to a two-directional search. The rounding lifts q
+            // by at most 18, which is what PAD covers.
+            const std::int64_t Rc = Rs + ((cl.first  - (int)(Rs % 10) + 10) % 10);
+            const std::int64_t Ic = Is + ((cl.second - (int)(Is % 10) + 10) % 10);
+            if (qa < q_top) {
+                s.R.push_back(Rc); s.I.push_back(Ic);
+                s.qlimit.push_back((std::int64_t)q_up); s.up.push_back(1);
+            }
+            if (qa > q_bot) {
+                s.R.push_back(Rc); s.I.push_back(Ic);
+                s.qlimit.push_back((std::int64_t)q_dn); s.up.push_back(0);
+            }
+        }
+        ++s.chunks;
+    }
+}
+
 
 // =====================================================================
 //  STAGE 3 -- the yellow path (135-degree bracket traversal)
@@ -582,8 +763,8 @@ static int test_sieve() {
 // --- stage 2: CTM walk must recover known factorizations -------------
 //
 // Mirrors the host side of a launch: build the paired (R mod 10, i mod 10)
-// Fermat classes for this N's classification, seed both walks at the first
-// red point of the 135-degree traversal, and run the device walk.
+// Fermat classes for this N's classification. csf_ctm_build_seeds below
+// spreads seeds along the real interval and syncs each into these.
 //
 // Both the increases and the decreases are +-10 on R or on i, so a stream
 // synced into a class at the start stays in it for the whole walk -- that
@@ -615,36 +796,33 @@ static int test_ctm() {
     int bad = 0;
     for (const Case& c : cases) {
         const std::uint64_t N = c.N;
-        std::uint64_t r = (std::uint64_t)std::sqrt((double)N);
-        while (r * r < N) ++r;
-        while (r > 1 && (r - 1) * (r - 1) >= N) --r;
-        if (r < 4) continue;
-        const std::uint64_t m = r - 3, S = r + m;
-        const std::uint64_t jm = (N / S - 3) / 2;
-
-        // the first RED point -- both walks start here, at q = S
-        const std::int64_t R0 = (std::int64_t)(r + jm + 1);
-        const std::int64_t I0 = (std::int64_t)(m - jm - 1);
 
         std::vector<std::pair<int,int>> cls;
         csf_ctm_classes(N, cls);
 
-        std::uint64_t got = 0;
-        for (int up = 0; up < 2 && !got; ++up) {
-            const std::int64_t lim = up ? (std::int64_t)(N / 3)
-                                        : (std::int64_t)r;
-            for (const auto& cl : cls) {
-                std::int64_t R = R0 + ((cl.first  - (int)(R0 % 10) + 10) % 10);
-                std::int64_t I = I0 + ((cl.second - (int)(I0 % 10) + 10) % 10);
+        // Walk the launch waves the way the GPU driver would: build a
+        // bounded batch of seeds, run every lane, advance. Each case here
+        // is small enough to finish in the first wave or two.
+        CsfCtmSeeds seeds;
+        std::uint64_t got = 0, first = 0, lanes = 0, waves = 0;
+        for (; waves < 64 && !got; ++waves) {
+            csf_ctm_build_seeds(N, cls, seeds, first, 256);
+            if (seeds.chunks == 0) break;
+            first += seeds.chunks;
+            lanes += seeds.R.size();
+            for (std::size_t t = 0; t < seeds.R.size(); ++t) {
                 std::uint64_t hit = 0;
-                if (csf_ctm_walk(R, I, lim, up, 0, N, &hit)) { got = hit; break; }
+                if (csf_ctm_walk(seeds.R[t], seeds.I[t], seeds.qlimit[t],
+                                 seeds.up[t], 0, N, &hit)) { got = hit; break; }
             }
         }
 
         const bool ok = (got == c.p || got == c.q);
-        std::printf("[ctm]   N=%-13llu %6llu*%-8llu red=(%lld,%lld) got=%-9llu %s\n",
+        std::printf("[ctm]   N=%-13llu %6llu*%-8llu %-6s lanes=%-7llu waves=%-3llu"
+                    " got=%-9llu %s\n",
                     (unsigned long long)N, (unsigned long long)c.p,
-                    (unsigned long long)c.q, (long long)R0, (long long)I0,
+                    (unsigned long long)c.q, seeds.dense ? "dense" : "spaced",
+                    (unsigned long long)lanes, (unsigned long long)waves,
                     (unsigned long long)got, ok ? "OK" : "FAIL");
         if (!ok) ++bad;
     }
