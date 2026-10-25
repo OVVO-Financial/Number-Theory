@@ -1,7 +1,15 @@
 function CTM(n)
     r = Newton_sqrt(n)
     max_im= div((n-9),6)
-    real = r+1
+
+# FIX 1: start at r, not r+1.
+#
+# The factor of a very balanced semiprime sits at R = ceil(sqrt(n)) exactly
+# (the j = 0 case).  Starting at r+1 syncs that stream to the NEXT admissible
+# R in its digit class, which is already past the answer, so the factor is
+# unreachable for good.  n = 8051 (83*97, R = 90 = ceil(sqrt 8051)) and
+# n = 143 (11*13) both fail this way.
+    real = r
 
 # FERMAT SIEVES
         last_digit = n % 10
@@ -42,6 +50,15 @@ function CTM(n)
           end
     end #FERMAT SIEVE
 
+# FIX 3: no branch above assigns the sieve when n % 10 is 5 (or n is even),
+# so real_sieve / imaginary_sieve are undefined and Julia throws
+# UndefVarError.  5 | n is structurally different -- 9 admissible (R,i)
+# classes per parity lane instead of 4, because exactly one of p, q carries
+# the factor 5 -- see Number Theory Papers/Complete_Fermat_Sieve_Verified.pdf.
+    if !(last_digit in [1,3,7,9])
+      error("CTM: n must be coprime to 10; strip factors of 2 and 5 first")
+    end
+
 # SYNC REAL TO REAL SEQUENCE
     last_digit_real = real % 10
     if any(last_digit_real!=real_sieve)
@@ -69,9 +86,21 @@ ceiling_p = [ceilings,ceilings,ceilings,ceilings]
 floor_q = [3,3,3,3]
 
 
-while (TMIS[1] <= max_im)
-  print([ceiling_p,floor_q])
+# FIX 2: retire streams individually.
+#
+# The loop condition tested only TMIS[1], so once stream 1 ran past max_im
+# every other stream was cut off with it -- even one still short of its
+# target.  n = 314187 (3*104729) needs i = 52363 on stream 4, right at
+# max_im, and was terminated early.  Each stream now retires on its own.
+#
+# The per-iteration print([ceiling_p,floor_q]) is also removed: it was
+# debug output on the hot path.
+live = [true for _ in 1:lTMRS]
+
+while any(live)
   for i in 1:lTMRS
+    if !live[i] ; continue ; end
+    if TMIS[i] > max_im ; live[i] = false ; continue ; end
     p = TMRS[i] - TMIS[i]
     if(p>ceiling_p[i])
       TMIS[i] = TMIS[i] + 10

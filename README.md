@@ -47,6 +47,31 @@ The factorisation routines derived from the complex-space analysis are documente
 
 Each note explains the intuition, provides worked examples, and links to the corresponding Julia implementation.
 
+### Unified engine
+
+[**Unified Complex Space Factorization**](Prime%20Factorization/Unified%20Complex%20Space%20Factorization.md)
+combines every method above with the corrected Fermat terminal-digit sieve into one
+deterministic `O(N^(1/3))` routine, [`julia/complex_space_factorization.cpp`](julia/complex_space_factorization.cpp):
+
+```sh
+g++ -std=c++17 -O3 -march=native julia/complex_space_factorization.cpp \
+    -lgmpxx -lgmp -pthread -o csf
+
+./csf 3168987219233877513774136225800517
+./csf --selftest      # verifies the sieve tables and the factorization suite
+```
+
+Two results from that work:
+
+* The corrected terminal-digit sieve of
+  [`Complete_Fermat_Sieve_Verified.pdf`](Number%20Theory%20Papers/Complete_Fermat_Sieve_Verified.pdf)
+  **is exactly the quadratic-residue sieve at modulus 20** — `a^2 - N` must be a square
+  mod 20. `--selftest` verifies the two admissible sets agree for all ten odd residues
+  mod 20.
+* Read that way the modulus is a free parameter, so the sieve generalises to a CRT
+  wheel: **~420,000x** reduction in candidates instead of the **5x** that modulus 20
+  gives, and up to **396x** end-to-end speedup on deep searches.
+
 ## Working with the code
 
 * **Julia prototypes:** The `julia/` directory mirrors the documentation above.  For example, `julia/Simultaneous_Complex_Factorization.jl` implements the algorithm described in the accompanying markdown file.

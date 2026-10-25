@@ -505,8 +505,26 @@ static std::vector<std::pair<int, int>> fermat_digit_pairs(const BigInt& N) {
         throw std::runtime_error("N must be odd for this Fermat lattice routine");
     }
 
-    auto valid_odd_factor_digit = [](int d) {
+    // Correction (see Number Theory Papers/Complete_Fermat_Sieve_Verified.pdf).
+    //
+    // When 5 does not divide N, neither p nor q may end in 5 or 0, so both
+    // must end in 1, 3, 7 or 9.  When 5 DOES divide N exactly one of them
+    // carries the factor 5, and that restriction has to be lifted -- the
+    // published 8-class table excludes N = 5 (mod 10) precisely because it
+    // is structurally different (9 admissible classes per parity lane, 18
+    // in total, rather than 4 and 8).
+    //
+    // Without this branch the routine returns an EMPTY pair set for
+    // N = 5 (mod 10), which silently yields an empty b-digit sieve rather
+    // than an error.  Callers here strip the factor 5 before reaching this
+    // point, so the old behaviour was unreachable, but the function is now
+    // total in its own right.
+    const bool five_divides_N = (n10 == 5);
+
+    auto valid_odd_factor_digit = [five_divides_N](int d) {
         d = ((d % 10) + 10) % 10;
+        if (d % 2 == 0) return false;
+        if (five_divides_N) return true;
         return d == 1 || d == 3 || d == 7 || d == 9;
     };
 
