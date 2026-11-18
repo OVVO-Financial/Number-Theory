@@ -1,0 +1,280 @@
+{
+  "composite_successes": {
+    "fused": 75,
+    "fused_no_vf": 75,
+    "fused_no_feedback": 75,
+    "fused_unshared": 75,
+    "adaptive_product": 66,
+    "fermat160": 66,
+    "vf_fast": 68,
+    "product_trial": 68,
+    "native_pollard_brent": 75,
+    "flint_native": 75
+  },
+  "replay_composite_successes": 75,
+  "phases": {
+    "fermat": 50,
+    "divisor_prefix": 2,
+    "shared_product": 19,
+    "precheck": 4
+  },
+  "polynomial_build_totals": {
+    "fused": 112,
+    "fused_no_vf": 113,
+    "fused_no_feedback": 112,
+    "fused_unshared": 220,
+    "adaptive_product": 298,
+    "fermat160": 0,
+    "vf_fast": 223,
+    "product_trial": 71,
+    "native_pollard_brent": 0,
+    "flint_native": 0
+  },
+  "paired": [
+    {
+      "reference": "fused_no_vf",
+      "family": "all composites",
+      "active_only": false,
+      "pairs": 75,
+      "fused_faster": 33,
+      "median_ratio": 0.9174547750090797,
+      "geometric_ratio": 0.9344338460597524,
+      "fused_extra": 0,
+      "reference_extra": 0
+    },
+    {
+      "reference": "fused_no_feedback",
+      "family": "all composites",
+      "active_only": false,
+      "pairs": 75,
+      "fused_faster": 29,
+      "median_ratio": 0.9287719234217849,
+      "geometric_ratio": 0.9886271251309068,
+      "fused_extra": 0,
+      "reference_extra": 0
+    },
+    {
+      "reference": "fused_unshared",
+      "family": "all composites",
+      "active_only": false,
+      "pairs": 75,
+      "fused_faster": 40,
+      "median_ratio": 1.0194229685727048,
+      "geometric_ratio": 1.038911327355376,
+      "fused_extra": 0,
+      "reference_extra": 0
+    },
+    {
+      "reference": "adaptive_product",
+      "family": "all composites",
+      "active_only": false,
+      "pairs": 66,
+      "fused_faster": 37,
+      "median_ratio": 4.484886387463845,
+      "geometric_ratio": 4.739278400936411,
+      "fused_extra": 9,
+      "reference_extra": 0
+    },
+    {
+      "reference": "fermat160",
+      "family": "all composites",
+      "active_only": false,
+      "pairs": 66,
+      "fused_faster": 26,
+      "median_ratio": 0.8052378720770703,
+      "geometric_ratio": 0.8743038117350264,
+      "fused_extra": 9,
+      "reference_extra": 0
+    },
+    {
+      "reference": "vf_fast",
+      "family": "all composites",
+      "active_only": false,
+      "pairs": 68,
+      "fused_faster": 47,
+      "median_ratio": 2.9852667073665913,
+      "geometric_ratio": 5.959895965086038,
+      "fused_extra": 7,
+      "reference_extra": 0
+    },
+    {
+      "reference": "product_trial",
+      "family": "all composites",
+      "active_only": false,
+      "pairs": 68,
+      "fused_faster": 62,
+      "median_ratio": 5.9942030457822,
+      "geometric_ratio": 9.122597972689979,
+      "fused_extra": 7,
+      "reference_extra": 0
+    },
+    {
+      "reference": "native_pollard_brent",
+      "family": "all composites",
+      "active_only": false,
+      "pairs": 75,
+      "fused_faster": 9,
+      "median_ratio": 0.17808543833094864,
+      "geometric_ratio": 0.14577314791249682,
+      "fused_extra": 0,
+      "reference_extra": 0
+    },
+    {
+      "reference": "flint_native",
+      "family": "all composites",
+      "active_only": false,
+      "pairs": 75,
+      "fused_faster": 7,
+      "median_ratio": 0.1140066648945069,
+      "geometric_ratio": 0.10318118416063318,
+      "fused_extra": 0,
+      "reference_extra": 0
+    },
+    {
+      "reference": "fused_no_vf",
+      "family": "all composites",
+      "active_only": true,
+      "pairs": 40,
+      "fused_faster": 15,
+      "median_ratio": 0.899491300661319,
+      "geometric_ratio": 0.8923281220431147,
+      "fused_extra": 0,
+      "reference_extra": 0
+    },
+    {
+      "reference": "fused_no_feedback",
+      "family": "all composites",
+      "active_only": true,
+      "pairs": 40,
+      "fused_faster": 18,
+      "median_ratio": 0.9800963797350206,
+      "geometric_ratio": 1.0444245738914901,
+      "fused_extra": 0,
+      "reference_extra": 0
+    },
+    {
+      "reference": "fused_unshared",
+      "family": "all composites",
+      "active_only": true,
+      "pairs": 40,
+      "fused_faster": 27,
+      "median_ratio": 1.1136823718550106,
+      "geometric_ratio": 1.1323392349187509,
+      "fused_extra": 0,
+      "reference_extra": 0
+    },
+    {
+      "reference": "fermat160",
+      "family": "balanced",
+      "active_only": false,
+      "pairs": 24,
+      "fused_faster": 2,
+      "median_ratio": 0.5739407471901614,
+      "geometric_ratio": 0.4639279884624444,
+      "fused_extra": 0,
+      "reference_extra": 0
+    },
+    {
+      "reference": "product_trial",
+      "family": "balanced",
+      "active_only": false,
+      "pairs": 20,
+      "fused_faster": 20,
+      "median_ratio": 8.912373272766509,
+      "geometric_ratio": 9.348376062793447,
+      "fused_extra": 4,
+      "reference_extra": 0
+    },
+    {
+      "reference": "vf_fast",
+      "family": "balanced",
+      "active_only": false,
+      "pairs": 20,
+      "fused_faster": 20,
+      "median_ratio": 14.397105568244708,
+      "geometric_ratio": 15.028725238075841,
+      "fused_extra": 4,
+      "reference_extra": 0
+    },
+    {
+      "reference": "fermat160",
+      "family": "close",
+      "active_only": false,
+      "pairs": 18,
+      "fused_faster": 11,
+      "median_ratio": 1.0298063210235076,
+      "geometric_ratio": 1.0466540978697874,
+      "fused_extra": 0,
+      "reference_extra": 0
+    },
+    {
+      "reference": "product_trial",
+      "family": "close",
+      "active_only": false,
+      "pairs": 15,
+      "fused_faster": 15,
+      "median_ratio": 100.10694153868643,
+      "geometric_ratio": 99.87099676810074,
+      "fused_extra": 3,
+      "reference_extra": 0
+    },
+    {
+      "reference": "vf_fast",
+      "family": "close",
+      "active_only": false,
+      "pairs": 15,
+      "fused_faster": 14,
+      "median_ratio": 184.007679836009,
+      "geometric_ratio": 150.28821708561642,
+      "fused_extra": 3,
+      "reference_extra": 0
+    },
+    {
+      "reference": "fermat160",
+      "family": "unbalanced",
+      "active_only": false,
+      "pairs": 9,
+      "fused_faster": 5,
+      "median_ratio": 1.4451903071707684,
+      "geometric_ratio": 1.977947926235115,
+      "fused_extra": 9,
+      "reference_extra": 0
+    },
+    {
+      "reference": "product_trial",
+      "family": "unbalanced",
+      "active_only": false,
+      "pairs": 18,
+      "fused_faster": 14,
+      "median_ratio": 2.8232171599416613,
+      "geometric_ratio": 4.758260455627515,
+      "fused_extra": 0,
+      "reference_extra": 0
+    },
+    {
+      "reference": "vf_fast",
+      "family": "unbalanced",
+      "active_only": false,
+      "pairs": 18,
+      "fused_faster": 7,
+      "median_ratio": 0.5092267063232631,
+      "geometric_ratio": 0.5771587543837753,
+      "fused_extra": 0,
+      "reference_extra": 0
+    }
+  ],
+  "mixed_repeat_cases": [
+    {
+      "case_id": "close-56-0",
+      "algorithm": "adaptive_product",
+      "statuses": [
+        "budget",
+        "factor"
+      ]
+    }
+  ],
+  "fresh_rows": 830,
+  "fresh_raw_calls": 2428,
+  "mixed_batch_inputs": 40,
+  "max_fused_wall_seconds": 0.6744487260000369
+}

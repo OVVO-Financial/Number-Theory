@@ -1,0 +1,114 @@
+{
+  "experiment": "N-only deterministic 80 evenly spaced windows across Y in [0,3N/4], each width100000; no factor information used",
+  "note": "Process-startup included; counts are enclosure candidates, not genuine factors or full-domain complexity",
+  "results": [
+    {
+      "case": "40b",
+      "N_bits": 40,
+      "Y_windows": 80,
+      "Y_window_width": 100000,
+      "wheel_modulus": 420,
+      "newton_steps": 0,
+      "empty_tiles": 8,
+      "candidate_envelope_points": 264,
+      "median_process_ms_per_tile": 1.558,
+      "max_count_per_tile": 10
+    },
+    {
+      "case": "40b",
+      "N_bits": 40,
+      "Y_windows": 80,
+      "Y_window_width": 100000,
+      "wheel_modulus": 420,
+      "newton_steps": 1,
+      "empty_tiles": 79,
+      "candidate_envelope_points": 1,
+      "median_process_ms_per_tile": 1.616,
+      "max_count_per_tile": 1
+    },
+    {
+      "case": "40b",
+      "N_bits": 40,
+      "Y_windows": 80,
+      "Y_window_width": 100000,
+      "wheel_modulus": 420,
+      "newton_steps": 2,
+      "empty_tiles": 79,
+      "candidate_envelope_points": 1,
+      "median_process_ms_per_tile": 1.627,
+      "max_count_per_tile": 1
+    },
+    {
+      "case": "64b",
+      "N_bits": 63,
+      "Y_windows": 80,
+      "Y_window_width": 100000,
+      "wheel_modulus": 420,
+      "newton_steps": 0,
+      "empty_tiles": 10,
+      "candidate_envelope_points": 245,
+      "median_process_ms_per_tile": 1.685,
+      "max_count_per_tile": 9
+    },
+    {
+      "case": "64b",
+      "N_bits": 63,
+      "Y_windows": 80,
+      "Y_window_width": 100000,
+      "wheel_modulus": 420,
+      "newton_steps": 1,
+      "empty_tiles": 80,
+      "candidate_envelope_points": 0,
+      "median_process_ms_per_tile": 1.622,
+      "max_count_per_tile": 0
+    },
+    {
+      "case": "64b",
+      "N_bits": 63,
+      "Y_windows": 80,
+      "Y_window_width": 100000,
+      "wheel_modulus": 420,
+      "newton_steps": 2,
+      "empty_tiles": 80,
+      "candidate_envelope_points": 0,
+      "median_process_ms_per_tile": 1.653,
+      "max_count_per_tile": 0
+    },
+    {
+      "case": "128b",
+      "N_bits": 128,
+      "Y_windows": 80,
+      "Y_window_width": 100000,
+      "wheel_modulus": 420,
+      "newton_steps": 0,
+      "empty_tiles": 9,
+      "candidate_envelope_points": 360,
+      "median_process_ms_per_tile": 1.681,
+      "max_count_per_tile": 96
+    },
+    {
+      "case": "128b",
+      "N_bits": 128,
+      "Y_windows": 80,
+      "Y_window_width": 100000,
+      "wheel_modulus": 420,
+      "newton_steps": 1,
+      "empty_tiles": 80,
+      "candidate_envelope_points": 0,
+      "median_process_ms_per_tile": 1.63,
+      "max_count_per_tile": 0
+    },
+    {
+      "case": "128b",
+      "N_bits": 128,
+      "Y_windows": 80,
+      "Y_window_width": 100000,
+      "wheel_modulus": 420,
+      "newton_steps": 2,
+      "empty_tiles": 80,
+      "candidate_envelope_points": 0,
+      "median_process_ms_per_tile": 1.62,
+      "max_count_per_tile": 0
+    }
+  ]
+}

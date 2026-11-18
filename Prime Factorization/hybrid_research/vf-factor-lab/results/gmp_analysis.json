@@ -1,0 +1,68 @@
+[
+  {
+    "dataset": "fresh",
+    "inputs": 83,
+    "summary_rows": 249,
+    "timed_calls": 738,
+    "outcomes": {
+      "gmp_cpp": {
+        "composites_completed": 75,
+        "composites": 75,
+        "primes_completed": 8,
+        "primes": 8,
+        "mixed_repeat_cases": 0
+      },
+      "python_fused": {
+        "composites_completed": 75,
+        "composites": 75,
+        "primes_completed": 8,
+        "primes": 8,
+        "mixed_repeat_cases": 0
+      },
+      "gmp_cpp_all_mpz": {
+        "composites_completed": 70,
+        "composites": 75,
+        "primes_completed": 8,
+        "primes": 8,
+        "mixed_repeat_cases": 1
+      }
+    }
+  },
+  {
+    "dataset": "original_replay",
+    "inputs": 83,
+    "summary_rows": 83,
+    "timed_calls": 249,
+    "outcomes": {
+      "gmp_cpp": {
+        "composites_completed": 75,
+        "composites": 75,
+        "primes_completed": 8,
+        "primes": 8,
+        "mixed_repeat_cases": 0
+      }
+    }
+  },
+  {
+    "dataset": "large",
+    "inputs": 25,
+    "summary_rows": 50,
+    "timed_calls": 130,
+    "outcomes": {
+      "gmp_cpp": {
+        "composites_completed": 20,
+        "composites": 25,
+        "primes_completed": 0,
+        "primes": 0,
+        "mixed_repeat_cases": 0
+      },
+      "python_fused": {
+        "composites_completed": 20,
+        "composites": 25,
+        "primes_completed": 0,
+        "primes": 0,
+        "mixed_repeat_cases": 0
+      }
+    }
+  }
+]

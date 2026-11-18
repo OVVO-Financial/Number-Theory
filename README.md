@@ -80,3 +80,9 @@ Two results from that work:
 ## References
 
 Additional background, proofs, and derivations can be found in the [Number Theory Papers](Number%20Theory%20Papers/) collection.  These papers formalise the simultaneous-real mapping, explore the resulting factor properties, and describe supporting sieves.
+
+## Reproducible hybrid factorization research (November 2026)
+
+The [complex-space hybrid research suite](Prime%20Factorization/hybrid_research/README.md) contains the verified C++/GMP and Python implementations, exact mathematical derivations, and raw benchmarking evidence for the squared `2ab` vertical lattice, Newton/Fermat region certificates, naive grouping, iterated-average dyadic progressions, product-tree factor bands, Gaussian norm-one group factoring, and the independent complex norm residual. See its [research status and reproduction steps](Prime%20Factorization/hybrid_research/RESEARCH_STATUS.md).
+
+This is a collection of independently tested algorithms and conditional accelerators, **not** a claimed GNFS breakthrough or a completed competitive RSA factorizer.

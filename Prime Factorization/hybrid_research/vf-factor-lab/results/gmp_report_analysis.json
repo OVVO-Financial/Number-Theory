@@ -1,0 +1,50 @@
+{
+  "paired": {
+    "Fresh composites": {
+      "pairs": 75,
+      "cpp_faster": 60,
+      "median_ratio": 2.6205100225847358,
+      "geometric_ratio": 2.486082735970222
+    },
+    "Fresh balanced": {
+      "pairs": 24,
+      "cpp_faster": 18,
+      "median_ratio": 1.4444185003797112,
+      "geometric_ratio": 1.6886450139176188
+    },
+    "Fresh close factors": {
+      "pairs": 18,
+      "cpp_faster": 17,
+      "median_ratio": 5.6551727530252025,
+      "geometric_ratio": 6.7097101837347095
+    },
+    "Fresh unbalanced": {
+      "pairs": 18,
+      "cpp_faster": 13,
+      "median_ratio": 1.5621817748979505,
+      "geometric_ratio": 1.4344867414994706
+    },
+    "Large completed cases": {
+      "pairs": 20,
+      "cpp_faster": 13,
+      "median_ratio": 1.2952538402681146,
+      "geometric_ratio": 1.6918099232479964
+    },
+    "Large close factors": {
+      "pairs": 10,
+      "cpp_faster": 10,
+      "median_ratio": 4.2798960886046125,
+      "geometric_ratio": 3.8906628742865483
+    },
+    "Large small factors": {
+      "pairs": 10,
+      "cpp_faster": 3,
+      "median_ratio": 0.8526670964312186,
+      "geometric_ratio": 0.7356640523435873
+    }
+  },
+  "cpp_assertions": 704138,
+  "pytest_summary": "5859 passed, 1 warning in 13.87s",
+  "timed_calls": 1117,
+  "conclusion": "Standalone GMP port works. Standard-corpus median paired improvement is 2.621x; large small-factor searches are slower than the FLINT reference on 7/10 inputs. Balanced 80\u2013256-bit cases remain unresolved."
+}

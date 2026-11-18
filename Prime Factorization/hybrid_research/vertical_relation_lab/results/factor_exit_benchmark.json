@@ -1,0 +1,568 @@
+{
+  "K_max": 32768,
+  "B": 1021,
+  "repeats": 3,
+  "criteria": "nontrivial, externally verified factor through direct hit or a valid double-square dependency",
+  "results": [
+    {
+      "case": "28b",
+      "bits": 28,
+      "method": "QS",
+      "factor_found": true,
+      "candidates_evaluated": 468,
+      "valid_relations_before_stop": 64,
+      "dependencies_before_stop": 2,
+      "median_kernel_time_ms": 1.017
+    },
+    {
+      "case": "28b",
+      "bits": 28,
+      "method": "CTM",
+      "factor_found": true,
+      "candidates_evaluated": 468,
+      "valid_relations_before_stop": 107,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 1.437
+    },
+    {
+      "case": "28b",
+      "bits": 28,
+      "method": "CTMWalk",
+      "factor_found": true,
+      "candidates_evaluated": 1682,
+      "valid_relations_before_stop": 237,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 5.997
+    },
+    {
+      "case": "28b",
+      "bits": 28,
+      "method": "Grouping",
+      "factor_found": true,
+      "candidates_evaluated": 3680,
+      "valid_relations_before_stop": 249,
+      "dependencies_before_stop": 5,
+      "median_kernel_time_ms": 7.055
+    },
+    {
+      "case": "28b",
+      "bits": 28,
+      "method": "GroupingBand",
+      "factor_found": false,
+      "candidates_evaluated": 1532,
+      "valid_relations_before_stop": 198,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 3.573
+    },
+    {
+      "case": "28b",
+      "bits": 28,
+      "method": "NearPlus",
+      "factor_found": true,
+      "candidates_evaluated": 4537,
+      "valid_relations_before_stop": 265,
+      "dependencies_before_stop": 1,
+      "median_kernel_time_ms": 12.143
+    },
+    {
+      "case": "28b",
+      "bits": 28,
+      "method": "NearMinus",
+      "factor_found": true,
+      "candidates_evaluated": 4365,
+      "valid_relations_before_stop": 236,
+      "dependencies_before_stop": 2,
+      "median_kernel_time_ms": 12.067
+    },
+    {
+      "case": "32b",
+      "bits": 32,
+      "method": "QS",
+      "factor_found": true,
+      "candidates_evaluated": 1778,
+      "valid_relations_before_stop": 71,
+      "dependencies_before_stop": 3,
+      "median_kernel_time_ms": 3.633
+    },
+    {
+      "case": "32b",
+      "bits": 32,
+      "method": "CTM",
+      "factor_found": true,
+      "candidates_evaluated": 2900,
+      "valid_relations_before_stop": 224,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 7.959
+    },
+    {
+      "case": "32b",
+      "bits": 32,
+      "method": "CTMWalk",
+      "factor_found": true,
+      "candidates_evaluated": 3724,
+      "valid_relations_before_stop": 270,
+      "dependencies_before_stop": 2,
+      "median_kernel_time_ms": 11.324
+    },
+    {
+      "case": "32b",
+      "bits": 32,
+      "method": "Grouping",
+      "factor_found": true,
+      "candidates_evaluated": 9756,
+      "valid_relations_before_stop": 284,
+      "dependencies_before_stop": 2,
+      "median_kernel_time_ms": 16.265
+    },
+    {
+      "case": "32b",
+      "bits": 32,
+      "method": "GroupingBand",
+      "factor_found": true,
+      "candidates_evaluated": 5626,
+      "valid_relations_before_stop": 301,
+      "dependencies_before_stop": 4,
+      "median_kernel_time_ms": 12.207
+    },
+    {
+      "case": "32b",
+      "bits": 32,
+      "method": "NearPlus",
+      "factor_found": true,
+      "candidates_evaluated": 14780,
+      "valid_relations_before_stop": 269,
+      "dependencies_before_stop": 3,
+      "median_kernel_time_ms": 40.703
+    },
+    {
+      "case": "32b",
+      "bits": 32,
+      "method": "NearMinus",
+      "factor_found": true,
+      "candidates_evaluated": 14098,
+      "valid_relations_before_stop": 277,
+      "dependencies_before_stop": 1,
+      "median_kernel_time_ms": 39.113
+    },
+    {
+      "case": "36b",
+      "bits": 36,
+      "method": "QS",
+      "factor_found": true,
+      "candidates_evaluated": 402,
+      "valid_relations_before_stop": 58,
+      "dependencies_before_stop": 2,
+      "median_kernel_time_ms": 0.964
+    },
+    {
+      "case": "36b",
+      "bits": 36,
+      "method": "CTM",
+      "factor_found": true,
+      "candidates_evaluated": 6251,
+      "valid_relations_before_stop": 240,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 16.383
+    },
+    {
+      "case": "36b",
+      "bits": 36,
+      "method": "CTMWalk",
+      "factor_found": true,
+      "candidates_evaluated": 10083,
+      "valid_relations_before_stop": 300,
+      "dependencies_before_stop": 1,
+      "median_kernel_time_ms": 28.087
+    },
+    {
+      "case": "36b",
+      "bits": 36,
+      "method": "Grouping",
+      "factor_found": true,
+      "candidates_evaluated": 27926,
+      "valid_relations_before_stop": 284,
+      "dependencies_before_stop": 2,
+      "median_kernel_time_ms": 46.738
+    },
+    {
+      "case": "36b",
+      "bits": 36,
+      "method": "GroupingBand",
+      "factor_found": true,
+      "candidates_evaluated": 12156,
+      "valid_relations_before_stop": 299,
+      "dependencies_before_stop": 1,
+      "median_kernel_time_ms": 26.429
+    },
+    {
+      "case": "36b",
+      "bits": 36,
+      "method": "NearPlus",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 231,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 82.18
+    },
+    {
+      "case": "36b",
+      "bits": 36,
+      "method": "NearMinus",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 239,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 75.387
+    },
+    {
+      "case": "40b_manuscript",
+      "bits": 40,
+      "method": "QS",
+      "factor_found": true,
+      "candidates_evaluated": 2621,
+      "valid_relations_before_stop": 75,
+      "dependencies_before_stop": 1,
+      "median_kernel_time_ms": 6.159
+    },
+    {
+      "case": "40b_manuscript",
+      "bits": 40,
+      "method": "CTM",
+      "factor_found": true,
+      "candidates_evaluated": 23534,
+      "valid_relations_before_stop": 307,
+      "dependencies_before_stop": 1,
+      "median_kernel_time_ms": 59.9
+    },
+    {
+      "case": "40b_manuscript",
+      "bits": 40,
+      "method": "CTMWalk",
+      "factor_found": true,
+      "candidates_evaluated": 32431,
+      "valid_relations_before_stop": 309,
+      "dependencies_before_stop": 1,
+      "median_kernel_time_ms": 94.316
+    },
+    {
+      "case": "40b_manuscript",
+      "bits": 40,
+      "method": "Grouping",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 128,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 50.556
+    },
+    {
+      "case": "40b_manuscript",
+      "bits": 40,
+      "method": "GroupingBand",
+      "factor_found": true,
+      "candidates_evaluated": 30998,
+      "valid_relations_before_stop": 320,
+      "dependencies_before_stop": 1,
+      "median_kernel_time_ms": 64.188
+    },
+    {
+      "case": "40b_manuscript",
+      "bits": 40,
+      "method": "NearPlus",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 83,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 74.673
+    },
+    {
+      "case": "40b_manuscript",
+      "bits": 40,
+      "method": "NearMinus",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 100,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 74.0
+    },
+    {
+      "case": "44b",
+      "bits": 44,
+      "method": "QS",
+      "factor_found": true,
+      "candidates_evaluated": 5805,
+      "valid_relations_before_stop": 80,
+      "dependencies_before_stop": 4,
+      "median_kernel_time_ms": 11.628
+    },
+    {
+      "case": "44b",
+      "bits": 44,
+      "method": "CTM",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 207,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 76.064
+    },
+    {
+      "case": "44b",
+      "bits": 44,
+      "method": "CTMWalk",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 138,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 77.824
+    },
+    {
+      "case": "44b",
+      "bits": 44,
+      "method": "Grouping",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 51,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 43.731
+    },
+    {
+      "case": "44b",
+      "bits": 44,
+      "method": "GroupingBand",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 214,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 76.528
+    },
+    {
+      "case": "44b",
+      "bits": 44,
+      "method": "NearPlus",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 50,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 76.05
+    },
+    {
+      "case": "44b",
+      "bits": 44,
+      "method": "NearMinus",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 30,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 74.716
+    },
+    {
+      "case": "48b",
+      "bits": 47,
+      "method": "QS",
+      "factor_found": true,
+      "candidates_evaluated": 7111,
+      "valid_relations_before_stop": 79,
+      "dependencies_before_stop": 4,
+      "median_kernel_time_ms": 13.565
+    },
+    {
+      "case": "48b",
+      "bits": 47,
+      "method": "CTM",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 121,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 79.561
+    },
+    {
+      "case": "48b",
+      "bits": 47,
+      "method": "CTMWalk",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 51,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 82.839
+    },
+    {
+      "case": "48b",
+      "bits": 47,
+      "method": "Grouping",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 30,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 45.468
+    },
+    {
+      "case": "48b",
+      "bits": 47,
+      "method": "GroupingBand",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 114,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 73.81
+    },
+    {
+      "case": "48b",
+      "bits": 47,
+      "method": "NearPlus",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 15,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 72.81
+    },
+    {
+      "case": "48b",
+      "bits": 47,
+      "method": "NearMinus",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 19,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 74.626
+    },
+    {
+      "case": "56b",
+      "bits": 55,
+      "method": "QS",
+      "factor_found": true,
+      "candidates_evaluated": 15700,
+      "valid_relations_before_stop": 77,
+      "dependencies_before_stop": 1,
+      "median_kernel_time_ms": 30.394
+    },
+    {
+      "case": "56b",
+      "bits": 55,
+      "method": "CTM",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 25,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 74.231
+    },
+    {
+      "case": "56b",
+      "bits": 55,
+      "method": "CTMWalk",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 4,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 76.51
+    },
+    {
+      "case": "56b",
+      "bits": 55,
+      "method": "Grouping",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 7,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 51.305
+    },
+    {
+      "case": "56b",
+      "bits": 55,
+      "method": "GroupingBand",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 20,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 77.894
+    },
+    {
+      "case": "56b",
+      "bits": 55,
+      "method": "NearPlus",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 1,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 77.69
+    },
+    {
+      "case": "56b",
+      "bits": 55,
+      "method": "NearMinus",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 6,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 79.231
+    },
+    {
+      "case": "64b",
+      "bits": 63,
+      "method": "QS",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 23,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 61.586
+    },
+    {
+      "case": "64b",
+      "bits": 63,
+      "method": "CTM",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 3,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 74.605
+    },
+    {
+      "case": "64b",
+      "bits": 63,
+      "method": "CTMWalk",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 0,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 69.743
+    },
+    {
+      "case": "64b",
+      "bits": 63,
+      "method": "Grouping",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 0,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 41.696
+    },
+    {
+      "case": "64b",
+      "bits": 63,
+      "method": "GroupingBand",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 0,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 69.24
+    },
+    {
+      "case": "64b",
+      "bits": 63,
+      "method": "NearPlus",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 1,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 78.596
+    },
+    {
+      "case": "64b",
+      "bits": 63,
+      "method": "NearMinus",
+      "factor_found": false,
+      "candidates_evaluated": 32768,
+      "valid_relations_before_stop": 0,
+      "dependencies_before_stop": 0,
+      "median_kernel_time_ms": 78.604
+    }
+  ]
+}

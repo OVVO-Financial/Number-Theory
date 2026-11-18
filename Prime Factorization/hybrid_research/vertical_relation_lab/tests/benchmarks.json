@@ -1,0 +1,634 @@
+[
+  {
+    "case": "close_40b",
+    "N": "1000036000099",
+    "method": "corridor",
+    "seconds_median": 0.000217687,
+    "samples": [
+      {
+        "n": "1000036000099",
+        "method": "corridor",
+        "factor": "1000033",
+        "nodes": 22,
+        "empty_regions": 2,
+        "positive_regions": 20,
+        "seconds": 0.000203295,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "1000036000099",
+        "method": "corridor",
+        "factor": "1000033",
+        "nodes": 22,
+        "empty_regions": 2,
+        "positive_regions": 20,
+        "seconds": 0.000218698,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "1000036000099",
+        "method": "corridor",
+        "factor": "1000033",
+        "nodes": 22,
+        "empty_regions": 2,
+        "positive_regions": 20,
+        "seconds": 0.000217687,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "1000036000099",
+        "method": "corridor",
+        "factor": "1000033",
+        "nodes": 22,
+        "empty_regions": 2,
+        "positive_regions": 20,
+        "seconds": 0.000185148,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "1000036000099",
+        "method": "corridor",
+        "factor": "1000033",
+        "nodes": 22,
+        "empty_regions": 2,
+        "positive_regions": 20,
+        "seconds": 0.000271337,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "1000036000099",
+        "method": "corridor",
+        "factor": "1000033",
+        "nodes": 22,
+        "empty_regions": 2,
+        "positive_regions": 20,
+        "seconds": 0.000186861,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "1000036000099",
+        "method": "corridor",
+        "factor": "1000033",
+        "nodes": 22,
+        "empty_regions": 2,
+        "positive_regions": 20,
+        "seconds": 0.000258308,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      }
+    ],
+    "nodes_median": 22
+  },
+  {
+    "case": "close_40b",
+    "N": "1000036000099",
+    "method": "trial",
+    "seconds_median": 2.3896e-05,
+    "samples": [
+      {
+        "n": "1000036000099",
+        "method": "trial",
+        "factor": "1000033",
+        "nodes": 7,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 2.3996e-05,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "1000036000099",
+        "method": "trial",
+        "factor": "1000033",
+        "nodes": 7,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 2.3896e-05,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "1000036000099",
+        "method": "trial",
+        "factor": "1000033",
+        "nodes": 7,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 2.4196e-05,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "1000036000099",
+        "method": "trial",
+        "factor": "1000033",
+        "nodes": 7,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 2.3545e-05,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "1000036000099",
+        "method": "trial",
+        "factor": "1000033",
+        "nodes": 7,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 2.3485e-05,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "1000036000099",
+        "method": "trial",
+        "factor": "1000033",
+        "nodes": 7,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 2.3015e-05,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "1000036000099",
+        "method": "trial",
+        "factor": "1000033",
+        "nodes": 7,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 3.8468e-05,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      }
+    ],
+    "nodes_median": 7
+  },
+  {
+    "case": "balanced_40b",
+    "N": "978508015703",
+    "method": "corridor",
+    "seconds_median": 0.0352575,
+    "samples": [
+      {
+        "n": "978508015703",
+        "method": "corridor",
+        "factor": "1299709",
+        "nodes": 2928,
+        "empty_regions": 1456,
+        "positive_regions": 1472,
+        "seconds": 0.0354373,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "978508015703",
+        "method": "corridor",
+        "factor": "1299709",
+        "nodes": 2928,
+        "empty_regions": 1456,
+        "positive_regions": 1472,
+        "seconds": 0.0330951,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "978508015703",
+        "method": "corridor",
+        "factor": "1299709",
+        "nodes": 2928,
+        "empty_regions": 1456,
+        "positive_regions": 1472,
+        "seconds": 0.0352449,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "978508015703",
+        "method": "corridor",
+        "factor": "1299709",
+        "nodes": 2928,
+        "empty_regions": 1456,
+        "positive_regions": 1472,
+        "seconds": 0.0364488,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "978508015703",
+        "method": "corridor",
+        "factor": "1299709",
+        "nodes": 2928,
+        "empty_regions": 1456,
+        "positive_regions": 1472,
+        "seconds": 0.0438278,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "978508015703",
+        "method": "corridor",
+        "factor": "1299709",
+        "nodes": 2928,
+        "empty_regions": 1456,
+        "positive_regions": 1472,
+        "seconds": 0.0326538,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "978508015703",
+        "method": "corridor",
+        "factor": "1299709",
+        "nodes": 2928,
+        "empty_regions": 1456,
+        "positive_regions": 1472,
+        "seconds": 0.0352575,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      }
+    ],
+    "nodes_median": 2928
+  },
+  {
+    "case": "balanced_40b",
+    "N": "978508015703",
+    "method": "trial",
+    "seconds_median": 0.00392785,
+    "samples": [
+      {
+        "n": "978508015703",
+        "method": "trial",
+        "factor": "1299709",
+        "nodes": 124206,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.00376002,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "978508015703",
+        "method": "trial",
+        "factor": "1299709",
+        "nodes": 124206,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.00391979,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "978508015703",
+        "method": "trial",
+        "factor": "1299709",
+        "nodes": 124206,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.00392785,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "978508015703",
+        "method": "trial",
+        "factor": "1299709",
+        "nodes": 124206,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.0039873,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "978508015703",
+        "method": "trial",
+        "factor": "1299709",
+        "nodes": 124206,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.00420576,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "978508015703",
+        "method": "trial",
+        "factor": "1299709",
+        "nodes": 124206,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.00372201,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "978508015703",
+        "method": "trial",
+        "factor": "1299709",
+        "nodes": 124206,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.00416504,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      }
+    ],
+    "nodes_median": 124206
+  },
+  {
+    "case": "balanced_46b",
+    "N": "54000165000121",
+    "method": "corridor",
+    "seconds_median": 0.0941659,
+    "samples": [
+      {
+        "n": "54000165000121",
+        "method": "corridor",
+        "factor": "9000011",
+        "nodes": 8299,
+        "empty_regions": 4143,
+        "positive_regions": 4156,
+        "seconds": 0.0961456,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "54000165000121",
+        "method": "corridor",
+        "factor": "9000011",
+        "nodes": 8299,
+        "empty_regions": 4143,
+        "positive_regions": 4156,
+        "seconds": 0.106615,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "54000165000121",
+        "method": "corridor",
+        "factor": "9000011",
+        "nodes": 8299,
+        "empty_regions": 4143,
+        "positive_regions": 4156,
+        "seconds": 0.0998957,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "54000165000121",
+        "method": "corridor",
+        "factor": "9000011",
+        "nodes": 8299,
+        "empty_regions": 4143,
+        "positive_regions": 4156,
+        "seconds": 0.0914068,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "54000165000121",
+        "method": "corridor",
+        "factor": "9000011",
+        "nodes": 8299,
+        "empty_regions": 4143,
+        "positive_regions": 4156,
+        "seconds": 0.0882457,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "54000165000121",
+        "method": "corridor",
+        "factor": "9000011",
+        "nodes": 8299,
+        "empty_regions": 4143,
+        "positive_regions": 4156,
+        "seconds": 0.0941659,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "54000165000121",
+        "method": "corridor",
+        "factor": "9000011",
+        "nodes": 8299,
+        "empty_regions": 4143,
+        "positive_regions": 4156,
+        "seconds": 0.0898613,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      }
+    ],
+    "nodes_median": 8299
+  },
+  {
+    "case": "balanced_46b",
+    "N": "54000165000121",
+    "method": "trial",
+    "seconds_median": 0.0198341,
+    "samples": [
+      {
+        "n": "54000165000121",
+        "method": "trial",
+        "factor": "9000011",
+        "nodes": 660613,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.0213093,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "54000165000121",
+        "method": "trial",
+        "factor": "9000011",
+        "nodes": 660613,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.0197176,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "54000165000121",
+        "method": "trial",
+        "factor": "9000011",
+        "nodes": 660613,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.019023,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "54000165000121",
+        "method": "trial",
+        "factor": "9000011",
+        "nodes": 660613,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.0208776,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "54000165000121",
+        "method": "trial",
+        "factor": "9000011",
+        "nodes": 660613,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.019795,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "54000165000121",
+        "method": "trial",
+        "factor": "9000011",
+        "nodes": 660613,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.0201412,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "54000165000121",
+        "method": "trial",
+        "factor": "9000011",
+        "nodes": 660613,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.0198341,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      }
+    ],
+    "nodes_median": 660613
+  },
+  {
+    "case": "balanced_54b",
+    "N": "12000001540000049",
+    "method": "corridor",
+    "seconds_median": 0.250402,
+    "samples": [
+      {
+        "n": "12000001540000049",
+        "method": "corridor",
+        "factor": "120000007",
+        "nodes": 22151,
+        "empty_regions": 11070,
+        "positive_regions": 11081,
+        "seconds": 0.241485,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "12000001540000049",
+        "method": "corridor",
+        "factor": "120000007",
+        "nodes": 22151,
+        "empty_regions": 11070,
+        "positive_regions": 11081,
+        "seconds": 0.237618,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "12000001540000049",
+        "method": "corridor",
+        "factor": "120000007",
+        "nodes": 22151,
+        "empty_regions": 11070,
+        "positive_regions": 11081,
+        "seconds": 0.249291,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "12000001540000049",
+        "method": "corridor",
+        "factor": "120000007",
+        "nodes": 22151,
+        "empty_regions": 11070,
+        "positive_regions": 11081,
+        "seconds": 0.350373,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "12000001540000049",
+        "method": "corridor",
+        "factor": "120000007",
+        "nodes": 22151,
+        "empty_regions": 11070,
+        "positive_regions": 11081,
+        "seconds": 0.250402,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "12000001540000049",
+        "method": "corridor",
+        "factor": "120000007",
+        "nodes": 22151,
+        "empty_regions": 11070,
+        "positive_regions": 11081,
+        "seconds": 0.279658,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "12000001540000049",
+        "method": "corridor",
+        "factor": "120000007",
+        "nodes": 22151,
+        "empty_regions": 11070,
+        "positive_regions": 11081,
+        "seconds": 0.273728,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      }
+    ],
+    "nodes_median": 22151
+  },
+  {
+    "case": "balanced_54b",
+    "N": "12000001540000049",
+    "method": "trial",
+    "seconds_median": 0.120011,
+    "samples": [
+      {
+        "n": "12000001540000049",
+        "method": "trial",
+        "factor": "120000007",
+        "nodes": 4182196,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.121815,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "12000001540000049",
+        "method": "trial",
+        "factor": "120000007",
+        "nodes": 4182196,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.118142,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "12000001540000049",
+        "method": "trial",
+        "factor": "120000007",
+        "nodes": 4182196,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.120011,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "12000001540000049",
+        "method": "trial",
+        "factor": "120000007",
+        "nodes": 4182196,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.125147,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "12000001540000049",
+        "method": "trial",
+        "factor": "120000007",
+        "nodes": 4182196,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.111754,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "12000001540000049",
+        "method": "trial",
+        "factor": "120000007",
+        "nodes": 4182196,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.120381,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      },
+      {
+        "n": "12000001540000049",
+        "method": "trial",
+        "factor": "120000007",
+        "nodes": 4182196,
+        "empty_regions": 0,
+        "positive_regions": 0,
+        "seconds": 0.110026,
+        "scope": "balanced q in [ceil_sqrt(N),floor_sqrt(2N)]"
+      }
+    ],
+    "nodes_median": 4182196
+  }
+]

@@ -1,0 +1,1 @@
+{"checks": 701496, "coverage": "All n residues odd modulo 2^k for k=3..10; 120 actual semiprime corpus items k3..12; solver results k3..9"}

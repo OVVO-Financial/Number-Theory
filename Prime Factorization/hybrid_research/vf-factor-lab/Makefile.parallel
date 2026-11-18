@@ -1,0 +1,38 @@
+CXX ?= g++
+CXXFLAGS ?= -O3 -std=c++17 -Wall -Wextra
+CPPFLAGS ?=
+LDFLAGS ?=
+LDLIBS = -lgmpxx -lgmp
+THREAD_FLAGS = -pthread
+
+COMMON = cpp/gmp_common.hpp cpp/gmp_arithmetic.hpp cpp/fermat_native_bridge.hpp cpp/gmp_products.hpp cpp/gmp_factor.hpp
+REGIONS = cpp/gmp_regions.hpp cpp/region_native.cpp vf_factor/fusion_kernel.cpp
+PARALLEL = cpp/gmp_parallel.hpp cpp/gmp_product_worker.hpp
+
+.PHONY: all selftest clean
+all: build/vf_factor_gmp_parallel
+
+build:
+	mkdir -p build
+
+# region_native.cpp includes the unchanged native kernel and adds the seek ABI.
+# Do not link fusion_kernel.cpp a second time in this executable.
+build/vf_factor_gmp_parallel: cpp/gmp_parallel.cpp $(COMMON) $(REGIONS) $(PARALLEL) | build
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(THREAD_FLAGS) cpp/gmp_parallel.cpp cpp/region_native.cpp $(LDFLAGS) $(LDLIBS) -o $@
+
+build/gmp_regions_selftest: cpp/gmp_regions_selftest.cpp $(COMMON) $(REGIONS) | build
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) cpp/gmp_regions_selftest.cpp cpp/region_native.cpp $(LDFLAGS) $(LDLIBS) -o $@
+
+build/gmp_product_worker_selftest: cpp/gmp_product_worker_selftest.cpp $(COMMON) cpp/gmp_product_worker.hpp | build
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(THREAD_FLAGS) cpp/gmp_product_worker_selftest.cpp $(LDFLAGS) $(LDLIBS) -o $@
+
+build/gmp_parallel_selftest: cpp/gmp_parallel_selftest.cpp $(COMMON) $(REGIONS) $(PARALLEL) | build
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(THREAD_FLAGS) cpp/gmp_parallel_selftest.cpp cpp/region_native.cpp $(LDFLAGS) $(LDLIBS) -o $@
+
+selftest: build/gmp_regions_selftest build/gmp_product_worker_selftest build/gmp_parallel_selftest
+	./build/gmp_regions_selftest
+	./build/gmp_product_worker_selftest
+	./build/gmp_parallel_selftest
+
+clean:
+	rm -f build/vf_factor_gmp_parallel build/gmp_regions_selftest build/gmp_product_worker_selftest build/gmp_parallel_selftest
