@@ -67,7 +67,8 @@ jobs:
         with:
           name: hypercomplex-sota-smoke
           path: 'Number Theory Papers/hypercomplex_encoding/sota_benchmark/.artifacts/'
-          if-no-files-found: warn
+          include-hidden-files: true
+          if-no-files-found: error
 
   compression-sota-full:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_full_sota == true }}
@@ -94,4 +95,5 @@ jobs:
         with:
           name: hypercomplex-sota-full
           path: 'Number Theory Papers/hypercomplex_encoding/sota_benchmark/.artifacts/'
-          if-no-files-found: warn
+          include-hidden-files: true
+          if-no-files-found: error
