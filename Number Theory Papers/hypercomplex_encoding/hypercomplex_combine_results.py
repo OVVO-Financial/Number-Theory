@@ -76,11 +76,12 @@ col.append('The codec applies the algebraically defined exact multi-stage transf
 col.append('| Data | Original bytes | Best direct compressor | Direct size | Best hypercomplex cascade | Result |')
 col.append('|---|---:|---|---:|---:|---|')
 for ds in ('paper_text','python_source','paper_PDF','document_bitmap','random_control','CD_basis_binary_1024','CD_basis_binary_4096'):
+ if ds not in consts: continue
  r=consts[ds]
  label={'paper_text':'Paper extracted text','python_source':'Python source','paper_PDF':'Original paper PDF','document_bitmap':'Document 1-bit bitmap','random_control':'Random bytes','CD_basis_binary_1024':'Synthetic 1,024D basis codewords','CD_basis_binary_4096':'Synthetic 4,096D basis codewords'}[ds]
  sign='smaller' if r['pct_larger_than_baseline']<0 else 'larger'
  col.append(f"| {label} | {md_num(r['input_bytes'])} | {r['best_conventional_name']} | {md_num(r['best_conventional_bytes'])} B | {md_num(r['best_cd_cascade_bytes'])} B | {abs(r['pct_larger_than_baseline']):.1f}% {sign} |")
-col.append('\n**Interpretation:** For the five listed real/random inputs, no sparse spectral blocks were selected by the best codec. The special inputs are algorithmically constructed from this *exact same hypercomplex transformation*: one spectral coefficient per block, so the codec dramatically outperforms the general compressors tested. These are in-sample signal-model demonstrations, not independent natural data or evidence of universal compression.\n')
+col.append('\n**Interpretation:** For available real/random inputs in the historical run, no sparse spectral blocks were selected by the best codec. The special inputs are algorithmically constructed from this *exact same hypercomplex transformation*: one spectral coefficient per block, so the codec dramatically outperforms the general compressors tested. These are in-sample signal-model demonstrations, not independent natural data or evidence of universal compression.\n')
 col.append('## 6. One-million-dimensional binary codeword (independent demonstration)\n')
 col.append(f"- Generated a signed hypercomplex codeword with D={md_num(million['dimension'])}, selected basis index e_{md_num(million['axis'])}, and fixed real coefficient +1.\n- The source file holds D-1 meaningful imaginary bit coefficients, packed into {md_num(million['sizes_bytes']['original'])} bytes (one trailing padding bit).\n- The transformed binary coefficients yield a single nonzero spectral coefficient; the decoder also handles the single padded bit through a fill block.\n- Encoding, inverse recovery, and CRC32 verification passed; SHA-256 is `{million['sha256']}`.\n")
 col.append('| Method | Total bytes |')
