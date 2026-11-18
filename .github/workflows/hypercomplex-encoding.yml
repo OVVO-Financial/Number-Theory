@@ -127,6 +127,7 @@ jobs:
           name: hypercomplex-predictive-smoke
           path: 'Number Theory Papers/hypercomplex_encoding/predictive_lab/.artifacts/'
           if-no-files-found: error
+          include-hidden-files: true
 
   compression-predictive-full:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_full_predictive == true }}
@@ -155,3 +156,4 @@ jobs:
           name: hypercomplex-predictive-full
           path: 'Number Theory Papers/hypercomplex_encoding/predictive_lab/.artifacts/'
           if-no-files-found: error
+          include-hidden-files: true
