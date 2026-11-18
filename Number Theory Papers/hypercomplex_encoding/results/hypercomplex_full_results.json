@@ -1,0 +1,3547 @@
+{
+  "source_paper": "Fred Viole, Real-Pair Representations of Complex Numbers and Quaternions (2026-11-04)",
+  "date": "2026-11-18",
+  "definition": "Actual Cayley-Dickson algebra products; left multiplication by basis imaginary units; sequential (1+e_2^r) multiplications and their exact inverses; Clifford grade-1 alternative.",
+  "unit_test": {
+    "date": "2026-11-18",
+    "source_paper": "Real-Pair Representations of Complex Numbers and Quaternions, November 4 2026",
+    "scope": "Actual Cayley-Dickson imaginary coefficient encoding, multiplication and Clifford alternatives",
+    "seed": 20261118,
+    "Python": "3.13.5",
+    "numpy": "2.3.5",
+    "numba": "0.65.1",
+    "algebra": {
+      "basis_pairs_checked": 21844,
+      "first_associativity_failure": {
+        "4": null,
+        "8": [
+          1,
+          2,
+          4,
+          1,
+          -1,
+          7
+        ],
+        "16": [
+          1,
+          2,
+          4,
+          1,
+          -1,
+          7
+        ]
+      },
+      "sedenion_zero_divisor": {
+        "a": "e1+e10",
+        "b": "e4-e15",
+        "product": "zero"
+      },
+      "norm_trials": [
+        {
+          "dimension": 2,
+          "trials": 100,
+          "norm_multiplicativity_failures": 0,
+          "avg_ratio": 1.0,
+          "first_failure": null
+        },
+        {
+          "dimension": 4,
+          "trials": 100,
+          "norm_multiplicativity_failures": 0,
+          "avg_ratio": 1.0,
+          "first_failure": null
+        },
+        {
+          "dimension": 8,
+          "trials": 100,
+          "norm_multiplicativity_failures": 0,
+          "avg_ratio": 1.0,
+          "first_failure": null
+        },
+        {
+          "dimension": 16,
+          "trials": 100,
+          "norm_multiplicativity_failures": 92,
+          "avg_ratio": 0.965,
+          "first_failure": {
+            "Na": 11,
+            "Nb": 11,
+            "Nab": 97
+          }
+        },
+        {
+          "dimension": 32,
+          "trials": 100,
+          "norm_multiplicativity_failures": 99,
+          "avg_ratio": 0.99003,
+          "first_failure": {
+            "Na": 24,
+            "Nb": 20,
+            "Nab": 396
+          }
+        },
+        {
+          "dimension": 64,
+          "trials": 100,
+          "norm_multiplicativity_failures": 100,
+          "avg_ratio": 1.00812,
+          "first_failure": {
+            "Na": 40,
+            "Nb": 44,
+            "Nab": 1464
+          }
+        },
+        {
+          "dimension": 128,
+          "trials": 40,
+          "norm_multiplicativity_failures": 40,
+          "avg_ratio": 0.98094,
+          "first_failure": {
+            "Na": 81,
+            "Nb": 92,
+            "Nab": 7736
+          }
+        }
+      ]
+    },
+    "dimensions": [
+      {
+        "dimension_D": 2,
+        "imaginary_axes": 1,
+        "message_bits": 1,
+        "raw_packed_bytes": 1,
+        "dense_int8_coefficient_bytes": 2,
+        "dense_float64_coefficient_bytes": 16,
+        "unit_product_signed_int8_bytes": 2,
+        "nonzero_coefficients": 1,
+        "unit_product_nonzero_coefficients": 1,
+        "unit_product_ms_median": 0.0023,
+        "unit_inverse_ms_median": 0.004,
+        "exact_roundtrip": true
+      },
+      {
+        "dimension_D": 4,
+        "imaginary_axes": 3,
+        "message_bits": 3,
+        "raw_packed_bytes": 1,
+        "dense_int8_coefficient_bytes": 4,
+        "dense_float64_coefficient_bytes": 32,
+        "unit_product_signed_int8_bytes": 4,
+        "nonzero_coefficients": 1,
+        "unit_product_nonzero_coefficients": 1,
+        "unit_product_ms_median": 0.0012,
+        "unit_inverse_ms_median": 0.0023,
+        "exact_roundtrip": true
+      },
+      {
+        "dimension_D": 8,
+        "imaginary_axes": 7,
+        "message_bits": 7,
+        "raw_packed_bytes": 1,
+        "dense_int8_coefficient_bytes": 8,
+        "dense_float64_coefficient_bytes": 64,
+        "unit_product_signed_int8_bytes": 8,
+        "nonzero_coefficients": 4,
+        "unit_product_nonzero_coefficients": 4,
+        "unit_product_ms_median": 0.0009,
+        "unit_inverse_ms_median": 0.0019,
+        "exact_roundtrip": true
+      },
+      {
+        "dimension_D": 16,
+        "imaginary_axes": 15,
+        "message_bits": 15,
+        "raw_packed_bytes": 2,
+        "dense_int8_coefficient_bytes": 16,
+        "dense_float64_coefficient_bytes": 128,
+        "unit_product_signed_int8_bytes": 16,
+        "nonzero_coefficients": 7,
+        "unit_product_nonzero_coefficients": 7,
+        "unit_product_ms_median": 0.0009,
+        "unit_inverse_ms_median": 0.0018,
+        "exact_roundtrip": true
+      },
+      {
+        "dimension_D": 32,
+        "imaginary_axes": 31,
+        "message_bits": 31,
+        "raw_packed_bytes": 4,
+        "dense_int8_coefficient_bytes": 32,
+        "dense_float64_coefficient_bytes": 256,
+        "unit_product_signed_int8_bytes": 32,
+        "nonzero_coefficients": 16,
+        "unit_product_nonzero_coefficients": 16,
+        "unit_product_ms_median": 0.001,
+        "unit_inverse_ms_median": 0.002,
+        "exact_roundtrip": true
+      },
+      {
+        "dimension_D": 64,
+        "imaginary_axes": 63,
+        "message_bits": 63,
+        "raw_packed_bytes": 8,
+        "dense_int8_coefficient_bytes": 64,
+        "dense_float64_coefficient_bytes": 512,
+        "unit_product_signed_int8_bytes": 64,
+        "nonzero_coefficients": 29,
+        "unit_product_nonzero_coefficients": 29,
+        "unit_product_ms_median": 0.0012,
+        "unit_inverse_ms_median": 0.0019,
+        "exact_roundtrip": true
+      },
+      {
+        "dimension_D": 128,
+        "imaginary_axes": 127,
+        "message_bits": 127,
+        "raw_packed_bytes": 16,
+        "dense_int8_coefficient_bytes": 128,
+        "dense_float64_coefficient_bytes": 1024,
+        "unit_product_signed_int8_bytes": 128,
+        "nonzero_coefficients": 73,
+        "unit_product_nonzero_coefficients": 73,
+        "unit_product_ms_median": 0.0018,
+        "unit_inverse_ms_median": 0.0022,
+        "exact_roundtrip": true
+      },
+      {
+        "dimension_D": 256,
+        "imaginary_axes": 255,
+        "message_bits": 255,
+        "raw_packed_bytes": 32,
+        "dense_int8_coefficient_bytes": 256,
+        "dense_float64_coefficient_bytes": 2048,
+        "unit_product_signed_int8_bytes": 256,
+        "nonzero_coefficients": 136,
+        "unit_product_nonzero_coefficients": 136,
+        "unit_product_ms_median": 0.0029,
+        "unit_inverse_ms_median": 0.0022,
+        "exact_roundtrip": true
+      },
+      {
+        "dimension_D": 1024,
+        "imaginary_axes": 1023,
+        "message_bits": 1023,
+        "raw_packed_bytes": 128,
+        "dense_int8_coefficient_bytes": 1024,
+        "dense_float64_coefficient_bytes": 8192,
+        "unit_product_signed_int8_bytes": 1024,
+        "nonzero_coefficients": 485,
+        "unit_product_nonzero_coefficients": 485,
+        "unit_product_ms_median": 0.0135,
+        "unit_inverse_ms_median": 0.0034,
+        "exact_roundtrip": true
+      },
+      {
+        "dimension_D": 4096,
+        "imaginary_axes": 4095,
+        "message_bits": 4095,
+        "raw_packed_bytes": 512,
+        "dense_int8_coefficient_bytes": 4096,
+        "dense_float64_coefficient_bytes": 32768,
+        "unit_product_signed_int8_bytes": 4096,
+        "nonzero_coefficients": 2051,
+        "unit_product_nonzero_coefficients": 2051,
+        "unit_product_ms_median": 0.0961,
+        "unit_inverse_ms_median": 0.0072,
+        "exact_roundtrip": true
+      },
+      {
+        "dimension_D": 16384,
+        "imaginary_axes": 16383,
+        "message_bits": 16383,
+        "raw_packed_bytes": 2048,
+        "dense_int8_coefficient_bytes": 16384,
+        "dense_float64_coefficient_bytes": 131072,
+        "unit_product_signed_int8_bytes": 16384,
+        "nonzero_coefficients": 8124,
+        "unit_product_nonzero_coefficients": 8124,
+        "unit_product_ms_median": 0.4136,
+        "unit_inverse_ms_median": 0.0206,
+        "exact_roundtrip": true
+      },
+      {
+        "dimension_D": 65536,
+        "imaginary_axes": 65535,
+        "message_bits": 65535,
+        "raw_packed_bytes": 8192,
+        "dense_int8_coefficient_bytes": 65536,
+        "dense_float64_coefficient_bytes": 524288,
+        "unit_product_signed_int8_bytes": 65536,
+        "nonzero_coefficients": 32909,
+        "unit_product_nonzero_coefficients": 32909,
+        "unit_product_ms_median": 1.6509,
+        "unit_inverse_ms_median": 0.0995,
+        "exact_roundtrip": true
+      },
+      {
+        "dimension_D": 262144,
+        "imaginary_axes": 262143,
+        "message_bits": 262143,
+        "raw_packed_bytes": 32768,
+        "dense_int8_coefficient_bytes": 262144,
+        "dense_float64_coefficient_bytes": 2097152,
+        "unit_product_signed_int8_bytes": 262144,
+        "nonzero_coefficients": 131200,
+        "unit_product_nonzero_coefficients": 131200,
+        "unit_product_ms_median": 6.9461,
+        "unit_inverse_ms_median": 0.3767,
+        "exact_roundtrip": true
+      },
+      {
+        "dimension_D": 1048576,
+        "imaginary_axes": 1048575,
+        "message_bits": 1048575,
+        "raw_packed_bytes": 131072,
+        "dense_int8_coefficient_bytes": 1048576,
+        "dense_float64_coefficient_bytes": 8388608,
+        "unit_product_signed_int8_bytes": 1048576,
+        "nonzero_coefficients": 523687,
+        "unit_product_nonzero_coefficients": 523687,
+        "unit_product_ms_median": 28.9679,
+        "unit_inverse_ms_median": 1.587,
+        "exact_roundtrip": true
+      }
+    ],
+    "dense_products": [
+      {
+        "dimension": 2,
+        "nnz_left": 2,
+        "nnz_right": 0,
+        "pair_multiply_contributions": 0,
+        "nnz_output": 0,
+        "output_absmax": 0,
+        "negative_output_coefficients": 0,
+        "output_int16_bytes": 4,
+        "cd_product_ms_median": 0.0019,
+        "norm_ratio": null
+      },
+      {
+        "dimension": 4,
+        "nnz_left": 3,
+        "nnz_right": 2,
+        "pair_multiply_contributions": 6,
+        "nnz_output": 3,
+        "output_absmax": 2,
+        "negative_output_coefficients": 0,
+        "output_int16_bytes": 8,
+        "cd_product_ms_median": 0.0009,
+        "norm_ratio": 1.0
+      },
+      {
+        "dimension": 8,
+        "nnz_left": 5,
+        "nnz_right": 3,
+        "pair_multiply_contributions": 15,
+        "nnz_output": 4,
+        "output_absmax": 3,
+        "negative_output_coefficients": 2,
+        "output_int16_bytes": 16,
+        "cd_product_ms_median": 0.0011,
+        "norm_ratio": 1.0
+      },
+      {
+        "dimension": 16,
+        "nnz_left": 10,
+        "nnz_right": 12,
+        "pair_multiply_contributions": 120,
+        "nnz_output": 13,
+        "output_absmax": 5,
+        "negative_output_coefficients": 4,
+        "output_int16_bytes": 32,
+        "cd_product_ms_median": 0.0031,
+        "norm_ratio": 0.86667
+      },
+      {
+        "dimension": 32,
+        "nnz_left": 13,
+        "nnz_right": 17,
+        "pair_multiply_contributions": 221,
+        "nnz_output": 29,
+        "output_absmax": 6,
+        "negative_output_coefficients": 10,
+        "output_int16_bytes": 64,
+        "cd_product_ms_median": 0.0046,
+        "norm_ratio": 1.0543
+      },
+      {
+        "dimension": 64,
+        "nnz_left": 34,
+        "nnz_right": 38,
+        "pair_multiply_contributions": 1292,
+        "nnz_output": 60,
+        "output_absmax": 19,
+        "negative_output_coefficients": 25,
+        "output_int16_bytes": 128,
+        "cd_product_ms_median": 0.0328,
+        "norm_ratio": 1.02477
+      },
+      {
+        "dimension": 128,
+        "nnz_left": 58,
+        "nnz_right": 66,
+        "pair_multiply_contributions": 3828,
+        "nnz_output": 120,
+        "output_absmax": 33,
+        "negative_output_coefficients": 56,
+        "output_int16_bytes": 256,
+        "cd_product_ms_median": 0.131,
+        "norm_ratio": 0.90596
+      },
+      {
+        "dimension": 256,
+        "nnz_left": 134,
+        "nnz_right": 125,
+        "pair_multiply_contributions": 16750,
+        "nnz_output": 241,
+        "output_absmax": 59,
+        "negative_output_coefficients": 121,
+        "output_int16_bytes": 512,
+        "cd_product_ms_median": 0.7451,
+        "norm_ratio": 1.02388
+      },
+      {
+        "dimension": 512,
+        "nnz_left": 252,
+        "nnz_right": 250,
+        "pair_multiply_contributions": 63000,
+        "nnz_output": 493,
+        "output_absmax": 125,
+        "negative_output_coefficients": 242,
+        "output_int16_bytes": 1024,
+        "cd_product_ms_median": 2.9044,
+        "norm_ratio": 0.95479
+      },
+      {
+        "dimension": 1024,
+        "nnz_left": 532,
+        "nnz_right": 537,
+        "pair_multiply_contributions": 285684,
+        "nnz_output": 996,
+        "output_absmax": 292,
+        "negative_output_coefficients": 483,
+        "output_int16_bytes": 2048,
+        "cd_product_ms_median": 13.0839,
+        "norm_ratio": 0.96777
+      },
+      {
+        "dimension": 2048,
+        "nnz_left": 1020,
+        "nnz_right": 1014,
+        "pair_multiply_contributions": 1034280,
+        "nnz_output": 2012,
+        "output_absmax": 498,
+        "negative_output_coefficients": 962,
+        "output_int16_bytes": 4096,
+        "cd_product_ms_median": 49.6805,
+        "norm_ratio": 1.03346
+      },
+      {
+        "dimension": 4096,
+        "nnz_left": 2086,
+        "nnz_right": 2104,
+        "pair_multiply_contributions": 4388944,
+        "nnz_output": 4046,
+        "output_absmax": 1093,
+        "negative_output_coefficients": 1991,
+        "output_int16_bytes": 8192,
+        "cd_product_ms_median": 212.088,
+        "norm_ratio": 0.98441
+      }
+    ],
+    "sparse_products": [
+      {
+        "dimension": 4096,
+        "nnz_left": 64,
+        "nnz_right": 64,
+        "pairs": 4096,
+        "output_nonzero": 2198,
+        "output_nnz_rate_percent": 53.6621,
+        "sparse_product_ms_median": 0.2739,
+        "exact_integer": true
+      },
+      {
+        "dimension": 65536,
+        "nnz_left": 64,
+        "nnz_right": 64,
+        "pairs": 4096,
+        "output_nonzero": 3900,
+        "output_nnz_rate_percent": 5.9509,
+        "sparse_product_ms_median": 0.352,
+        "exact_integer": true
+      },
+      {
+        "dimension": 262144,
+        "nnz_left": 64,
+        "nnz_right": 64,
+        "pairs": 4096,
+        "output_nonzero": 4054,
+        "output_nnz_rate_percent": 1.5465,
+        "sparse_product_ms_median": 0.5411,
+        "exact_integer": true
+      },
+      {
+        "dimension": 1048576,
+        "nnz_left": 64,
+        "nnz_right": 64,
+        "pairs": 4096,
+        "output_nonzero": 4085,
+        "output_nnz_rate_percent": 0.3896,
+        "sparse_product_ms_median": 2.7029,
+        "exact_integer": true
+      }
+    ],
+    "clifford": [
+      {
+        "generators_bits": 4,
+        "full_clifford_dimension_exact": "2^4",
+        "vector_coefficients": 4,
+        "bivector_possible": 6,
+        "nonzero_bivectors": 1,
+        "scalar_coefficient": -1,
+        "vector_product_ms_median": 0.0351,
+        "array_bivector_i16_bytes": 12,
+        "roundtrip_source_vectors": true
+      },
+      {
+        "generators_bits": 8,
+        "full_clifford_dimension_exact": "2^8",
+        "vector_coefficients": 8,
+        "bivector_possible": 28,
+        "nonzero_bivectors": 8,
+        "scalar_coefficient": -2,
+        "vector_product_ms_median": 0.0212,
+        "array_bivector_i16_bytes": 56,
+        "roundtrip_source_vectors": true
+      },
+      {
+        "generators_bits": 16,
+        "full_clifford_dimension_exact": "2^16",
+        "vector_coefficients": 16,
+        "bivector_possible": 120,
+        "nonzero_bivectors": 40,
+        "scalar_coefficient": -4,
+        "vector_product_ms_median": 0.0275,
+        "array_bivector_i16_bytes": 240,
+        "roundtrip_source_vectors": true
+      },
+      {
+        "generators_bits": 32,
+        "full_clifford_dimension_exact": "2^32",
+        "vector_coefficients": 32,
+        "bivector_possible": 496,
+        "nonzero_bivectors": 280,
+        "scalar_coefficient": -10,
+        "vector_product_ms_median": 0.0288,
+        "array_bivector_i16_bytes": 992,
+        "roundtrip_source_vectors": true
+      },
+      {
+        "generators_bits": 64,
+        "full_clifford_dimension_exact": "2^64",
+        "vector_coefficients": 64,
+        "bivector_possible": 2016,
+        "nonzero_bivectors": 692,
+        "scalar_coefficient": -23,
+        "vector_product_ms_median": 0.0467,
+        "array_bivector_i16_bytes": 4032,
+        "roundtrip_source_vectors": true
+      },
+      {
+        "generators_bits": 128,
+        "full_clifford_dimension_exact": "2^128",
+        "vector_coefficients": 128,
+        "bivector_possible": 8128,
+        "nonzero_bivectors": 2908,
+        "scalar_coefficient": -26,
+        "vector_product_ms_median": 0.0827,
+        "array_bivector_i16_bytes": 16256,
+        "roundtrip_source_vectors": true
+      },
+      {
+        "generators_bits": 256,
+        "full_clifford_dimension_exact": "2^256",
+        "vector_coefficients": 256,
+        "bivector_possible": 32640,
+        "nonzero_bivectors": 12287,
+        "scalar_coefficient": -65,
+        "vector_product_ms_median": 0.2632,
+        "array_bivector_i16_bytes": 65280,
+        "roundtrip_source_vectors": true
+      },
+      {
+        "generators_bits": 512,
+        "full_clifford_dimension_exact": "2^512",
+        "vector_coefficients": 512,
+        "bivector_possible": 130816,
+        "nonzero_bivectors": 43679,
+        "scalar_coefficient": -97,
+        "vector_product_ms_median": 1.032,
+        "array_bivector_i16_bytes": 261632,
+        "roundtrip_source_vectors": true
+      },
+      {
+        "generators_bits": 1024,
+        "full_clifford_dimension_exact": "2^1024",
+        "vector_coefficients": 1024,
+        "bivector_possible": 523776,
+        "nonzero_bivectors": 205368,
+        "scalar_coefficient": -258,
+        "vector_product_ms_median": 3.5776,
+        "array_bivector_i16_bytes": 1047552,
+        "roundtrip_source_vectors": true
+      }
+    ],
+    "compression": [
+      {
+        "dataset": "paper_text",
+        "original_bytes": 17582,
+        "zlib9_bytes": 5910,
+        "brotli9_bytes": 5636,
+        "lzma6_bytes": 5764,
+        "best_conventional": "brotli9",
+        "best_conventional_bytes": 5636,
+        "best_cd_dimension": 65536,
+        "best_cd_bytes": 7485,
+        "pct_cd_minus_conventional": 32.807,
+        "exact_reconstruction": true
+      },
+      {
+        "dataset": "python_source",
+        "original_bytes": 17634,
+        "zlib9_bytes": 5537,
+        "brotli9_bytes": 5395,
+        "lzma6_bytes": 5432,
+        "best_conventional": "brotli9",
+        "best_conventional_bytes": 5395,
+        "best_cd_dimension": 65536,
+        "best_cd_bytes": 6843,
+        "pct_cd_minus_conventional": 26.84,
+        "exact_reconstruction": true
+      },
+      {
+        "dataset": "paper_PDF",
+        "original_bytes": 355787,
+        "zlib9_bytes": 314898,
+        "brotli9_bytes": 311547,
+        "lzma6_bytes": 312636,
+        "best_conventional": "brotli9",
+        "best_conventional_bytes": 311547,
+        "best_cd_dimension": 1048576,
+        "best_cd_bytes": 313340,
+        "pct_cd_minus_conventional": 0.576,
+        "exact_reconstruction": true
+      },
+      {
+        "dataset": "document_bitmap",
+        "original_bytes": 23808,
+        "zlib9_bytes": 2349,
+        "brotli9_bytes": 2297,
+        "lzma6_bytes": 2284,
+        "best_conventional": "lzma6",
+        "best_conventional_bytes": 2284,
+        "best_cd_dimension": 65536,
+        "best_cd_bytes": 2328,
+        "pct_cd_minus_conventional": 1.926,
+        "exact_reconstruction": true
+      },
+      {
+        "dataset": "repeated_pattern",
+        "original_bytes": 65536,
+        "zlib9_bytes": 85,
+        "brotli9_bytes": 13,
+        "lzma6_bytes": 140,
+        "best_conventional": "brotli9",
+        "best_conventional_bytes": 13,
+        "best_cd_dimension": 1048576,
+        "best_cd_bytes": 52,
+        "pct_cd_minus_conventional": 300.0,
+        "exact_reconstruction": true
+      },
+      {
+        "dataset": "random_control",
+        "original_bytes": 65536,
+        "zlib9_bytes": 65562,
+        "brotli9_bytes": 65540,
+        "lzma6_bytes": 65600,
+        "best_conventional": "brotli9",
+        "best_conventional_bytes": 65540,
+        "best_cd_dimension": 65536,
+        "best_cd_bytes": 65590,
+        "pct_cd_minus_conventional": 0.076,
+        "exact_reconstruction": true
+      },
+      {
+        "dataset": "sparse_binary",
+        "original_bytes": 8192,
+        "zlib9_bytes": 31,
+        "brotli9_bytes": 15,
+        "lzma6_bytes": 104,
+        "best_conventional": "brotli9",
+        "best_conventional_bytes": 15,
+        "best_cd_dimension": 256,
+        "best_cd_bytes": 38,
+        "pct_cd_minus_conventional": 153.333,
+        "exact_reconstruction": true
+      }
+    ],
+    "compression_details": [
+      {
+        "dataset": "paper_text",
+        "baseline": [
+          "brotli9",
+          5636
+        ],
+        "variants": [
+          {
+            "dimension": 256,
+            "uncompressed_signed_normalized_file_bytes": 17688,
+            "zlib9_bytes": 10819,
+            "brotli9_bytes": 11039,
+            "best_transformed_name": "zlib9",
+            "best_transformed_bytes": 10819,
+            "encode_ms_median": 2.4396,
+            "decode_ms_median": 0.5797,
+            "roundtrip": true
+          },
+          {
+            "dimension": 4096,
+            "uncompressed_signed_normalized_file_bytes": 17944,
+            "zlib9_bytes": 9724,
+            "brotli9_bytes": 9953,
+            "best_transformed_name": "zlib9",
+            "best_transformed_bytes": 9724,
+            "encode_ms_median": 2.6024,
+            "decode_ms_median": 0.1516,
+            "roundtrip": true
+          },
+          {
+            "dimension": 65536,
+            "uncompressed_signed_normalized_file_bytes": 24600,
+            "zlib9_bytes": 7633,
+            "brotli9_bytes": 7485,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 7485,
+            "encode_ms_median": 2.644,
+            "decode_ms_median": 0.1963,
+            "roundtrip": true
+          }
+        ]
+      },
+      {
+        "dataset": "python_source",
+        "baseline": [
+          "brotli9",
+          5395
+        ],
+        "variants": [
+          {
+            "dimension": 256,
+            "uncompressed_signed_normalized_file_bytes": 17752,
+            "zlib9_bytes": 11720,
+            "brotli9_bytes": 11988,
+            "best_transformed_name": "zlib9",
+            "best_transformed_bytes": 11720,
+            "encode_ms_median": 2.5904,
+            "decode_ms_median": 0.4351,
+            "roundtrip": true
+          },
+          {
+            "dimension": 4096,
+            "uncompressed_signed_normalized_file_bytes": 17944,
+            "zlib9_bytes": 9530,
+            "brotli9_bytes": 9660,
+            "best_transformed_name": "zlib9",
+            "best_transformed_bytes": 9530,
+            "encode_ms_median": 3.0253,
+            "decode_ms_median": 0.1612,
+            "roundtrip": true
+          },
+          {
+            "dimension": 65536,
+            "uncompressed_signed_normalized_file_bytes": 24600,
+            "zlib9_bytes": 7126,
+            "brotli9_bytes": 6843,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 6843,
+            "encode_ms_median": 2.807,
+            "decode_ms_median": 0.2153,
+            "roundtrip": true
+          }
+        ]
+      },
+      {
+        "dataset": "paper_PDF",
+        "baseline": [
+          "brotli9",
+          311547
+        ],
+        "variants": [
+          {
+            "dimension": 256,
+            "uncompressed_signed_normalized_file_bytes": 357208,
+            "zlib9_bytes": 332995,
+            "brotli9_bytes": 329442,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 329442,
+            "encode_ms_median": 55.8863,
+            "decode_ms_median": 8.7669,
+            "roundtrip": true
+          },
+          {
+            "dimension": 4096,
+            "uncompressed_signed_normalized_file_bytes": 356376,
+            "zlib9_bytes": 328179,
+            "brotli9_bytes": 324154,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 324154,
+            "encode_ms_median": 66.5185,
+            "decode_ms_median": 2.8765,
+            "roundtrip": true
+          },
+          {
+            "dimension": 65536,
+            "uncompressed_signed_normalized_file_bytes": 360472,
+            "zlib9_bytes": 320077,
+            "brotli9_bytes": 316174,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 316174,
+            "encode_ms_median": 71.1331,
+            "decode_ms_median": 2.7683,
+            "roundtrip": true
+          },
+          {
+            "dimension": 1048576,
+            "uncompressed_signed_normalized_file_bytes": 393240,
+            "zlib9_bytes": 315943,
+            "brotli9_bytes": 313340,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 313340,
+            "encode_ms_median": 77.7477,
+            "decode_ms_median": 3.9269,
+            "roundtrip": true
+          }
+        ]
+      },
+      {
+        "dataset": "document_bitmap",
+        "baseline": [
+          "lzma6",
+          2284
+        ],
+        "variants": [
+          {
+            "dimension": 256,
+            "uncompressed_signed_normalized_file_bytes": 23928,
+            "zlib9_bytes": 2420,
+            "brotli9_bytes": 2377,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 2377,
+            "encode_ms_median": 1.7747,
+            "decode_ms_median": 0.6065,
+            "roundtrip": true
+          },
+          {
+            "dimension": 4096,
+            "uncompressed_signed_normalized_file_bytes": 24088,
+            "zlib9_bytes": 2362,
+            "brotli9_bytes": 2342,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 2342,
+            "encode_ms_median": 0.4296,
+            "decode_ms_median": 0.1966,
+            "roundtrip": true
+          },
+          {
+            "dimension": 65536,
+            "uncompressed_signed_normalized_file_bytes": 24600,
+            "zlib9_bytes": 2376,
+            "brotli9_bytes": 2328,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 2328,
+            "encode_ms_median": 0.351,
+            "decode_ms_median": 0.2177,
+            "roundtrip": true
+          }
+        ]
+      },
+      {
+        "dataset": "repeated_pattern",
+        "baseline": [
+          "brotli9",
+          13
+        ],
+        "variants": [
+          {
+            "dimension": 256,
+            "uncompressed_signed_normalized_file_bytes": 65848,
+            "zlib9_bytes": 334,
+            "brotli9_bytes": 83,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 83,
+            "encode_ms_median": 7.4896,
+            "decode_ms_median": 1.6327,
+            "roundtrip": true
+          },
+          {
+            "dimension": 4096,
+            "uncompressed_signed_normalized_file_bytes": 66072,
+            "zlib9_bytes": 309,
+            "brotli9_bytes": 90,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 90,
+            "encode_ms_median": 13.1318,
+            "decode_ms_median": 0.6804,
+            "roundtrip": true
+          },
+          {
+            "dimension": 65536,
+            "uncompressed_signed_normalized_file_bytes": 73752,
+            "zlib9_bytes": 148,
+            "brotli9_bytes": 105,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 105,
+            "encode_ms_median": 13.3667,
+            "decode_ms_median": 0.5238,
+            "roundtrip": true
+          },
+          {
+            "dimension": 1048576,
+            "uncompressed_signed_normalized_file_bytes": 131096,
+            "zlib9_bytes": 178,
+            "brotli9_bytes": 52,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 52,
+            "encode_ms_median": 15.0788,
+            "decode_ms_median": 2.8077,
+            "roundtrip": true
+          }
+        ]
+      },
+      {
+        "dataset": "random_control",
+        "baseline": [
+          "brotli9",
+          65540
+        ],
+        "variants": [
+          {
+            "dimension": 256,
+            "uncompressed_signed_normalized_file_bytes": 65848,
+            "zlib9_bytes": 65860,
+            "brotli9_bytes": 65853,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 65853,
+            "encode_ms_median": 10.8148,
+            "decode_ms_median": 1.6537,
+            "roundtrip": true
+          },
+          {
+            "dimension": 4096,
+            "uncompressed_signed_normalized_file_bytes": 66072,
+            "zlib9_bytes": 65644,
+            "brotli9_bytes": 66077,
+            "best_transformed_name": "zlib9",
+            "best_transformed_bytes": 65644,
+            "encode_ms_median": 12.9116,
+            "decode_ms_median": 0.5174,
+            "roundtrip": true
+          },
+          {
+            "dimension": 65536,
+            "uncompressed_signed_normalized_file_bytes": 73752,
+            "zlib9_bytes": 65617,
+            "brotli9_bytes": 65590,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 65590,
+            "encode_ms_median": 14.4896,
+            "decode_ms_median": 0.5405,
+            "roundtrip": true
+          },
+          {
+            "dimension": 1048576,
+            "uncompressed_signed_normalized_file_bytes": 131096,
+            "zlib9_bytes": 65706,
+            "brotli9_bytes": 65590,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 65590,
+            "encode_ms_median": 15.6254,
+            "decode_ms_median": 1.9062,
+            "roundtrip": true
+          }
+        ]
+      },
+      {
+        "dataset": "sparse_binary",
+        "baseline": [
+          "brotli9",
+          15
+        ],
+        "variants": [
+          {
+            "dimension": 256,
+            "uncompressed_signed_normalized_file_bytes": 8280,
+            "zlib9_bytes": 58,
+            "brotli9_bytes": 38,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 38,
+            "encode_ms_median": 0.5829,
+            "decode_ms_median": 0.2208,
+            "roundtrip": true
+          },
+          {
+            "dimension": 4096,
+            "uncompressed_signed_normalized_file_bytes": 8728,
+            "zlib9_bytes": 59,
+            "brotli9_bytes": 39,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 39,
+            "encode_ms_median": 0.0935,
+            "decode_ms_median": 0.0783,
+            "roundtrip": true          },
+          {
+            "dimension": 65536,
+            "uncompressed_signed_normalized_file_bytes": 16408,
+            "zlib9_bytes": 66,
+            "brotli9_bytes": 40,
+            "best_transformed_name": "brotli9",
+            "best_transformed_bytes": 40,
+            "encode_ms_median": 0.1166,
+            "decode_ms_median": 0.1397,
+            "roundtrip": true
+          }
+        ]
+      }
+    ],
+    "runtime_sec": 2.787
+  },
+  "signed_cascade_spectrum": {
+    "seed": 20261125,
+    "algebra": {
+      "paper_phi_and_psi_verified": true,
+      "basis_operator_pairs": 86870,
+      "million_dim_basis_checks": 4000,
+      "small_gram_checks": {
+        "2": {
+          "all_entries_plusminus_one": true,
+          "gram_nI": true,
+          "row_all_ones_exists": true,
+          "distinct_from_tensor_map": null
+        },
+        "4": {
+          "all_entries_plusminus_one": true,
+          "gram_nI": true,
+          "row_all_ones_exists": true,
+          "distinct_from_tensor_map": null
+        },
+        "8": {
+          "all_entries_plusminus_one": true,
+          "gram_nI": true,
+          "row_all_ones_exists": false,
+          "distinct_from_tensor_map": null
+        },
+        "16": {
+          "all_entries_plusminus_one": true,
+          "gram_nI": true,
+          "row_all_ones_exists": false,
+          "distinct_from_tensor_map": null
+        },
+        "32": {
+          "all_entries_plusminus_one": true,
+          "gram_nI": true,
+          "row_all_ones_exists": false,
+          "distinct_from_tensor_map": null
+        },
+        "64": {
+          "all_entries_plusminus_one": true,
+          "gram_nI": true,
+          "row_all_ones_exists": false,
+          "distinct_from_tensor_map": null
+        }
+      }
+    },
+    "spectrum_scaling": [
+      {
+        "dimension": 2,
+        "signal": "ones",
+        "nonzero_input": 2,
+        "nonzero_spectrum": 1,
+        "spectrum_maxabs": 2,
+        "spectrum_l2_squared": 4,
+        "encode_ms_median": 0.0032,
+        "decode_ms_median": 1.1618,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 2,
+        "signal": "alternating",
+        "nonzero_input": 1,
+        "nonzero_spectrum": 2,
+        "spectrum_maxabs": 1,
+        "spectrum_l2_squared": 2,
+        "encode_ms_median": 0.0024,
+        "decode_ms_median": 0.0013,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 2,
+        "signal": "repeat1011",
+        "nonzero_input": 1,
+        "nonzero_spectrum": 2,
+        "spectrum_maxabs": 1,
+        "spectrum_l2_squared": 2,
+        "encode_ms_median": 0.0018,
+        "decode_ms_median": 0.015,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 2,
+        "signal": "random",
+        "nonzero_input": 1,
+        "nonzero_spectrum": 2,
+        "spectrum_maxabs": 1,
+        "spectrum_l2_squared": 2,
+        "encode_ms_median": 0.0013,
+        "decode_ms_median": 0.001,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 2,
+        "signal": "single_coefficient",
+        "nonzero_input": 1,
+        "nonzero_spectrum": 2,
+        "spectrum_maxabs": 1,
+        "spectrum_l2_squared": 2,
+        "encode_ms_median": 0.001,
+        "decode_ms_median": 0.0009,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 4,
+        "signal": "ones",
+        "nonzero_input": 4,
+        "nonzero_spectrum": 1,
+        "spectrum_maxabs": 4,
+        "spectrum_l2_squared": 16,
+        "encode_ms_median": 0.0019,
+        "decode_ms_median": 0.0015,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 4,
+        "signal": "alternating",
+        "nonzero_input": 2,
+        "nonzero_spectrum": 2,
+        "spectrum_maxabs": 2,
+        "spectrum_l2_squared": 8,
+        "encode_ms_median": 0.001,
+        "decode_ms_median": 0.0009,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 4,
+        "signal": "repeat1011",
+        "nonzero_input": 3,
+        "nonzero_spectrum": 4,
+        "spectrum_maxabs": 3,
+        "spectrum_l2_squared": 12,
+        "encode_ms_median": 0.001,
+        "decode_ms_median": 0.0009,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 4,
+        "signal": "random",
+        "nonzero_input": 1,
+        "nonzero_spectrum": 4,
+        "spectrum_maxabs": 1,
+        "spectrum_l2_squared": 4,
+        "encode_ms_median": 0.0008,
+        "decode_ms_median": 0.0008,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 4,
+        "signal": "single_coefficient",
+        "nonzero_input": 1,
+        "nonzero_spectrum": 4,
+        "spectrum_maxabs": 1,
+        "spectrum_l2_squared": 4,
+        "encode_ms_median": 0.0008,
+        "decode_ms_median": 0.0008,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 8,
+        "signal": "ones",
+        "nonzero_input": 8,
+        "nonzero_spectrum": 8,
+        "spectrum_maxabs": 6,
+        "spectrum_l2_squared": 64,
+        "encode_ms_median": 0.0022,
+        "decode_ms_median": 0.0016,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 8,
+        "signal": "alternating",
+        "nonzero_input": 4,
+        "nonzero_spectrum": 8,
+        "spectrum_maxabs": 2,
+        "spectrum_l2_squared": 32,
+        "encode_ms_median": 0.0014,
+        "decode_ms_median": 0.001,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 8,
+        "signal": "repeat1011",
+        "nonzero_input": 6,
+        "nonzero_spectrum": 6,
+        "spectrum_maxabs": 4,
+        "spectrum_l2_squared": 48,
+        "encode_ms_median": 0.0009,
+        "decode_ms_median": 0.001,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 8,
+        "signal": "random",
+        "nonzero_input": 4,
+        "nonzero_spectrum": 5,
+        "spectrum_maxabs": 4,
+        "spectrum_l2_squared": 32,
+        "encode_ms_median": 0.001,
+        "decode_ms_median": 0.0009,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 8,
+        "signal": "single_coefficient",
+        "nonzero_input": 1,
+        "nonzero_spectrum": 8,
+        "spectrum_maxabs": 1,
+        "spectrum_l2_squared": 8,
+        "encode_ms_median": 0.0009,
+        "decode_ms_median": 0.0009,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 16,
+        "signal": "ones",
+        "nonzero_input": 16,
+        "nonzero_spectrum": 16,
+        "spectrum_maxabs": 6,
+        "spectrum_l2_squared": 256,
+        "encode_ms_median": 0.003,
+        "decode_ms_median": 0.0023,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 16,
+        "signal": "alternating",
+        "nonzero_input": 8,
+        "nonzero_spectrum": 8,
+        "spectrum_maxabs": 4,
+        "spectrum_l2_squared": 128,
+        "encode_ms_median": 0.0019,
+        "decode_ms_median": 0.0015,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 16,
+        "signal": "repeat1011",
+        "nonzero_input": 12,
+        "nonzero_spectrum": 9,
+        "spectrum_maxabs": 8,
+        "spectrum_l2_squared": 192,
+        "encode_ms_median": 0.0014,
+        "decode_ms_median": 0.0013,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 16,
+        "signal": "random",
+        "nonzero_input": 9,
+        "nonzero_spectrum": 16,
+        "spectrum_maxabs": 7,
+        "spectrum_l2_squared": 144,
+        "encode_ms_median": 0.0012,
+        "decode_ms_median": 0.0012,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 16,
+        "signal": "single_coefficient",
+        "nonzero_input": 1,
+        "nonzero_spectrum": 16,
+        "spectrum_maxabs": 1,
+        "spectrum_l2_squared": 16,
+        "encode_ms_median": 0.0011,
+        "decode_ms_median": 0.0012,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 32,
+        "signal": "ones",
+        "nonzero_input": 32,
+        "nonzero_spectrum": 32,
+        "spectrum_maxabs": 10,
+        "spectrum_l2_squared": 1024,
+        "encode_ms_median": 0.0039,
+        "decode_ms_median": 0.0039,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 32,
+        "signal": "alternating",
+        "nonzero_input": 16,
+        "nonzero_spectrum": 32,
+        "spectrum_maxabs": 4,
+        "spectrum_l2_squared": 512,
+        "encode_ms_median": 0.0021,
+        "decode_ms_median": 0.002,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 32,
+        "signal": "repeat1011",
+        "nonzero_input": 24,
+        "nonzero_spectrum": 32,
+        "spectrum_maxabs": 10,
+        "spectrum_l2_squared": 768,
+        "encode_ms_median": 0.0018,
+        "decode_ms_median": 0.0018,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 32,
+        "signal": "random",
+        "nonzero_input": 19,
+        "nonzero_spectrum": 32,
+        "spectrum_maxabs": 11,
+        "spectrum_l2_squared": 608,
+        "encode_ms_median": 0.0018,
+        "decode_ms_median": 0.0018,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 32,
+        "signal": "single_coefficient",
+        "nonzero_input": 1,
+        "nonzero_spectrum": 32,
+        "spectrum_maxabs": 1,
+        "spectrum_l2_squared": 32,
+        "encode_ms_median": 0.0017,
+        "decode_ms_median": 0.0017,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 64,
+        "signal": "ones",
+        "nonzero_input": 64,
+        "nonzero_spectrum": 64,
+        "spectrum_maxabs": 10,
+        "spectrum_l2_squared": 4096,
+        "encode_ms_median": 0.0075,
+        "decode_ms_median": 0.0075,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 64,
+        "signal": "alternating",
+        "nonzero_input": 32,
+        "nonzero_spectrum": 32,
+        "spectrum_maxabs": 8,
+        "spectrum_l2_squared": 2048,
+        "encode_ms_median": 0.0042,
+        "decode_ms_median": 0.004,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 64,
+        "signal": "repeat1011",
+        "nonzero_input": 48,
+        "nonzero_spectrum": 64,
+        "spectrum_maxabs": 14,
+        "spectrum_l2_squared": 3072,
+        "encode_ms_median": 0.0036,
+        "decode_ms_median": 0.0033,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 64,
+        "signal": "random",
+        "nonzero_input": 25,
+        "nonzero_spectrum": 64,
+        "spectrum_maxabs": 13,
+        "spectrum_l2_squared": 1600,
+        "encode_ms_median": 0.0033,
+        "decode_ms_median": 0.0034,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 64,
+        "signal": "single_coefficient",
+        "nonzero_input": 1,
+        "nonzero_spectrum": 64,
+        "spectrum_maxabs": 1,
+        "spectrum_l2_squared": 64,
+        "encode_ms_median": 0.0031,
+        "decode_ms_median": 0.0032,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 256,
+        "signal": "ones",
+        "nonzero_input": 256,
+        "nonzero_spectrum": 256,
+        "spectrum_maxabs": 18,
+        "spectrum_l2_squared": 65536,
+        "encode_ms_median": 0.0435,
+        "decode_ms_median": 0.0413,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 256,
+        "signal": "alternating",
+        "nonzero_input": 128,
+        "nonzero_spectrum": 128,
+        "spectrum_maxabs": 16,
+        "spectrum_l2_squared": 32768,
+        "encode_ms_median": 0.0464,
+        "decode_ms_median": 0.0336,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 256,
+        "signal": "repeat1011",
+        "nonzero_input": 192,
+        "nonzero_spectrum": 256,
+        "spectrum_maxabs": 26,
+        "spectrum_l2_squared": 49152,
+        "encode_ms_median": 0.0401,
+        "decode_ms_median": 0.0253,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 256,
+        "signal": "random",
+        "nonzero_input": 133,
+        "nonzero_spectrum": 256,
+        "spectrum_maxabs": 31,
+        "spectrum_l2_squared": 34048,
+        "encode_ms_median": 0.0361,
+        "decode_ms_median": 0.0345,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 256,
+        "signal": "single_coefficient",
+        "nonzero_input": 1,
+        "nonzero_spectrum": 256,
+        "spectrum_maxabs": 1,
+        "spectrum_l2_squared": 256,
+        "encode_ms_median": 0.0441,
+        "decode_ms_median": 0.0349,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 1024,
+        "signal": "ones",
+        "nonzero_input": 1024,
+        "nonzero_spectrum": 1024,
+        "spectrum_maxabs": 34,
+        "spectrum_l2_squared": 1048576,
+        "encode_ms_median": 0.2878,
+        "decode_ms_median": 0.2326,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 1024,
+        "signal": "alternating",
+        "nonzero_input": 512,
+        "nonzero_spectrum": 512,
+        "spectrum_maxabs": 32,
+        "spectrum_l2_squared": 524288,
+        "encode_ms_median": 0.2419,
+        "decode_ms_median": 0.2278,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 1024,
+        "signal": "repeat1011",
+        "nonzero_input": 768,
+        "nonzero_spectrum": 1024,
+        "spectrum_maxabs": 50,
+        "spectrum_l2_squared": 786432,
+        "encode_ms_median": 0.263,
+        "decode_ms_median": 0.2648,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 1024,
+        "signal": "random",
+        "nonzero_input": 528,
+        "nonzero_spectrum": 998,
+        "spectrum_maxabs": 66,
+        "spectrum_l2_squared": 540672,
+        "encode_ms_median": 0.2426,
+        "decode_ms_median": 0.2295,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 1024,
+        "signal": "single_coefficient",
+        "nonzero_input": 1,
+        "nonzero_spectrum": 1024,
+        "spectrum_maxabs": 1,
+        "spectrum_l2_squared": 1024,
+        "encode_ms_median": 0.2431,
+        "decode_ms_median": 0.2535,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 4096,
+        "signal": "ones",
+        "nonzero_input": 4096,
+        "nonzero_spectrum": 4096,
+        "spectrum_maxabs": 66,
+        "spectrum_l2_squared": 16777216,
+        "encode_ms_median": 1.3603,
+        "decode_ms_median": 1.2711,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 4096,
+        "signal": "alternating",
+        "nonzero_input": 2048,
+        "nonzero_spectrum": 2048,
+        "spectrum_maxabs": 64,
+        "spectrum_l2_squared": 8388608,
+        "encode_ms_median": 1.3332,
+        "decode_ms_median": 1.4048,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 4096,
+        "signal": "repeat1011",
+        "nonzero_input": 3072,
+        "nonzero_spectrum": 4096,
+        "spectrum_maxabs": 98,
+        "spectrum_l2_squared": 12582912,
+        "encode_ms_median": 1.2901,
+        "decode_ms_median": 1.2765,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 4096,
+        "signal": "random",
+        "nonzero_input": 2011,
+        "nonzero_spectrum": 4096,
+        "spectrum_maxabs": 157,
+        "spectrum_l2_squared": 8237056,
+        "encode_ms_median": 1.331,
+        "decode_ms_median": 1.3334,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 4096,
+        "signal": "single_coefficient",
+        "nonzero_input": 1,
+        "nonzero_spectrum": 4096,
+        "spectrum_maxabs": 1,
+        "spectrum_l2_squared": 4096,
+        "encode_ms_median": 1.475,
+        "decode_ms_median": 1.2524,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 65536,
+        "signal": "random",
+        "nonzero_input": 32760,
+        "nonzero_spectrum": 65297,
+        "spectrum_maxabs": 702,
+        "spectrum_l2_squared": 2146959360,
+        "encode_ms_median": 36.1249,
+        "decode_ms_median": 36.5382,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 65536,
+        "signal": "single_coefficient",
+        "nonzero_input": 1,
+        "nonzero_spectrum": 65536,
+        "spectrum_maxabs": 1,
+        "spectrum_l2_squared": 65536,
+        "encode_ms_median": 35.342,
+        "decode_ms_median": 35.5992,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 1048576,
+        "signal": "random",
+        "nonzero_input": 523660,
+        "nonzero_spectrum": 1047623,
+        "spectrum_maxabs": 2896,
+        "spectrum_l2_squared": 549097308160,
+        "encode_ms_median": 840.4234,
+        "decode_ms_median": 943.0118,
+        "exact_inverse": true
+      },
+      {
+        "dimension": 1048576,
+        "signal": "single_coefficient",
+        "nonzero_input": 1,
+        "nonzero_spectrum": 1048576,
+        "spectrum_maxabs": 1,
+        "spectrum_l2_squared": 1048576,
+        "encode_ms_median": 814.8753,
+        "decode_ms_median": 879.3319,
+        "exact_inverse": true
+      }
+    ]
+  },
+  "signed_cascade_codec": {
+    "seed": 20261819,
+    "compression": [
+      {
+        "dataset": "paper_text",
+        "input_bytes": 17582,
+        "zlib9_bytes": 5910,
+        "brotli9_bytes": 5636,
+        "lzma6_bytes": 5764,
+        "best_conventional_name": "brotli9",
+        "best_conventional_bytes": 5636,
+        "best_cd_cascade_dim": 65536,
+        "bipolar": false,
+        "best_cd_cascade_bytes": 6930,
+        "best_cd_mode_counts": {
+          "spectral": 0,
+          "fill": 0,
+          "raw": 3,
+          "blocks": 3,
+          "avg_spectrum_nonzero": 65425.3
+        },
+        "pct_larger_than_baseline": 22.96,
+        "exact": true
+      },
+      {
+        "dataset": "python_source",
+        "input_bytes": 17634,
+        "zlib9_bytes": 5537,
+        "brotli9_bytes": 5395,
+        "lzma6_bytes": 5432,
+        "best_conventional_name": "brotli9",
+        "best_conventional_bytes": 5395,
+        "best_cd_cascade_dim": 65536,
+        "bipolar": false,
+        "best_cd_cascade_bytes": 6359,
+        "best_cd_mode_counts": {
+          "spectral": 0,
+          "fill": 0,
+          "raw": 3,
+          "blocks": 3,
+          "avg_spectrum_nonzero": 65426.3
+        },
+        "pct_larger_than_baseline": 17.868,
+        "exact": true
+      },
+      {
+        "dataset": "paper_PDF",
+        "input_bytes": 355787,
+        "zlib9_bytes": 314898,
+        "brotli9_bytes": 311547,
+        "lzma6_bytes": 312636,
+        "best_conventional_name": "brotli9",
+        "best_conventional_bytes": 311547,
+        "best_cd_cascade_dim": 65536,
+        "bipolar": false,
+        "best_cd_cascade_bytes": 316023,
+        "best_cd_mode_counts": {
+          "spectral": 0,
+          "fill": 1,
+          "raw": 43,
+          "blocks": 44,
+          "avg_spectrum_nonzero": 65402.0
+        },
+        "pct_larger_than_baseline": 1.437,
+        "exact": true
+      },
+      {
+        "dataset": "document_bitmap",
+        "input_bytes": 23808,
+        "zlib9_bytes": 2349,
+        "brotli9_bytes": 2297,
+        "lzma6_bytes": 2284,
+        "best_conventional_name": "lzma6",
+        "best_conventional_bytes": 2284,
+        "best_cd_cascade_dim": 65536,
+        "bipolar": false,
+        "best_cd_cascade_bytes": 2318,
+        "best_cd_mode_counts": {
+          "spectral": 0,
+          "fill": 0,
+          "raw": 3,
+          "blocks": 3,
+          "avg_spectrum_nonzero": 64477
+        },
+        "pct_larger_than_baseline": 1.489,
+        "exact": true
+      },
+      {
+        "dataset": "repeated_pattern",
+        "input_bytes": 65536,
+        "zlib9_bytes": 85,
+        "brotli9_bytes": 13,
+        "lzma6_bytes": 140,
+        "best_conventional_name": "brotli9",
+        "best_conventional_bytes": 13,
+        "best_cd_cascade_dim": 256,
+        "bipolar": true,
+        "best_cd_cascade_bytes": 82,
+        "best_cd_mode_counts": {
+          "spectral": 0,
+          "fill": 0,
+          "raw": 2057,
+          "blocks": 2057,
+          "avg_spectrum_nonzero": 220.0
+        },
+        "pct_larger_than_baseline": 530.769,
+        "exact": true
+      },
+      {
+        "dataset": "random_control",
+        "input_bytes": 65536,
+        "zlib9_bytes": 65562,
+        "brotli9_bytes": 65540,
+        "lzma6_bytes": 65600,
+        "best_conventional_name": "brotli9",
+        "best_conventional_bytes": 65540,
+        "best_cd_cascade_dim": 65536,
+        "bipolar": false,
+        "best_cd_cascade_bytes": 65584,
+        "best_cd_mode_counts": {
+          "spectral": 0,
+          "fill": 0,
+          "raw": 9,
+          "blocks": 9,
+          "avg_spectrum_nonzero": 65358.3
+        },
+        "pct_larger_than_baseline": 0.067,
+        "exact": true
+      },
+      {
+        "dataset": "sparse_binary",
+        "input_bytes": 8192,
+        "zlib9_bytes": 31,
+        "brotli9_bytes": 15,
+        "lzma6_bytes": 104,
+        "best_conventional_name": "brotli9",
+        "best_conventional_bytes": 15,
+        "best_cd_cascade_dim": 256,
+        "bipolar": false,
+        "best_cd_cascade_bytes": 33,
+        "best_cd_mode_counts": {
+          "spectral": 0,
+          "fill": 257,
+          "raw": 1,
+          "blocks": 258,
+          "avg_spectrum_nonzero": 256
+        },
+        "pct_larger_than_baseline": 120.0,
+        "exact": true
+      },
+      {
+        "dataset": "CD_basis_binary_1024",
+        "input_bytes": 65472,
+        "zlib9_bytes": 13278,
+        "brotli9_bytes": 12649,
+        "lzma6_bytes": 10016,
+        "best_conventional_name": "lzma6",
+        "best_conventional_bytes": 10016,
+        "best_cd_cascade_dim": 1024,
+        "bipolar": true,
+        "best_cd_cascade_bytes": 1133,
+        "best_cd_mode_counts": {
+          "spectral": 512,
+          "fill": 0,
+          "raw": 0,
+          "blocks": 512,
+          "avg_spectrum_nonzero": 1
+        },
+        "pct_larger_than_baseline": -88.688,
+        "exact": true
+      },
+      {
+        "dataset": "CD_basis_binary_4096",
+        "input_bytes": 65520,
+        "zlib9_bytes": 6685,
+        "brotli9_bytes": 6595,
+        "lzma6_bytes": 5272,
+        "best_conventional_name": "lzma6",
+        "best_conventional_bytes": 5272,
+        "best_cd_cascade_dim": 4096,
+        "bipolar": true,
+        "best_cd_cascade_bytes": 373,
+        "best_cd_mode_counts": {
+          "spectral": 128,
+          "fill": 0,
+          "raw": 0,
+          "blocks": 128,
+          "avg_spectrum_nonzero": 1
+        },
+        "pct_larger_than_baseline": -92.925,
+        "exact": true
+      }
+    ],
+    "compression_details": [
+      {
+        "dataset": "paper_text",
+        "variants": [
+          {
+            "dimension": 256,
+            "bipolar": false,
+            "raw_file_bytes": 18236,
+            "zlib9_bytes": 11129,
+            "brotli9_bytes": 11356,
+            "compressed_bytes": 11129,
+            "compressor": "zlib9",
+            "encode_ms_median": 21.4643,
+            "decode_ms_median": 0.7178,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 552,
+              "blocks": 552,
+              "avg_spectrum_nonzero": 238.9
+            },
+            "exact": true
+          },
+          {
+            "dimension": 256,
+            "bipolar": true,
+            "raw_file_bytes": 18236,
+            "zlib9_bytes": 11129,
+            "brotli9_bytes": 11356,
+            "compressed_bytes": 11129,
+            "compressor": "zlib9",
+            "encode_ms_median": 25.3124,
+            "decode_ms_median": 1.3229,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 552,
+              "blocks": 552,
+              "avg_spectrum_nonzero": 237.8
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": false,
+            "raw_file_bytes": 17822,
+            "zlib9_bytes": 10346,
+            "brotli9_bytes": 11244,
+            "compressed_bytes": 10346,
+            "compressor": "zlib9",
+            "encode_ms_median": 43.1791,
+            "decode_ms_median": 0.4073,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 138,
+              "blocks": 138,
+              "avg_spectrum_nonzero": 1000.2
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": true,
+            "raw_file_bytes": 17822,
+            "zlib9_bytes": 10346,
+            "brotli9_bytes": 11244,
+            "compressed_bytes": 10346,
+            "compressor": "zlib9",
+            "encode_ms_median": 45.4215,
+            "decode_ms_median": 0.2185,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 138,
+              "blocks": 138,
+              "avg_spectrum_nonzero": 995.8
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": false,
+            "raw_file_bytes": 17975,
+            "zlib9_bytes": 9743,
+            "brotli9_bytes": 10374,
+            "compressed_bytes": 9743,
+            "compressor": "zlib9",
+            "encode_ms_median": 49.7166,
+            "decode_ms_median": 0.1207,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 35,
+              "blocks": 35,
+              "avg_spectrum_nonzero": 4055.3
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": true,
+            "raw_file_bytes": 17975,
+            "zlib9_bytes": 9743,
+            "brotli9_bytes": 10374,
+            "compressed_bytes": 9743,
+            "compressor": "zlib9",
+            "encode_ms_median": 55.0865,
+            "decode_ms_median": 0.1041,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 35,
+              "blocks": 35,
+              "avg_spectrum_nonzero": 4046.1
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": false,
+            "raw_file_bytes": 24599,
+            "zlib9_bytes": 7315,
+            "brotli9_bytes": 6930,
+            "compressed_bytes": 6930,
+            "compressor": "brotli9",
+            "encode_ms_median": 130.418,
+            "decode_ms_median": 0.0519,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 3,
+              "blocks": 3,
+              "avg_spectrum_nonzero": 65425.3
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": true,
+            "raw_file_bytes": 24599,
+            "zlib9_bytes": 7314,
+            "brotli9_bytes": 6930,
+            "compressed_bytes": 6930,
+            "compressor": "brotli9",
+            "encode_ms_median": 102.4955,
+            "decode_ms_median": 0.0502,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 3,
+              "blocks": 3,
+              "avg_spectrum_nonzero": 65398.7
+            },
+            "exact": true
+          }
+        ],
+        "baseline": [
+          "brotli9",
+          5636
+        ]
+      },
+      {
+        "dataset": "python_source",
+        "variants": [
+          {
+            "dimension": 256,
+            "bipolar": false,
+            "raw_file_bytes": 18302,
+            "zlib9_bytes": 12085,
+            "brotli9_bytes": 12316,
+            "compressed_bytes": 12085,
+            "compressor": "zlib9",
+            "encode_ms_median": 17.7819,
+            "decode_ms_median": 0.7209,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 554,
+              "blocks": 554,
+              "avg_spectrum_nonzero": 246.4
+            },
+            "exact": true
+          },
+          {
+            "dimension": 256,
+            "bipolar": true,
+            "raw_file_bytes": 18302,
+            "zlib9_bytes": 12085,
+            "brotli9_bytes": 12316,
+            "compressed_bytes": 12085,
+            "compressor": "zlib9",
+            "encode_ms_median": 25.3672,
+            "decode_ms_median": 0.7185,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 554,
+              "blocks": 554,
+              "avg_spectrum_nonzero": 242.7
+            },
+            "exact": true
+          },          {
+            "dimension": 1024,
+            "bipolar": false,
+            "raw_file_bytes": 17822,
+            "zlib9_bytes": 10841,
+            "brotli9_bytes": 11841,
+            "compressed_bytes": 10841,
+            "compressor": "zlib9",
+            "encode_ms_median": 35.1061,
+            "decode_ms_median": 0.2074,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 138,
+              "blocks": 138,
+              "avg_spectrum_nonzero": 1005.4
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": true,
+            "raw_file_bytes": 17822,
+            "zlib9_bytes": 10841,
+            "brotli9_bytes": 11841,
+            "compressed_bytes": 10841,
+            "compressor": "zlib9",
+            "encode_ms_median": 37.8982,
+            "decode_ms_median": 0.2172,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 138,
+              "blocks": 138,
+              "avg_spectrum_nonzero": 998.3
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": false,
+            "raw_file_bytes": 17975,
+            "zlib9_bytes": 9530,
+            "brotli9_bytes": 9854,
+            "compressed_bytes": 9530,
+            "compressor": "zlib9",
+            "encode_ms_median": 48.469,
+            "decode_ms_median": 0.0815,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 35,
+              "blocks": 35,
+              "avg_spectrum_nonzero": 4063.0
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": true,
+            "raw_file_bytes": 17975,
+            "zlib9_bytes": 9530,
+            "brotli9_bytes": 9855,
+            "compressed_bytes": 9530,
+            "compressor": "zlib9",
+            "encode_ms_median": 45.7392,
+            "decode_ms_median": 0.0813,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 35,
+              "blocks": 35,
+              "avg_spectrum_nonzero": 4051.1
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": false,
+            "raw_file_bytes": 24599,
+            "zlib9_bytes": 6829,
+            "brotli9_bytes": 6359,
+            "compressed_bytes": 6359,
+            "compressor": "brotli9",
+            "encode_ms_median": 109.0462,
+            "decode_ms_median": 0.0677,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 3,
+              "blocks": 3,
+              "avg_spectrum_nonzero": 65426.3
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": true,
+            "raw_file_bytes": 24599,
+            "zlib9_bytes": 6829,
+            "brotli9_bytes": 6359,
+            "compressed_bytes": 6359,
+            "compressor": "brotli9",
+            "encode_ms_median": 103.1285,
+            "decode_ms_median": 0.0583,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 3,
+              "blocks": 3,
+              "avg_spectrum_nonzero": 65393.3
+            },
+            "exact": true
+          }
+        ],
+        "baseline": [
+          "brotli9",
+          5395
+        ]
+      },
+      {
+        "dataset": "paper_PDF",
+        "variants": [
+          {
+            "dimension": 256,
+            "bipolar": false,
+            "raw_file_bytes": 358510,
+            "zlib9_bytes": 341631,
+            "brotli9_bytes": 337775,
+            "compressed_bytes": 337775,
+            "compressor": "brotli9",
+            "encode_ms_median": 368.643,
+            "decode_ms_median": 14.8113,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 308,
+              "raw": 10854,
+              "blocks": 11162,
+              "avg_spectrum_nonzero": 248.1
+            },
+            "exact": true
+          },
+          {
+            "dimension": 256,
+            "bipolar": true,
+            "raw_file_bytes": 358510,
+            "zlib9_bytes": 341631,
+            "brotli9_bytes": 337774,
+            "compressed_bytes": 337774,
+            "compressor": "brotli9",
+            "encode_ms_median": 405.2046,
+            "decode_ms_median": 14.2663,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 308,
+              "raw": 10854,
+              "blocks": 11162,
+              "avg_spectrum_nonzero": 243.3
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": false,
+            "raw_file_bytes": 349299,
+            "zlib9_bytes": 330869,
+            "brotli9_bytes": 327787,
+            "compressed_bytes": 327787,
+            "compressor": "brotli9",
+            "encode_ms_median": 677.9453,
+            "decode_ms_median": 4.239,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 76,
+              "raw": 2707,
+              "blocks": 2783,
+              "avg_spectrum_nonzero": 1008.0
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": true,
+            "raw_file_bytes": 349299,
+            "zlib9_bytes": 330869,
+            "brotli9_bytes": 327786,
+            "compressed_bytes": 327786,
+            "compressor": "brotli9",
+            "encode_ms_median": 692.8866,
+            "decode_ms_median": 4.279,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 76,
+              "raw": 2707,
+              "blocks": 2783,
+              "avg_spectrum_nonzero": 998.1
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": false,
+            "raw_file_bytes": 347852,
+            "zlib9_bytes": 328770,
+            "brotli9_bytes": 324939,
+            "compressed_bytes": 324939,
+            "compressor": "brotli9",
+            "encode_ms_median": 877.0952,
+            "decode_ms_median": 1.6812,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 18,
+              "raw": 678,
+              "blocks": 696,
+              "avg_spectrum_nonzero": 4064.0
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": true,
+            "raw_file_bytes": 347852,
+            "zlib9_bytes": 328770,
+            "brotli9_bytes": 324939,
+            "compressed_bytes": 324939,
+            "compressor": "brotli9",
+            "encode_ms_median": 883.5249,
+            "decode_ms_median": 1.6909,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 18,
+              "raw": 678,
+              "blocks": 696,
+              "avg_spectrum_nonzero": 4044.3
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": false,
+            "raw_file_bytes": 352320,
+            "zlib9_bytes": 319889,
+            "brotli9_bytes": 316023,
+            "compressed_bytes": 316023,
+            "compressor": "brotli9",
+            "encode_ms_median": 1487.6418,
+            "decode_ms_median": 0.8196,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 1,
+              "raw": 43,
+              "blocks": 44,
+              "avg_spectrum_nonzero": 65402.0
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": true,
+            "raw_file_bytes": 352320,
+            "zlib9_bytes": 319889,
+            "brotli9_bytes": 316023,
+            "compressed_bytes": 316023,
+            "compressor": "brotli9",
+            "encode_ms_median": 1506.9231,
+            "decode_ms_median": 0.7866,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 1,
+              "raw": 43,
+              "blocks": 44,
+              "avg_spectrum_nonzero": 65340.6
+            },
+            "exact": true
+          }
+        ],
+        "baseline": [
+          "brotli9",
+          311547
+        ]
+      },
+      {
+        "dataset": "document_bitmap",
+        "variants": [
+          {
+            "dimension": 256,
+            "bipolar": false,
+            "raw_file_bytes": 9983,
+            "zlib9_bytes": 2431,
+            "brotli9_bytes": 2445,
+            "compressed_bytes": 2431,
+            "compressor": "zlib9",
+            "encode_ms_median": 11.5114,
+            "decode_ms_median": 0.4339,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 459,
+              "raw": 288,
+              "blocks": 747,
+              "avg_spectrum_nonzero": 212.2
+            },
+            "exact": true
+          },
+          {
+            "dimension": 256,
+            "bipolar": true,
+            "raw_file_bytes": 9983,
+            "zlib9_bytes": 2431,
+            "brotli9_bytes": 2445,
+            "compressed_bytes": 2431,
+            "compressor": "zlib9",
+            "encode_ms_median": 13.0188,
+            "decode_ms_median": 0.4634,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 459,
+              "raw": 288,
+              "blocks": 747,
+              "avg_spectrum_nonzero": 253.1
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": false,
+            "raw_file_bytes": 13519,
+            "zlib9_bytes": 2357,
+            "brotli9_bytes": 2356,
+            "compressed_bytes": 2356,
+            "compressor": "brotli9",
+            "encode_ms_median": 27.0614,
+            "decode_ms_median": 0.1786,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 83,
+              "raw": 104,
+              "blocks": 187,
+              "avg_spectrum_nonzero": 896.5
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": true,
+            "raw_file_bytes": 13519,
+            "zlib9_bytes": 2357,
+            "brotli9_bytes": 2357,
+            "compressed_bytes": 2357,
+            "compressor": "zlib9",
+            "encode_ms_median": 26.9047,
+            "decode_ms_median": 0.2066,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 83,
+              "raw": 104,
+              "blocks": 187,
+              "avg_spectrum_nonzero": 1021.6
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": false,
+            "raw_file_bytes": 20035,
+            "zlib9_bytes": 2350,
+            "brotli9_bytes": 2337,
+            "compressed_bytes": 2337,
+            "compressor": "brotli9",
+            "encode_ms_median": 50.3656,
+            "decode_ms_median": 0.1057,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 8,
+              "raw": 39,
+              "blocks": 47,
+              "avg_spectrum_nonzero": 3858.5
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": true,
+            "raw_file_bytes": 20035,
+            "zlib9_bytes": 2350,
+            "brotli9_bytes": 2337,
+            "compressed_bytes": 2337,
+            "compressor": "brotli9",
+            "encode_ms_median": 57.7156,
+            "decode_ms_median": 0.0944,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 8,
+              "raw": 39,
+              "blocks": 47,
+              "avg_spectrum_nonzero": 4094.1
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": false,
+            "raw_file_bytes": 24599,
+            "zlib9_bytes": 2376,
+            "brotli9_bytes": 2318,
+            "compressed_bytes": 2318,
+            "compressor": "brotli9",
+            "encode_ms_median": 103.2284,
+            "decode_ms_median": 0.0646,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 3,
+              "blocks": 3,
+              "avg_spectrum_nonzero": 64477
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": true,
+            "raw_file_bytes": 24599,
+            "zlib9_bytes": 2376,
+            "brotli9_bytes": 2318,
+            "compressed_bytes": 2318,
+            "compressor": "brotli9",
+            "encode_ms_median": 102.038,
+            "decode_ms_median": 0.0537,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 3,
+              "blocks": 3,
+              "avg_spectrum_nonzero": 65531
+            },
+            "exact": true
+          }
+        ],
+        "baseline": [
+          "lzma6",
+          2284
+        ]
+      },
+      {
+        "dataset": "repeated_pattern",
+        "variants": [
+          {
+            "dimension": 256,
+            "bipolar": false,
+            "raw_file_bytes": 67901,
+            "zlib9_bytes": 375,
+            "brotli9_bytes": 83,
+            "compressed_bytes": 83,
+            "compressor": "brotli9",
+            "encode_ms_median": 66.4168,
+            "decode_ms_median": 2.7254,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 2057,
+              "blocks": 2057,
+              "avg_spectrum_nonzero": 248.0
+            },
+            "exact": true
+          },
+          {
+            "dimension": 256,
+            "bipolar": true,
+            "raw_file_bytes": 67901,
+            "zlib9_bytes": 374,
+            "brotli9_bytes": 82,
+            "compressed_bytes": 82,
+            "compressor": "brotli9",
+            "encode_ms_median": 74.9605,
+            "decode_ms_median": 2.6489,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 2057,
+              "blocks": 2057,
+              "avg_spectrum_nonzero": 220.0
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": false,
+            "raw_file_bytes": 66197,
+            "zlib9_bytes": 431,
+            "brotli9_bytes": 90,
+            "compressed_bytes": 90,
+            "compressor": "brotli9",
+            "encode_ms_median": 129.7034,
+            "decode_ms_median": 0.7968,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 513,
+              "blocks": 513,
+              "avg_spectrum_nonzero": 992.1
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": true,
+            "raw_file_bytes": 66197,
+            "zlib9_bytes": 430,
+            "brotli9_bytes": 89,
+            "compressed_bytes": 89,
+            "compressor": "brotli9",
+            "encode_ms_median": 131.852,
+            "decode_ms_median": 0.779,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 513,
+              "blocks": 513,
+              "avg_spectrum_nonzero": 880.3
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": false,
+            "raw_file_bytes": 66197,
+            "zlib9_bytes": 327,
+            "brotli9_bytes": 88,
+            "compressed_bytes": 88,
+            "compressor": "brotli9",
+            "encode_ms_median": 168.2018,
+            "decode_ms_median": 0.2882,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 129,
+              "blocks": 129,
+              "avg_spectrum_nonzero": 3969.0
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": true,
+            "raw_file_bytes": 66197,
+            "zlib9_bytes": 326,
+            "brotli9_bytes": 87,
+            "compressed_bytes": 87,
+            "compressor": "brotli9",
+            "encode_ms_median": 172.6117,
+            "decode_ms_median": 0.4656,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 129,
+              "blocks": 129,
+              "avg_spectrum_nonzero": 3524.5
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": false,
+            "raw_file_bytes": 73757,
+            "zlib9_bytes": 147,
+            "brotli9_bytes": 97,
+            "compressed_bytes": 97,
+            "compressor": "brotli9",
+            "encode_ms_median": 307.6711,
+            "decode_ms_median": 0.1349,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 9,
+              "blocks": 9,
+              "avg_spectrum_nonzero": 63715.6
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": true,
+            "raw_file_bytes": 73757,
+            "zlib9_bytes": 146,
+            "brotli9_bytes": 96,
+            "compressed_bytes": 96,
+            "compressor": "brotli9",
+            "encode_ms_median": 307.2851,
+            "decode_ms_median": 0.1789,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 9,
+              "blocks": 9,
+              "avg_spectrum_nonzero": 57344
+            },
+            "exact": true
+          }
+        ],
+        "baseline": [
+          "brotli9",
+          13
+        ]
+      },
+      {
+        "dataset": "random_control",
+        "variants": [
+          {
+            "dimension": 256,
+            "bipolar": false,
+            "raw_file_bytes": 67901,
+            "zlib9_bytes": 67592,
+            "brotli9_bytes": 67428,
+            "compressed_bytes": 67428,
+            "compressor": "brotli9",
+            "encode_ms_median": 66.2229,
+            "decode_ms_median": 2.6183,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 2057,
+              "blocks": 2057,
+              "avg_spectrum_nonzero": 248.1
+            },
+            "exact": true
+          },
+          {
+            "dimension": 256,
+            "bipolar": true,
+            "raw_file_bytes": 67901,
+            "zlib9_bytes": 67592,
+            "brotli9_bytes": 67428,
+            "compressed_bytes": 67428,
+            "compressor": "brotli9",
+            "encode_ms_median": 73.9938,
+            "decode_ms_median": 2.6153,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 2057,
+              "blocks": 2057,
+              "avg_spectrum_nonzero": 243.1
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": false,
+            "raw_file_bytes": 66197,
+            "zlib9_bytes": 66195,
+            "brotli9_bytes": 66202,
+            "compressed_bytes": 66195,
+            "compressor": "zlib9",
+            "encode_ms_median": 135.7993,
+            "decode_ms_median": 1.1915,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 513,
+              "blocks": 513,
+              "avg_spectrum_nonzero": 1008.4
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": true,
+            "raw_file_bytes": 66197,
+            "zlib9_bytes": 66195,
+            "brotli9_bytes": 66202,
+            "compressed_bytes": 66195,
+            "compressor": "zlib9",
+            "encode_ms_median": 182.5647,
+            "decode_ms_median": 1.0911,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 513,
+              "blocks": 513,
+              "avg_spectrum_nonzero": 998.0
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": false,
+            "raw_file_bytes": 66197,
+            "zlib9_bytes": 65742,
+            "brotli9_bytes": 66202,
+            "compressed_bytes": 65742,
+            "compressor": "zlib9",
+            "encode_ms_median": 174.605,
+            "decode_ms_median": 0.5153,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 129,
+              "blocks": 129,
+              "avg_spectrum_nonzero": 4062.4
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": true,
+            "raw_file_bytes": 66197,
+            "zlib9_bytes": 65742,
+            "brotli9_bytes": 66202,
+            "compressed_bytes": 65742,
+            "compressor": "zlib9",
+            "encode_ms_median": 171.9221,
+            "decode_ms_median": 0.5065,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 129,
+              "blocks": 129,
+              "avg_spectrum_nonzero": 4045.1
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": false,
+            "raw_file_bytes": 73757,
+            "zlib9_bytes": 65673,
+            "brotli9_bytes": 65584,
+            "compressed_bytes": 65584,
+            "compressor": "brotli9",
+            "encode_ms_median": 341.8071,
+            "decode_ms_median": 0.1439,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 9,
+              "blocks": 9,
+              "avg_spectrum_nonzero": 65358.3
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": true,
+            "raw_file_bytes": 73757,
+            "zlib9_bytes": 65673,
+            "brotli9_bytes": 65584,
+            "compressed_bytes": 65584,
+            "compressor": "brotli9",
+            "encode_ms_median": 309.0197,
+            "decode_ms_median": 0.1651,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 9,
+              "blocks": 9,
+              "avg_spectrum_nonzero": 65219
+            },
+            "exact": true
+          }
+        ],
+        "baseline": [
+          "brotli9",
+          65540
+        ]
+      },
+      {
+        "dataset": "sparse_binary",
+        "variants": [
+          {
+            "dimension": 256,
+            "bipolar": false,
+            "raw_file_bytes": 310,
+            "zlib9_bytes": 33,
+            "brotli9_bytes": 34,
+            "compressed_bytes": 33,
+            "compressor": "zlib9",
+            "encode_ms_median": 0.9441,
+            "decode_ms_median": 0.036,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 257,
+              "raw": 1,
+              "blocks": 258,
+              "avg_spectrum_nonzero": 256
+            },
+            "exact": true
+          },
+          {
+            "dimension": 256,
+            "bipolar": true,
+            "raw_file_bytes": 310,
+            "zlib9_bytes": 33,
+            "brotli9_bytes": 33,
+            "compressed_bytes": 33,
+            "compressor": "zlib9",
+            "encode_ms_median": 1.5625,
+            "decode_ms_median": 0.0356,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 257,
+              "raw": 1,
+              "blocks": 258,
+              "avg_spectrum_nonzero": 256
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": false,
+            "raw_file_bytes": 213,
+            "zlib9_bytes": 34,
+            "brotli9_bytes": 36,
+            "compressed_bytes": 34,
+            "compressor": "zlib9",
+            "encode_ms_median": 0.5134,
+            "decode_ms_median": 0.0196,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 64,
+              "raw": 1,
+              "blocks": 65,
+              "avg_spectrum_nonzero": 1024
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": true,
+            "raw_file_bytes": 213,
+            "zlib9_bytes": 34,
+            "brotli9_bytes": 35,
+            "compressed_bytes": 34,
+            "compressor": "zlib9",
+            "encode_ms_median": 0.6999,
+            "decode_ms_median": 0.0303,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 64,
+              "raw": 1,
+              "blocks": 65,
+              "avg_spectrum_nonzero": 1024
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": false,
+            "raw_file_bytes": 549,
+            "zlib9_bytes": 35,
+            "brotli9_bytes": 35,
+            "compressed_bytes": 35,
+            "compressor": "zlib9",
+            "encode_ms_median": 1.4223,
+            "decode_ms_median": 0.0177,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 16,
+              "raw": 1,
+              "blocks": 17,
+              "avg_spectrum_nonzero": 4096
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": true,
+            "raw_file_bytes": 549,
+            "zlib9_bytes": 35,
+            "brotli9_bytes": 34,
+            "compressed_bytes": 34,
+            "compressor": "brotli9",
+            "encode_ms_median": 1.4516,
+            "decode_ms_median": 0.0169,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 16,
+              "raw": 1,
+              "blocks": 17,
+              "avg_spectrum_nonzero": 4096
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": false,
+            "raw_file_bytes": 8214,
+            "zlib9_bytes": 55,
+            "brotli9_bytes": 35,
+            "compressed_bytes": 35,
+            "compressor": "brotli9",
+            "encode_ms_median": 33.977,
+            "decode_ms_median": 0.0294,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 1,
+              "raw": 1,
+              "blocks": 2,
+              "avg_spectrum_nonzero": 65536
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": true,
+            "raw_file_bytes": 8214,
+            "zlib9_bytes": 54,
+            "brotli9_bytes": 34,
+            "compressed_bytes": 34,
+            "compressor": "brotli9",
+            "encode_ms_median": 34.2536,
+            "decode_ms_median": 0.0316,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 1,
+              "raw": 1,
+              "blocks": 2,
+              "avg_spectrum_nonzero": 65536
+            },
+            "exact": true
+          }
+        ],
+        "baseline": [
+          "brotli9",
+          15
+        ]
+      },
+      {
+        "dataset": "CD_basis_binary_1024",
+        "variants": [
+          {
+            "dimension": 256,
+            "bipolar": false,
+            "raw_file_bytes": 67835,
+            "zlib9_bytes": 23854,
+            "brotli9_bytes": 22058,
+            "compressed_bytes": 22058,
+            "compressor": "brotli9",
+            "encode_ms_median": 65.1702,
+            "decode_ms_median": 2.6102,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 2055,
+              "blocks": 2055,
+              "avg_spectrum_nonzero": 251.9
+            },
+            "exact": true
+          },
+          {
+            "dimension": 256,
+            "bipolar": true,
+            "raw_file_bytes": 67360,
+            "zlib9_bytes": 23912,
+            "brotli9_bytes": 22260,
+            "compressed_bytes": 22260,
+            "compressor": "brotli9",
+            "encode_ms_median": 75.3049,
+            "decode_ms_median": 3.7383,
+            "mode_counts": {
+              "spectral": 28,
+              "fill": 0,
+              "raw": 2027,
+              "blocks": 2055,
+              "avg_spectrum_nonzero": 216.0
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": false,
+            "raw_file_bytes": 66068,
+            "zlib9_bytes": 6081,
+            "brotli9_bytes": 5676,
+            "compressed_bytes": 5676,
+            "compressor": "brotli9",
+            "encode_ms_median": 129.8913,
+            "decode_ms_median": 0.7564,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 512,
+              "blocks": 512,
+              "avg_spectrum_nonzero": 1024
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": true,
+            "raw_file_bytes": 3024,
+            "zlib9_bytes": 1247,
+            "brotli9_bytes": 1133,
+            "compressed_bytes": 1133,
+            "compressor": "brotli9",
+            "encode_ms_median": 133.0564,
+            "decode_ms_median": 130.1195,
+            "mode_counts": {
+              "spectral": 512,
+              "fill": 0,
+              "raw": 0,
+              "blocks": 512,              "avg_spectrum_nonzero": 1
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": false,
+            "raw_file_bytes": 65684,
+            "zlib9_bytes": 14027,
+            "brotli9_bytes": 13110,
+            "compressed_bytes": 13110,
+            "compressor": "brotli9",
+            "encode_ms_median": 167.677,
+            "decode_ms_median": 0.2859,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 128,
+              "blocks": 128,
+              "avg_spectrum_nonzero": 4074.8
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": true,
+            "raw_file_bytes": 65684,
+            "zlib9_bytes": 14026,
+            "brotli9_bytes": 13110,
+            "compressed_bytes": 13110,
+            "compressor": "brotli9",
+            "encode_ms_median": 170.4577,
+            "decode_ms_median": 0.2861,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 128,
+              "blocks": 128,
+              "avg_spectrum_nonzero": 4000.1
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": false,
+            "raw_file_bytes": 65564,
+            "zlib9_bytes": 13274,
+            "brotli9_bytes": 12293,
+            "compressed_bytes": 12293,
+            "compressor": "brotli9",
+            "encode_ms_median": 273.7247,
+            "decode_ms_median": 0.2031,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 8,
+              "blocks": 8,
+              "avg_spectrum_nonzero": 65417.8
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": true,
+            "raw_file_bytes": 65564,
+            "zlib9_bytes": 13274,
+            "brotli9_bytes": 12294,
+            "compressed_bytes": 12294,
+            "compressor": "brotli9",
+            "encode_ms_median": 273.8298,
+            "decode_ms_median": 0.126,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 8,
+              "blocks": 8,
+              "avg_spectrum_nonzero": 65320.1
+            },
+            "exact": true
+          }
+        ],
+        "baseline": [
+          "lzma6",
+          10016
+        ]
+      },
+      {
+        "dataset": "CD_basis_binary_4096",
+        "variants": [
+          {
+            "dimension": 256,
+            "bipolar": false,
+            "raw_file_bytes": 67868,
+            "zlib9_bytes": 22313,
+            "brotli9_bytes": 20018,
+            "compressed_bytes": 20018,
+            "compressor": "brotli9",
+            "encode_ms_median": 66.3022,
+            "decode_ms_median": 2.6319,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 2056,
+              "blocks": 2056,
+              "avg_spectrum_nonzero": 252.5
+            },
+            "exact": true
+          },
+          {
+            "dimension": 256,
+            "bipolar": true,
+            "raw_file_bytes": 67215,
+            "zlib9_bytes": 22469,
+            "brotli9_bytes": 20265,
+            "compressed_bytes": 20265,
+            "compressor": "brotli9",
+            "encode_ms_median": 74.9139,
+            "decode_ms_median": 3.9412,
+            "mode_counts": {
+              "spectral": 38,
+              "fill": 0,
+              "raw": 2018,
+              "blocks": 2056,
+              "avg_spectrum_nonzero": 216.0
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": false,
+            "raw_file_bytes": 66197,
+            "zlib9_bytes": 15168,
+            "brotli9_bytes": 13943,
+            "compressed_bytes": 13943,
+            "compressor": "brotli9",
+            "encode_ms_median": 131.1411,
+            "decode_ms_median": 0.8338,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 513,
+              "blocks": 513,
+              "avg_spectrum_nonzero": 1017.7
+            },
+            "exact": true
+          },
+          {
+            "dimension": 1024,
+            "bipolar": true,
+            "raw_file_bytes": 65799,
+            "zlib9_bytes": 15212,
+            "brotli9_bytes": 13992,
+            "compressed_bytes": 13992,
+            "compressor": "brotli9",
+            "encode_ms_median": 132.0688,
+            "decode_ms_median": 2.1306,
+            "mode_counts": {
+              "spectral": 5,
+              "fill": 0,
+              "raw": 508,
+              "blocks": 513,
+              "avg_spectrum_nonzero": 886.9
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": false,
+            "raw_file_bytes": 65684,
+            "zlib9_bytes": 4516,
+            "brotli9_bytes": 4201,
+            "compressed_bytes": 4201,
+            "compressor": "brotli9",
+            "encode_ms_median": 165.0339,
+            "decode_ms_median": 0.2808,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 128,
+              "blocks": 128,
+              "avg_spectrum_nonzero": 4096
+            },
+            "exact": true
+          },
+          {
+            "dimension": 4096,
+            "bipolar": true,
+            "raw_file_bytes": 785,
+            "zlib9_bytes": 422,
+            "brotli9_bytes": 373,
+            "compressed_bytes": 373,
+            "compressor": "brotli9",
+            "encode_ms_median": 167.8104,
+            "decode_ms_median": 184.9382,
+            "mode_counts": {
+              "spectral": 128,
+              "fill": 0,
+              "raw": 0,
+              "blocks": 128,
+              "avg_spectrum_nonzero": 1
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": false,
+            "raw_file_bytes": 65564,
+            "zlib9_bytes": 6947,
+            "brotli9_bytes": 6744,
+            "compressed_bytes": 6744,
+            "compressor": "brotli9",
+            "encode_ms_median": 275.3922,
+            "decode_ms_median": 0.1358,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 8,
+              "blocks": 8,
+              "avg_spectrum_nonzero": 65511.5
+            },
+            "exact": true
+          },
+          {
+            "dimension": 65536,
+            "bipolar": true,
+            "raw_file_bytes": 65564,
+            "zlib9_bytes": 6946,
+            "brotli9_bytes": 6743,
+            "compressed_bytes": 6743,
+            "compressor": "brotli9",
+            "encode_ms_median": 279.1574,
+            "decode_ms_median": 0.1223,
+            "mode_counts": {
+              "spectral": 0,
+              "fill": 0,
+              "raw": 8,
+              "blocks": 8,
+              "avg_spectrum_nonzero": 65166.8
+            },
+            "exact": true
+          }
+        ],
+        "baseline": [
+          "lzma6",
+          5272
+        ]
+      }
+    ]
+  },
+  "coefficient_widths": {
+    "seed": 20262018,
+    "multi_bit_widths": [
+      {
+        "dimensions": 256,
+        "imaginary_axes": 255,
+        "bits_per_coefficient": 1,
+        "input_bits": 255,
+        "tight_storage_bytes": 32,
+        "dense_int32_bytes": 1024,
+        "signed_int64_product_bytes": 2048,
+        "nonzero_coefficients": 128,
+        "multiplier_basis_key": 7,
+        "roundtrip_exact": true,
+        "unit_encode_ms": 0.0054,
+        "unit_decode_ms": 0.0053
+      },
+      {
+        "dimensions": 256,
+        "imaginary_axes": 255,
+        "bits_per_coefficient": 2,
+        "input_bits": 510,
+        "tight_storage_bytes": 64,
+        "dense_int32_bytes": 1024,
+        "signed_int64_product_bytes": 2048,
+        "nonzero_coefficients": 191,
+        "multiplier_basis_key": 7,
+        "roundtrip_exact": true,
+        "unit_encode_ms": 0.0037,
+        "unit_decode_ms": 0.0033
+      },
+      {
+        "dimensions": 256,
+        "imaginary_axes": 255,
+        "bits_per_coefficient": 4,
+        "input_bits": 1020,
+        "tight_storage_bytes": 128,
+        "dense_int32_bytes": 1024,
+        "signed_int64_product_bytes": 2048,
+        "nonzero_coefficients": 242,
+        "multiplier_basis_key": 7,
+        "roundtrip_exact": true,
+        "unit_encode_ms": 0.0034,
+        "unit_decode_ms": 0.0032
+      },
+      {
+        "dimensions": 256,
+        "imaginary_axes": 255,
+        "bits_per_coefficient": 8,
+        "input_bits": 2040,
+        "tight_storage_bytes": 255,
+        "dense_int32_bytes": 1024,
+        "signed_int64_product_bytes": 2048,
+        "nonzero_coefficients": 253,
+        "multiplier_basis_key": 7,
+        "roundtrip_exact": true,
+        "unit_encode_ms": 0.003,
+        "unit_decode_ms": 0.0031
+      },
+      {
+        "dimensions": 256,
+        "imaginary_axes": 255,
+        "bits_per_coefficient": 16,
+        "input_bits": 4080,
+        "tight_storage_bytes": 510,
+        "dense_int32_bytes": 1024,
+        "signed_int64_product_bytes": 2048,
+        "nonzero_coefficients": 255,
+        "multiplier_basis_key": 7,
+        "roundtrip_exact": true,
+        "unit_encode_ms": 0.003,
+        "unit_decode_ms": 0.0036
+      },
+      {
+        "dimensions": 65536,
+        "imaginary_axes": 65535,
+        "bits_per_coefficient": 1,
+        "input_bits": 65535,
+        "tight_storage_bytes": 8192,
+        "dense_int32_bytes": 262144,
+        "signed_int64_product_bytes": 524288,
+        "nonzero_coefficients": 32958,
+        "multiplier_basis_key": 7,
+        "roundtrip_exact": true,
+        "unit_encode_ms": 1.8998,
+        "unit_decode_ms": 3.0223
+      },
+      {
+        "dimensions": 65536,
+        "imaginary_axes": 65535,
+        "bits_per_coefficient": 2,
+        "input_bits": 131070,
+        "tight_storage_bytes": 16384,
+        "dense_int32_bytes": 262144,
+        "signed_int64_product_bytes": 524288,
+        "nonzero_coefficients": 49289,
+        "multiplier_basis_key": 7,
+        "roundtrip_exact": true,
+        "unit_encode_ms": 2.4177,
+        "unit_decode_ms": 2.762
+      },
+      {
+        "dimensions": 65536,
+        "imaginary_axes": 65535,
+        "bits_per_coefficient": 4,
+        "input_bits": 262140,
+        "tight_storage_bytes": 32768,
+        "dense_int32_bytes": 262144,
+        "signed_int64_product_bytes": 524288,
+        "nonzero_coefficients": 61388,
+        "multiplier_basis_key": 7,
+        "roundtrip_exact": true,
+        "unit_encode_ms": 2.8177,
+        "unit_decode_ms": 3.1578
+      },
+      {
+        "dimensions": 65536,
+        "imaginary_axes": 65535,
+        "bits_per_coefficient": 8,
+        "input_bits": 524280,
+        "tight_storage_bytes": 65535,
+        "dense_int32_bytes": 262144,
+        "signed_int64_product_bytes": 524288,
+        "nonzero_coefficients": 65269,
+        "multiplier_basis_key": 7,
+        "roundtrip_exact": true,
+        "unit_encode_ms": 2.5805,
+        "unit_decode_ms": 2.7023
+      },
+      {
+        "dimensions": 65536,
+        "imaginary_axes": 65535,
+        "bits_per_coefficient": 16,
+        "input_bits": 1048560,
+        "tight_storage_bytes": 131070,
+        "dense_int32_bytes": 262144,
+        "signed_int64_product_bytes": 524288,
+        "nonzero_coefficients": 65535,
+        "multiplier_basis_key": 7,
+        "roundtrip_exact": true,
+        "unit_encode_ms": 2.5283,
+        "unit_decode_ms": 2.6971
+      },
+      {
+        "dimensions": 1048576,
+        "imaginary_axes": 1048575,
+        "bits_per_coefficient": 1,
+        "input_bits": 1048575,
+        "tight_storage_bytes": 131072,
+        "dense_int32_bytes": 4194304,
+        "signed_int64_product_bytes": 8388608,
+        "nonzero_coefficients": 523900,
+        "multiplier_basis_key": 7,
+        "roundtrip_exact": true,
+        "unit_encode_ms": 42.4536,
+        "unit_decode_ms": 55.1207
+      },
+      {
+        "dimensions": 1048576,
+        "imaginary_axes": 1048575,
+        "bits_per_coefficient": 2,
+        "input_bits": 2097150,
+        "tight_storage_bytes": 262144,
+        "dense_int32_bytes": 4194304,
+        "signed_int64_product_bytes": 8388608,
+        "nonzero_coefficients": 786199,
+        "multiplier_basis_key": 7,
+        "roundtrip_exact": true,
+        "unit_encode_ms": 46.8168,
+        "unit_decode_ms": 49.3662
+      },
+      {
+        "dimensions": 1048576,
+        "imaginary_axes": 1048575,
+        "bits_per_coefficient": 4,
+        "input_bits": 4194300,
+        "tight_storage_bytes": 524288,
+        "dense_int32_bytes": 4194304,
+        "signed_int64_product_bytes": 8388608,
+        "nonzero_coefficients": 983170,
+        "multiplier_basis_key": 7,
+        "roundtrip_exact": true,
+        "unit_encode_ms": 47.2162,
+        "unit_decode_ms": 52.3503
+      },
+      {
+        "dimensions": 1048576,
+        "imaginary_axes": 1048575,
+        "bits_per_coefficient": 8,
+        "input_bits": 8388600,
+        "tight_storage_bytes": 1048575,
+        "dense_int32_bytes": 4194304,
+        "signed_int64_product_bytes": 8388608,
+        "nonzero_coefficients": 1044470,
+        "multiplier_basis_key": 7,
+        "roundtrip_exact": true,
+        "unit_encode_ms": 46.6512,
+        "unit_decode_ms": 52.0093
+      },
+      {
+        "dimensions": 1048576,
+        "imaginary_axes": 1048575,
+        "bits_per_coefficient": 16,
+        "input_bits": 16777200,
+        "tight_storage_bytes": 2097150,
+        "dense_int32_bytes": 4194304,
+        "signed_int64_product_bytes": 8388608,
+        "nonzero_coefficients": 1048555,
+        "multiplier_basis_key": 7,
+        "roundtrip_exact": true,
+        "unit_encode_ms": 48.1105,
+        "unit_decode_ms": 57.2589
+      }
+    ],
+    "mixed_widths": [
+      {
+        "dimensions": 256,
+        "width_bits": 1,
+        "max_input_coeff": 1,
+        "max_output_abs_coeff": 25,
+        "nonzero_input_coeff": 127,
+        "nonzero_mixed_coeff": 256,
+        "norm_multiplier": 256,
+        "encode_ms": 88.8141,
+        "decode_ms": 1.4958,
+        "roundtrip_exact": true
+      },
+      {
+        "dimensions": 65536,
+        "width_bits": 8,
+        "max_input_coeff": 255,
+        "max_output_abs_coeff": 106081,
+        "nonzero_input_coeff": 65267,
+        "nonzero_mixed_coeff": 65536,
+        "norm_multiplier": 65536,
+        "encode_ms": 39.4999,
+        "decode_ms": 35.7853,
+        "roundtrip_exact": true
+      },
+      {
+        "dimensions": 65536,
+        "width_bits": 16,
+        "max_input_coeff": 65535,
+        "max_output_abs_coeff": 27716800,
+        "nonzero_input_coeff": 65534,
+        "nonzero_mixed_coeff": 65536,
+        "norm_multiplier": 65536,
+        "encode_ms": 36.1651,
+        "decode_ms": 35.7524,
+        "roundtrip_exact": true
+      },
+      {
+        "dimensions": 1048576,
+        "width_bits": 16,
+        "max_input_coeff": 65535,
+        "max_output_abs_coeff": 129324076,
+        "nonzero_input_coeff": 1048558,
+        "nonzero_mixed_coeff": 1048576,
+        "norm_multiplier": 1048576,
+        "encode_ms": 824.2509,
+        "decode_ms": 841.8758,
+        "roundtrip_exact": true
+      }
+    ],
+    "unit_channel_bit_flip": {
+      "trials": 1000,
+      "input_dimension": 4096,
+      "single_encoded_bit_flips": 1000,
+      "data_bits_flipped_per_trial_unique": [
+        1
+      ],
+      "native_error_correction": false
+    }
+  },
+  "million_dim_codeword": {
+    "dimension": 1048576,
+    "imaginary_axes": 1048575,
+    "axis": 123456,
+    "input_bits_including_byte_padding": 1048576,
+    "message_bits": 1048575,
+    "sha256": "c383021767df4f09ce4dc64d709f9d99868bc8d97cfae7ed1b5186c5585c6c79",
+    "sizes_bytes": {
+      "original": 131072,
+      "hypercomplex_raw": 29,
+      "hypercomplex_zlib9": 35,
+      "hypercomplex_brotli9": 33,
+      "zlib9": 898,
+      "brotli9": 274,
+      "lzma6": 844
+    },
+    "codec_modes": {
+      "spectral": 1,
+      "fill": 1,
+      "raw": 0,
+      "blocks": 2,
+      "avg_spectrum_nonzero": 1
+    },
+    "exact_roundtrip": true,
+    "wall_sec": 2.898
+  }
+}
