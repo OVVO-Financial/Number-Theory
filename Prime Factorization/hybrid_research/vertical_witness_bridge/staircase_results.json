@@ -1,0 +1,51 @@
+{
+  "checked_identities": 464800,
+  "examples": {
+    "187": {
+      "11": {
+        "Y_first": 1452,
+        "Y_last": 1584,
+        "Y_multiplicity": 133
+      },
+      "17": {
+        "Y_first": 963,
+        "Y_last": 1020,
+        "Y_multiplicity": 58
+      },
+      "121": {
+        "Y_first": 83,
+        "Y_last": 84,
+        "Y_multiplicity": 2
+      }
+    },
+    "309": {
+      "3": {
+        "Y_first": 11934,
+        "Y_last": 15912,
+        "Y_multiplicity": 3979
+      },
+      "9": {
+        "Y_first": 4770,
+        "Y_last": 5300,
+        "Y_multiplicity": 531
+      },
+      "103": {
+        "Y_first": 408,
+        "Y_last": 412,
+        "Y_multiplicity": 5
+      }
+    },
+    "978508015703": {
+      "1299709": {
+        "Y_first": 368342913724343603,
+        "Y_last": 368343197128485396,
+        "Y_multiplicity": 283404141794
+      },
+      "566808719689": {
+        "Y_first": 561217382495,
+        "Y_last": 561217382496,
+        "Y_multiplicity": 2
+      }
+    }
+  }
+}

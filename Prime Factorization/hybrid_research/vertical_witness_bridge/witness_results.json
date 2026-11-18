@@ -1,0 +1,218 @@
+{
+  "distinct_semiprime_cases": 595,
+  "pythagorean_wheel_point_checks": 7925,
+  "extra_pythagorean_witnesses_rejected_by_original_square_wheel": 2844,
+  "nontrivial_gcd_Y_from_u_p_or_q": 1190,
+  "examples": {
+    "309": {
+      "p": 3,
+      "q": 103,
+      "original_Y": 5300,
+      "lowest_nontrivial_Y": 412,
+      "three_nontrivial_witnesses": [
+        {
+          "u": 3,
+          "H": 15915,
+          "Y": 15912,
+          "gcd_N_u": 3,
+          "gcd_N_Y": 3,
+          "square_ends": false
+        },
+        {
+          "u": 9,
+          "H": 5309,
+          "Y": 5300,
+          "gcd_N_u": 3,
+          "gcd_N_Y": 1,
+          "square_ends": true
+        },
+        {
+          "u": 103,
+          "H": 515,
+          "Y": 412,
+          "gcd_N_u": 103,
+          "gcd_N_Y": 103,
+          "square_ends": false
+        }
+      ]
+    },
+    "187": {
+      "p": 11,
+      "q": 17,
+      "original_Y": 84,
+      "lowest_nontrivial_Y": 84,
+      "three_nontrivial_witnesses": [
+        {
+          "u": 11,
+          "H": 1595,
+          "Y": 1584,
+          "gcd_N_u": 11,
+          "gcd_N_Y": 11,
+          "square_ends": false
+        },
+        {
+          "u": 17,
+          "H": 1037,
+          "Y": 1020,
+          "gcd_N_u": 17,
+          "gcd_N_Y": 17,
+          "square_ends": false
+        },
+        {
+          "u": 121,
+          "H": 205,
+          "Y": 84,
+          "gcd_N_u": 11,
+          "gcd_N_Y": 1,
+          "square_ends": true
+        }
+      ]
+    },
+    "8051": {
+      "p": 83,
+      "q": 97,
+      "original_Y": 1260,
+      "lowest_nontrivial_Y": 1260,
+      "three_nontrivial_witnesses": [
+        {
+          "u": 83,
+          "H": 390515,
+          "Y": 390432,
+          "gcd_N_u": 83,
+          "gcd_N_Y": 83,
+          "square_ends": false
+        },
+        {
+          "u": 97,
+          "H": 334165,
+          "Y": 334068,
+          "gcd_N_u": 97,
+          "gcd_N_Y": 97,
+          "square_ends": false
+        },
+        {
+          "u": 6889,
+          "H": 8149,
+          "Y": 1260,
+          "gcd_N_u": 83,
+          "gcd_N_Y": 1,
+          "square_ends": true
+        }
+      ]
+    },
+    "798607": {
+      "p": 101,
+      "q": 7907,
+      "original_Y": 31255224,
+      "lowest_nontrivial_Y": 31255224,
+      "three_nontrivial_witnesses": [
+        {
+          "u": 101,
+          "H": 3157292825,
+          "Y": 3157292724,
+          "gcd_N_u": 101,
+          "gcd_N_Y": 101,
+          "square_ends": false
+        },
+        {
+          "u": 7907,
+          "H": 40333607,
+          "Y": 40325700,
+          "gcd_N_u": 7907,
+          "gcd_N_Y": 7907,
+          "square_ends": false
+        },
+        {
+          "u": 10201,
+          "H": 31265425,
+          "Y": 31255224,
+          "gcd_N_u": 101,
+          "gcd_N_Y": 1,
+          "square_ends": true
+        }
+      ]
+    },
+    "978508015703": {
+      "p": 752867,
+      "q": 1299709,
+      "original_Y": 561217382496,
+      "lowest_nontrivial_Y": 561217382496,
+      "three_nontrivial_witnesses": [
+        {
+          "u": 752867,
+          "H": 635887837291041647,
+          "Y": 635887837290288780,
+          "gcd_N_u": 752867,
+          "gcd_N_Y": 752867,
+          "square_ends": false
+        },
+        {
+          "u": 1299709,
+          "H": 368343197129785105,
+          "Y": 368343197128485396,
+          "gcd_N_u": 1299709,
+          "gcd_N_Y": 1299709,
+          "square_ends": false
+        },
+        {
+          "u": 566808719689,
+          "H": 1128026102185,
+          "Y": 561217382496,
+          "gcd_N_u": 752867,
+          "gcd_N_Y": 1,
+          "square_ends": true
+        }
+      ]
+    },
+    "1009000007063": {
+      "p": 1009,
+      "q": 1000000007,
+      "original_Y": 500000006999490984,
+      "lowest_nontrivial_Y": 509040003563280,
+      "three_nontrivial_witnesses": [
+        {
+          "u": 1009,
+          "H": 504500007063000025225,
+          "Y": 504500007063000024216,
+          "gcd_N_u": 1009,
+          "gcd_N_Y": 1009,
+          "square_ends": false
+        },
+        {
+          "u": 1018081,
+          "H": 500000007000509065,
+          "Y": 500000006999490984,
+          "gcd_N_u": 1009,
+          "gcd_N_Y": 1,
+          "square_ends": true
+        },
+        {
+          "u": 1000000007,
+          "H": 509041003563287,
+          "Y": 509040003563280,
+          "gcd_N_u": 1000000007,
+          "gcd_N_Y": 1000000007,
+          "square_ends": false
+        }
+      ]
+    }
+  },
+  "wheel_density_example_N_187": {
+    "20": {
+      "square": 2,
+      "pythagorean": 8,
+      "pythagorean_Y_classes": 3
+    },
+    "60": {
+      "square": 2,
+      "pythagorean": 16,
+      "pythagorean_Y_classes": 3
+    },
+    "420": {
+      "square": 6,
+      "pythagorean": 96,
+      "pythagorean_Y_classes": 9
+    }
+  },
+  "statement": "oracle verifies extra witnesses, not an N-only factor locator"
+}

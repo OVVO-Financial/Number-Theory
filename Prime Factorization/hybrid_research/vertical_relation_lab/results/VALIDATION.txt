@@ -1,0 +1,1 @@
+Test summary (current runtime): 820 modular/lattice; 1656 rational Newton; 80 independent relation/rank; 25,000 residual/gcd; 9 divisor counts

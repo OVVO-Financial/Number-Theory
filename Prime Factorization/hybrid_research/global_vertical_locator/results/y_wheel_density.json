@@ -1,0 +1,70 @@
+{
+  "N": "978508015703",
+  "Y_domain": [
+    "0",
+    "733881011777"
+  ],
+  "scope": "conditional balanced factor range only; modular exact factor-point sieve, not a residual sieve",
+  "results": [
+    {
+      "modulus": 20,
+      "classes_Y": 2,
+      "density_Y": 0.1,
+      "Y_wheel_count": "73388101178",
+      "total_integer_Y": "733881011778",
+      "paired_classes": 2,
+      "candidate_q_unit_2m": "163896",
+      "candidate_q_all": "409738"
+    },
+    {
+      "modulus": 60,
+      "classes_Y": 2,
+      "density_Y": 0.03333333333333333,
+      "Y_wheel_count": "24462700392",
+      "total_integer_Y": "733881011778",
+      "paired_classes": 2,
+      "candidate_q_unit_2m": "109264",
+      "candidate_q_all": "409738"
+    },
+    {
+      "modulus": 420,
+      "classes_Y": 6,
+      "density_Y": 0.014285714285714285,
+      "Y_wheel_count": "10484014454",
+      "total_integer_Y": "733881011778",
+      "paired_classes": 6,
+      "candidate_q_unit_2m": "93655",
+      "candidate_q_all": "409738"
+    },
+    {
+      "modulus": 840,
+      "classes_Y": 6,
+      "density_Y": 0.007142857142857143,
+      "Y_wheel_count": "5242007226",
+      "total_integer_Y": "733881011778",
+      "paired_classes": 6,
+      "candidate_q_unit_2m": "93655",
+      "candidate_q_all": "409738"
+    },
+    {
+      "modulus": 2520,
+      "classes_Y": 18,
+      "density_Y": 0.007142857142857143,
+      "Y_wheel_count": "5242007226",
+      "total_integer_Y": "733881011778",
+      "paired_classes": 18,
+      "candidate_q_unit_2m": "93655",
+      "candidate_q_all": "409738"
+    },
+    {
+      "modulus": 9240,
+      "classes_Y": 30,
+      "density_Y": 0.003246753246753247,
+      "Y_wheel_count": "2382730558",
+      "total_integer_Y": "733881011778",
+      "paired_classes": 30,
+      "candidate_q_unit_2m": "85142",
+      "candidate_q_all": "409738"
+    }
+  ]
+}

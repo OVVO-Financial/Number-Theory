@@ -1,0 +1,61 @@
+{
+  "tests": {
+    "RSA-100": {
+      "N": "1522605027922533360535618378132637429718068114961380688657908494580122963258952897654000350692006139",
+      "factor": "0",
+      "method": "unresolved",
+      "us": 59565,
+      "stages": [
+        {
+          "stage": "newton2",
+          "us": 685
+        },
+        {
+          "stage": "gaussian",
+          "us": 28638
+        },
+        {
+          "stage": "pminus",
+          "us": 2097
+        },
+        {
+          "stage": "lucas",
+          "us": 8177
+        },
+        {
+          "stage": "rho",
+          "us": 19946
+        }
+      ]
+    },
+    "RSA-110": {
+      "N": "35794234179725868774991807832568455403003778024228226193532908190484670252364677411513516111204504060317568667",
+      "factor": "0",
+      "method": "unresolved",
+      "us": 62512,
+      "stages": [
+        {
+          "stage": "newton2",
+          "us": 618
+        },
+        {
+          "stage": "gaussian",
+          "us": 28882
+        },
+        {
+          "stage": "pminus",
+          "us": 2151
+        },
+        {
+          "stage": "lucas",
+          "us": 9236
+        },
+        {
+          "stage": "rho",
+          "us": 21603
+        }
+      ]
+    }
+  },
+  "disclaimer": "Fixed bounded searches, not full factorization or GNFS comparison."
+}

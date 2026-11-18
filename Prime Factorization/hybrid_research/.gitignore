@@ -1,0 +1,19 @@
+# Generated tools and caches. Source and immutable reference results are tracked.
+__pycache__/
+*.pyc
+*.o
+*.so
+*.dll
+*.exe
+vf-factor-lab/build/
+naive_grouping_gmp/ng_gmp
+global_vertical_locator/global_vertical
+global_vertical_locator/y_fermat_wheel
+vertical_relation_lab/vertical_lattice
+vertical_relation_lab/relation_bench
+iterated_average_vertical_bridge/dyadic_scan
+dyadic_global_attack/gaussian_norm_one
+dyadic_global_attack/smooth_order
+dyadic_global_attack/newton2_primary
+dyadic_global_attack/dual_residual
+dyadic_global_attack/hybrid_native

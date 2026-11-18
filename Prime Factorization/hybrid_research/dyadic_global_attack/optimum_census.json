@@ -1,0 +1,198 @@
+[
+  {
+    "k": 3,
+    "n_mod8": 1,
+    "optimal": 1,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 3,
+    "n_mod8": 3,
+    "optimal": 1,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 3,
+    "n_mod8": 5,
+    "optimal": 1,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 3,
+    "n_mod8": 7,
+    "optimal": 1,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 4,
+    "n_mod8": 1,
+    "optimal": 2,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 4,
+    "n_mod8": 3,
+    "optimal": 2,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 4,
+    "n_mod8": 5,
+    "optimal": 2,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 4,
+    "n_mod8": 7,
+    "optimal": 2,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 5,
+    "n_mod8": 1,
+    "optimal": 4,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 5,
+    "n_mod8": 3,
+    "optimal": 4,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 5,
+    "n_mod8": 5,
+    "optimal": 4,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 5,
+    "n_mod8": 7,
+    "optimal": 4,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 6,
+    "n_mod8": 1,
+    "optimal": 8,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 6,
+    "n_mod8": 3,
+    "optimal": 8,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 6,
+    "n_mod8": 5,
+    "optimal": 8,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 6,
+    "n_mod8": 7,
+    "optimal": 7,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 7,
+    "n_mod8": 1,
+    "optimal": 16,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 7,
+    "n_mod8": 3,
+    "optimal": 16,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 7,
+    "n_mod8": 5,
+    "optimal": 16,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 7,
+    "n_mod8": 7,
+    "optimal": 14,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 8,
+    "n_mod8": 1,
+    "optimal": 32,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 8,
+    "n_mod8": 3,
+    "optimal": 32,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 8,
+    "n_mod8": 5,
+    "optimal": 32,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 8,
+    "n_mod8": 7,
+    "optimal": 26,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 9,
+    "n_mod8": 1,
+    "optimal": 64,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 9,
+    "n_mod8": 3,
+    "optimal": 64,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 9,
+    "n_mod8": 5,
+    "optimal": 64,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  },
+  {
+    "k": 9,
+    "n_mod8": 7,
+    "optimal": 52,
+    "lower_bound": 0.0,
+    "solver_status": 0
+  }
+]

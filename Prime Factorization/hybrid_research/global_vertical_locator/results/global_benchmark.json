@@ -1,0 +1,347 @@
+{
+  "protocol": {
+    "repeats": 3,
+    "same_balanced_q_interval": true,
+    "same_factor_candidates": true,
+    "baseline": "wheel-10 divisibility with GMP",
+    "batch": "shared normalized product tree GMP polynomial",
+    "comparison_scope": "not a GNFS comparison"
+  },
+  "cases": [
+    {
+      "name": "manuscript-40",
+      "n": "978508015703",
+      "actual_bits": 40,
+      "balanced_assumption": true,
+      "degrees": {
+        "wheel": 404,
+        "wheel840": 306,
+        "batch": 404,
+        "batch840": 306
+      },
+      "Y_wheel": {
+        "m": 420,
+        "Yclasses": 6,
+        "paired_classes": 6,
+        "Y_density": 0.014285714285714285,
+        "total_integer_Y": "733881011778",
+        "Y_wheel_positions": "10484014454",
+        "q_all": "409738",
+        "q_unit10": "163896",
+        "q_unit840": "93655"
+      },
+      "methods": [
+        {
+          "method": "wheel",
+          "degree": 404,
+          "median_seconds": 0.00830542,
+          "times_seconds": [
+            0.00953215,
+            0.00777881,
+            0.00830542
+          ]
+        },
+        {
+          "method": "wheel840",
+          "degree": 306,
+          "median_seconds": 0.00807229,
+          "times_seconds": [
+            0.00807229,
+            0.00766519,
+            0.00854272
+          ]
+        },
+        {
+          "method": "batch",
+          "degree": 404,
+          "median_seconds": 0.00674137,
+          "times_seconds": [
+            0.00610818,
+            0.00736729,
+            0.00674137
+          ]
+        },
+        {
+          "method": "batch840",
+          "degree": 306,
+          "median_seconds": 0.00530598,
+          "times_seconds": [
+            0.00536976,
+            0.00516362,
+            0.00530598
+          ]
+        }
+      ],
+      "speedup_batch_over_wheel": 1.2320077372996885,
+      "speedup_batch840_over_wheel840": 1.521357034892706
+    },
+    {
+      "name": "balanced-40",
+      "n": "522309809783",
+      "actual_bits": 39,
+      "balanced_assumption": true,
+      "degrees": {
+        "wheel": 346,
+        "wheel840": 261,
+        "batch": 346,
+        "batch840": 261
+      },
+      "Y_wheel": {
+        "m": 420,
+        "Yclasses": 6,
+        "paired_classes": 6,
+        "Y_density": 0.014285714285714285,
+        "total_integer_Y": "391732357338",
+        "Y_wheel_positions": "5596176533",
+        "q_all": "299356",
+        "q_unit10": "119742",
+        "q_unit840": "68425"
+      },
+      "methods": [
+        {
+          "method": "wheel",
+          "degree": 346,
+          "median_seconds": 0.00750344,
+          "times_seconds": [
+            0.00750344,
+            0.00696287,
+            0.0099664
+          ]
+        },
+        {
+          "method": "wheel840",
+          "degree": 261,
+          "median_seconds": 0.00675687,
+          "times_seconds": [
+            0.0066896,
+            0.00675769,
+            0.00675687
+          ]
+        },
+        {
+          "method": "batch",
+          "degree": 346,
+          "median_seconds": 0.00633763,
+          "times_seconds": [
+            0.00633763,
+            0.00729977,
+            0.00572158
+          ]
+        },
+        {
+          "method": "batch840",
+          "degree": 261,
+          "median_seconds": 0.00478615,
+          "times_seconds": [
+            0.00470037,
+            0.00478615,
+            0.0105176
+          ]
+        }
+      ],
+      "speedup_batch_over_wheel": 1.1839504672882448,
+      "speedup_batch840_over_wheel840": 1.4117547506868777
+    },
+    {
+      "name": "balanced-44",
+      "n": "8356402666259",
+      "actual_bits": 43,
+      "balanced_assumption": true,
+      "degrees": {
+        "wheel": 692,
+        "wheel840": 523,
+        "batch": 692,
+        "batch840": 523
+      },
+      "Y_wheel": {
+        "m": 420,
+        "Yclasses": 3,
+        "paired_classes": 6,
+        "Y_density": 0.007142857142857143,
+        "total_integer_Y": "6267301999695",
+        "Y_wheel_positions": "44766442856",
+        "q_all": "1197385",
+        "q_unit10": "478954",
+        "q_unit840": "273689"
+      },
+      "methods": [
+        {
+          "method": "wheel",
+          "degree": 692,
+          "median_seconds": 0.0266647,
+          "times_seconds": [
+            0.0267913,
+            0.0266647,
+            0.0256086
+          ]
+        },
+        {
+          "method": "wheel840",
+          "degree": 523,
+          "median_seconds": 0.0293672,
+          "times_seconds": [
+            0.0293672,
+            0.0304921,
+            0.0264169
+          ]
+        },
+        {
+          "method": "batch",
+          "degree": 692,
+          "median_seconds": 0.0121321,
+          "times_seconds": [
+            0.0121321,
+            0.0112841,
+            0.0125719
+          ]
+        },
+        {
+          "method": "batch840",
+          "degree": 523,
+          "median_seconds": 0.0167419,
+          "times_seconds": [
+            0.014077,
+            0.0192968,
+            0.0167419
+          ]
+        }
+      ],
+      "speedup_batch_over_wheel": 2.197863519093974,
+      "speedup_batch840_over_wheel840": 1.7541139297212383
+    },
+    {
+      "name": "balanced-48",
+      "n": "133700738927801",
+      "actual_bits": 47,
+      "balanced_assumption": true,
+      "degrees": {
+        "wheel": 1384,
+        "wheel840": 1046,
+        "batch": 1384,
+        "batch840": 1046
+      },
+      "Y_wheel": {
+        "m": 420,
+        "Yclasses": 3,
+        "paired_classes": 6,
+        "Y_density": 0.007142857142857143,
+        "total_integer_Y": "100275554195851",
+        "Y_wheel_positions": "716253958542",
+        "q_all": "4789512",
+        "q_unit10": "1915804",
+        "q_unit840": "1094745"
+      },
+      "methods": [
+        {
+          "method": "wheel",
+          "degree": 1384,
+          "median_seconds": 0.104585,
+          "times_seconds": [
+            0.100215,
+            0.112568,
+            0.104585
+          ]
+        },
+        {
+          "method": "wheel840",
+          "degree": 1046,
+          "median_seconds": 0.0996247,
+          "times_seconds": [
+            0.0965432,
+            0.114781,
+            0.0996247
+          ]
+        },
+        {
+          "method": "batch",
+          "degree": 1384,
+          "median_seconds": 0.0284356,
+          "times_seconds": [
+            0.0284356,
+            0.0297962,
+            0.0272498
+          ]
+        },
+        {
+          "method": "batch840",
+          "degree": 1046,
+          "median_seconds": 0.0272271,
+          "times_seconds": [
+            0.0272271,
+            0.02616,
+            0.0279514
+          ]
+        }
+      ],
+      "speedup_batch_over_wheel": 3.6779600219443234,
+      "speedup_batch840_over_wheel840": 3.6590272192043956
+    },
+    {
+      "name": "balanced-50",
+      "n": "534805044477797",
+      "actual_bits": 49,
+      "balanced_assumption": true,
+      "degrees": {
+        "wheel": 1957,
+        "wheel840": 1479,
+        "batch": 1957,
+        "batch840": 1479
+      },
+      "Y_wheel": {
+        "m": 420,
+        "Yclasses": 6,
+        "paired_classes": 6,
+        "Y_density": 0.014285714285714285,
+        "total_integer_Y": "401103783358348",
+        "Y_wheel_positions": "5730054047976",
+        "q_all": "9579041",
+        "q_unit10": "3831617",
+        "q_unit840": "2189495"
+      },
+      "methods": [
+        {
+          "method": "wheel",
+          "degree": 1957,
+          "median_seconds": 0.212431,
+          "times_seconds": [
+            0.195314,
+            0.212431,
+            0.226666
+          ]
+        },
+        {
+          "method": "wheel840",
+          "degree": 1479,
+          "median_seconds": 0.223478,
+          "times_seconds": [
+            0.223478,
+            0.201721,
+            0.237592
+          ]
+        },
+        {
+          "method": "batch",
+          "degree": 1957,
+          "median_seconds": 0.0446571,
+          "times_seconds": [
+            0.0558811,
+            0.0409554,
+            0.0446571
+          ]
+        },
+        {
+          "method": "batch840",
+          "degree": 1479,
+          "median_seconds": 0.0502504,
+          "times_seconds": [
+            0.0502504,
+            0.0783916,
+            0.0444625
+          ]
+        }
+      ],
+      "speedup_batch_over_wheel": 4.756936746900269,
+      "speedup_batch840_over_wheel840": 4.44728798178721
+    }
+  ]
+}

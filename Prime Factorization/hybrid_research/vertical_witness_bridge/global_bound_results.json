@@ -1,0 +1,86 @@
+{
+  "checks": 595,
+  "sample_cases": [
+    {
+      "p": 3,
+      "q": 103,
+      "N": 309,
+      "nearest_witness_Y": 412,
+      "N_only_integer_Y_bound": 1059,
+      "ratio_nearest_to_bound": 0.38904627,
+      "threshold_branch": "nonsquare_q"
+    },
+    {
+      "p": 11,
+      "q": 17,
+      "N": 187,
+      "nearest_witness_Y": 84,
+      "N_only_integer_Y_bound": 545,
+      "ratio_nearest_to_bound": 0.15412844,
+      "threshold_branch": "original_square"
+    },
+    {
+      "p": 83,
+      "q": 97,
+      "N": 8051,
+      "nearest_witness_Y": 1260,
+      "N_only_integer_Y_bound": 84343,
+      "ratio_nearest_to_bound": 0.014938999,
+      "threshold_branch": "original_square"
+    },
+    {
+      "p": 101,
+      "q": 7907,
+      "N": 798607,
+      "nearest_witness_Y": 31255224,
+      "N_only_integer_Y_bound": 37130931,
+      "ratio_nearest_to_bound": 0.841757078,
+      "threshold_branch": "original_square"
+    },
+    {
+      "p": 752867,
+      "q": 1299709,
+      "N": 978508015703,
+      "nearest_witness_Y": 561217382496,
+      "N_only_integer_Y_bound": 4857313740669473,
+      "ratio_nearest_to_bound": 0.000115541,
+      "threshold_branch": "original_square"
+    },
+    {
+      "p": 1009,
+      "q": 1000000007,
+      "N": 1009000007063,
+      "nearest_witness_Y": 509040003563280,
+      "N_only_integer_Y_bound": 5060134985121841,
+      "ratio_nearest_to_bound": 0.100598108,
+      "threshold_branch": "nonsquare_q"
+    },
+    {
+      "p": 11,
+      "q": 127,
+      "N": 1397,
+      "nearest_witness_Y": 7620,
+      "N_only_integer_Y_bound": 8323,
+      "ratio_nearest_to_bound": 0.915535264,
+      "threshold_branch": "nonsquare_q"
+    },
+    {
+      "p": 101,
+      "q": 10211,
+      "N": 1031311,
+      "nearest_witness_Y": 52076100,
+      "N_only_integer_Y_bound": 52591805,
+      "ratio_nearest_to_bound": 0.990194195,
+      "threshold_branch": "nonsquare_q"
+    },
+    {
+      "p": 1009,
+      "q": 1018091,
+      "N": 1027253819,
+      "nearest_witness_Y": 518249042640,
+      "N_only_integer_Y_bound": 518762670053,
+      "ratio_nearest_to_bound": 0.999009899,
+      "threshold_branch": "nonsquare_q"
+    }
+  ]
+}

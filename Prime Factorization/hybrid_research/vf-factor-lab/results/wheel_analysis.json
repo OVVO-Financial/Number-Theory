@@ -1,0 +1,160 @@
+{
+  "main_composite_successes": {
+    "native_fermat_parity": 64,
+    "native_fermat_wheel20": 65,
+    "native_fermat_parity_qr64": 65,
+    "native_fermat_wheel20_qr64": 65,
+    "product_trial": 68,
+    "native_pollard_brent": 75
+  },
+  "paired_comparisons": [
+    {
+      "reference": "product_trial",
+      "contender": "native_fermat_wheel20",
+      "family": "balanced",
+      "minimum_reference_ms": 0,
+      "pairs": 20,
+      "contender_faster": 20,
+      "median_ratio": 21.663581574578966,
+      "geometric_ratio": 18.04582739801199,
+      "contender_extra": 4,
+      "reference_extra": 0
+    },
+    {
+      "reference": "product_trial",
+      "contender": "native_fermat_wheel20_qr64",
+      "family": "balanced",
+      "minimum_reference_ms": 0,
+      "pairs": 20,
+      "contender_faster": 20,
+      "median_ratio": 29.140189000175134,
+      "geometric_ratio": 30.34460260029458,
+      "contender_extra": 4,
+      "reference_extra": 0
+    },
+    {
+      "reference": "product_trial",
+      "contender": "native_fermat_wheel20",
+      "family": "close",
+      "minimum_reference_ms": 0,
+      "pairs": 15,
+      "contender_faster": 15,
+      "median_ratio": 273.06037895294725,
+      "geometric_ratio": 267.09696855146547,
+      "contender_extra": 3,
+      "reference_extra": 0
+    },
+    {
+      "reference": "product_trial",
+      "contender": "native_fermat_wheel20_qr64",
+      "family": "close",
+      "minimum_reference_ms": 0,
+      "pairs": 15,
+      "contender_faster": 15,
+      "median_ratio": 185.02388543431138,
+      "geometric_ratio": 287.0245101845612,
+      "contender_extra": 3,
+      "reference_extra": 0
+    },
+    {
+      "reference": "product_trial",
+      "contender": "native_fermat_wheel20",
+      "family": "unbalanced",
+      "minimum_reference_ms": 0,
+      "pairs": 9,
+      "contender_faster": 3,
+      "median_ratio": 0.16991466170229613,
+      "geometric_ratio": 0.2642638344590884,
+      "contender_extra": 0,
+      "reference_extra": 9
+    },
+    {
+      "reference": "product_trial",
+      "contender": "native_fermat_wheel20_qr64",
+      "family": "unbalanced",
+      "minimum_reference_ms": 0,
+      "pairs": 9,
+      "contender_faster": 4,
+      "median_ratio": 0.33718773277217734,
+      "geometric_ratio": 0.48907557939263246,
+      "contender_extra": 0,
+      "reference_extra": 9
+    },
+    {
+      "reference": "product_trial",
+      "contender": "native_fermat_wheel20",
+      "family": "all composites",
+      "minimum_reference_ms": 0,
+      "pairs": 58,
+      "contender_faster": 51,
+      "median_ratio": 13.766640864285275,
+      "geometric_ratio": 13.409810304041029,
+      "contender_extra": 7,
+      "reference_extra": 10
+    },
+    {
+      "reference": "product_trial",
+      "contender": "native_fermat_wheel20_qr64",
+      "family": "all composites",
+      "minimum_reference_ms": 0,
+      "pairs": 58,
+      "contender_faster": 52,
+      "median_ratio": 19.864988513936353,
+      "geometric_ratio": 17.842510411151114,
+      "contender_extra": 7,
+      "reference_extra": 10
+    },
+    {
+      "reference": "native_fermat_parity",
+      "contender": "native_fermat_wheel20",
+      "family": "balanced",
+      "minimum_reference_ms": 0,
+      "pairs": 23,
+      "contender_faster": 20,
+      "median_ratio": 1.7165447654966715,
+      "geometric_ratio": 1.691543052193614,
+      "contender_extra": 1,
+      "reference_extra": 0
+    },
+    {
+      "reference": "native_fermat_parity",
+      "contender": "native_fermat_wheel20",
+      "family": "all composites",
+      "minimum_reference_ms": 1,
+      "pairs": 17,
+      "contender_faster": 17,
+      "median_ratio": 2.2532242643610396,
+      "geometric_ratio": 2.04200646804771,
+      "contender_extra": 1,
+      "reference_extra": 0
+    },
+    {
+      "reference": "native_fermat_parity_qr64",
+      "contender": "native_fermat_wheel20_qr64",
+      "family": "balanced",
+      "minimum_reference_ms": 0,
+      "pairs": 24,
+      "contender_faster": 21,
+      "median_ratio": 1.7456027294873413,
+      "geometric_ratio": 1.7246119863910343,
+      "contender_extra": 0,
+      "reference_extra": 0
+    },
+    {
+      "reference": "native_fermat_parity_qr64",
+      "contender": "native_fermat_wheel20_qr64",
+      "family": "all composites",
+      "minimum_reference_ms": 1,
+      "pairs": 16,
+      "contender_faster": 16,
+      "median_ratio": 2.385146777032677,
+      "geometric_ratio": 2.1116091725193566,
+      "contender_extra": 0,
+      "reference_extra": 0
+    }
+  ],
+  "raw_runs": 1450,
+  "summary_rows": 516,
+  "source": "https://github.com/OVVO-Financial/Number-Theory/blob/master/Number%20Theory%20Papers/Complete_Fermat_Sieve_Verified.pdf",
+  "test_summary": "5554 passed, 1 warning in 3.27s"
+}

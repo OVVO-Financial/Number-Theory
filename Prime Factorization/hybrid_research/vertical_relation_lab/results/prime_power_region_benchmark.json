@@ -1,0 +1,77 @@
+{
+  "input": "978508015703",
+  "cases": [
+    {
+      "B": 7,
+      "window_width": 1,
+      "windows": 120,
+      "certified_empty": 120,
+      "actually_empty": 120,
+      "cert_time_ms": 3.126,
+      "brute_time_ms": 0.048
+    },
+    {
+      "B": 7,
+      "window_width": 4,
+      "windows": 120,
+      "certified_empty": 120,
+      "actually_empty": 120,
+      "cert_time_ms": 2.388,
+      "brute_time_ms": 0.134
+    },
+    {
+      "B": 7,
+      "window_width": 16,
+      "windows": 120,
+      "certified_empty": 119,
+      "actually_empty": 120,
+      "cert_time_ms": 2.419,
+      "brute_time_ms": 0.507
+    },
+    {
+      "B": 7,
+      "window_width": 64,
+      "windows": 120,
+      "certified_empty": 0,
+      "actually_empty": 120,
+      "cert_time_ms": 2.449,
+      "brute_time_ms": 2.115
+    },
+    {
+      "B": 101,
+      "window_width": 1,
+      "windows": 120,
+      "certified_empty": 120,
+      "actually_empty": 120,
+      "cert_time_ms": 23.364,
+      "brute_time_ms": 0.126
+    },
+    {
+      "B": 101,
+      "window_width": 4,
+      "windows": 120,
+      "certified_empty": 115,
+      "actually_empty": 120,
+      "cert_time_ms": 24.086,
+      "brute_time_ms": 0.455
+    },
+    {
+      "B": 101,
+      "window_width": 16,
+      "windows": 120,
+      "certified_empty": 0,
+      "actually_empty": 119,
+      "cert_time_ms": 23.353,
+      "brute_time_ms": 1.769
+    },
+    {
+      "B": 101,
+      "window_width": 64,
+      "windows": 120,
+      "certified_empty": 0,
+      "actually_empty": 118,
+      "cert_time_ms": 23.524,
+      "brute_time_ms": 6.995
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+CXX ?= g++
+CXXFLAGS ?= -O3 -std=c++17 -Wall -Wextra
+CPPFLAGS ?=
+LDFLAGS ?=
+LDLIBS = -lgmpxx -lgmp
+
+HEADERS = cpp/gmp_common.hpp cpp/gmp_arithmetic.hpp cpp/fermat_native_bridge.hpp cpp/gmp_products.hpp cpp/gmp_factor.hpp
+NATIVE = vf_factor/fusion_kernel.cpp
+
+.PHONY: all selftest clean
+all: build/vf_factor_gmp
+
+build:
+	mkdir -p build
+
+build/vf_factor_gmp: cpp/gmp_factor.cpp $(HEADERS) $(NATIVE) | build
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) cpp/gmp_factor.cpp $(NATIVE) $(LDFLAGS) $(LDLIBS) -o $@
+
+build/gmp_arithmetic_selftest: cpp/gmp_arithmetic_selftest.cpp $(HEADERS) $(NATIVE) | build
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) cpp/gmp_arithmetic_selftest.cpp $(NATIVE) $(LDFLAGS) $(LDLIBS) -o $@
+
+build/gmp_products_selftest: cpp/gmp_products_selftest.cpp $(HEADERS) | build
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) cpp/gmp_products_selftest.cpp $(LDFLAGS) $(LDLIBS) -o $@
+
+selftest: build/gmp_arithmetic_selftest build/gmp_products_selftest
+	./build/gmp_arithmetic_selftest
+	./build/gmp_products_selftest
+
+clean:
+	rm -f build/vf_factor_gmp build/gmp_arithmetic_selftest build/gmp_products_selftest

@@ -243,14 +243,10 @@ static std::vector<std::uint8_t> squares_mod(std::uint64_t m) {
 //   Lane A: N = 1 (mod 4)  <=>  R odd,  i even
 //   Lane B: N = 3 (mod 4)  <=>  R even, i odd
 //
-// Indexed by N mod 10 alone the admissible (R,i) mod 10 classes number 8
-// for N ending in 1,3,7,9 (four from each lane) and 18 for N ending in 5.
-// Because we always know N mod 4 we use the lane directly: 4 classes for
-// N coprime to 10, 9 classes for 5 | N.
-//
-// The 5 | N branch is the one the published 8-class table excludes.  It
-// is included here so the routine is total: any caller that has not
-// already stripped the factor 5 still gets a sound (not empty) sieve.
+// For semiprimes coprime to 10, the terminal-digit Fermat sieve has
+// four paired (R,i) residue classes after fixing N mod 4.
+// Odd composites ending in 5 are split by 5 before any Fermat digit sieve.
+// The ending-in-5 branch is not part of the active semiprime sieve.
 // ---------------------------------------------------------------------
 
 struct DigitPair { int a10; int b10; };
@@ -265,7 +261,7 @@ static std::vector<DigitPair> fermat_digit_pairs(const BigInt& N) {
     else throw std::runtime_error("fermat_digit_pairs: N must be odd");
 
     const bool b_even = !a_even;
-    const bool five_divides_N = (n10 == 5);
+    if (n10 == 5) throw std::runtime_error("fermat_digit_pairs: factor 5 must be removed first");
 
     std::vector<DigitPair> pairs;
     for (int da = 0; da <= 9; ++da) {
@@ -276,15 +272,13 @@ static std::vector<DigitPair> fermat_digit_pairs(const BigInt& N) {
             const int p10 = ((da - db) % 10 + 10) % 10;
             const int q10 = (da + db) % 10;
 
-            // p and q are odd.  When 5 does not divide N neither p nor q
-            // may end in 5 or 0, so both must end in 1, 3, 7 or 9.  When
-            // 5 does divide N exactly one of them carries the 5, so that
-            // restriction must be lifted -- this is the correction.
+            // Two and five are handled before the semiprime digit wheel.
+            // Both factor digits must therefore be units modulo 10.
             auto odd_digit   = [](int d) { return d % 2 == 1; };
             auto coprime10   = [](int d) { return d == 1 || d == 3 || d == 7 || d == 9; };
 
             if (!odd_digit(p10) || !odd_digit(q10)) continue;
-            if (!five_divides_N && (!coprime10(p10) || !coprime10(q10))) continue;
+            if (!coprime10(p10) || !coprime10(q10)) continue;
 
             if ((p10 * q10) % 10 == n10) pairs.push_back({da, db});
         }
@@ -1783,6 +1777,9 @@ static std::optional<BigInt> split_once(const BigInt& N,
     if (N <= 3) return std::nullopt;
 
     if (N % 2 == 0) { how = "even"; return BigInt(2); }
+    // An odd composite ending in five has a known proper factor,
+    // including with --rsa / --b1=0 (when ordinary stage 0 is skipped).
+    if (N > 5 && umod(N, 5) == 0) { how = "factor-5-precheck"; return BigInt(5); }
 
     // Perfect power.
     {
@@ -1821,7 +1818,7 @@ static std::optional<BigInt> split_once(const BigInt& N,
         // reached CTM at all. Nothing downstream needs them gone:
         // fermat_digit_pairs handles 5 | N on its own (five_divides_N),
         // and N is already odd by here.
-        static const std::uint64_t small[3] = {3, 5, 7};
+        static const std::uint64_t small[2] = {3, 7};
         for (std::uint64_t d : small)
             if (d <= opt.b1 && divisible_by_u64(N, d)) { d_found = d; break; }
         if (!d_found) {
@@ -2134,7 +2131,7 @@ static void factor_recursive(const BigInt& N,
 
 static int selftest() {
     int failures = 0;
-    std::cout << "=== 1. Corrected terminal-digit sieve vs brute force ===\n";
+    std::cout << "=== 1. Unit terminal-digit semiprime sieve vs brute force ===\n";
 
     // Ground truth by direct enumeration of N = (R-i)(R+i).
     std::vector<std::vector<std::vector<char>>> truth(
@@ -2153,7 +2150,7 @@ static int selftest() {
         }
 
     for (int n20 = 1; n20 < 20; n20 += 2) {
-        if (rep[n20] == 0) continue;
+        if (rep[n20] == 0 || n20 % 5 == 0) continue;
         const BigInt Nv = rep[n20];
         auto got = fermat_digit_pairs(Nv);
 
@@ -2180,7 +2177,7 @@ static int selftest() {
 
     std::cout << "\n=== 2. Is the digit sieve exactly the QR sieve at modulus 20? ===\n";
     for (int n20 = 1; n20 < 20; n20 += 2) {
-        if (rep[n20] == 0) continue;
+        if (rep[n20] == 0 || n20 % 5 == 0) continue;
         const BigInt Nv = rep[n20];
 
         // digit-sieve admissible a mod 10
@@ -2233,7 +2230,7 @@ static int selftest() {
             mpz_nextprime(q.get_mpz_t(), q.get_mpz_t());
             if (p == q) continue;
             const BigInt Nv = p * q;
-            if (umod(Nv, 2) == 0) continue;
+            if (umod(Nv, 10) == 5 || umod(Nv, 2) == 0) continue;
 
             Wheel w = build_wheel(Nv, 1u << 16, false, false);
             if (w.empty()) { ++dropped; continue; }
@@ -2693,7 +2690,7 @@ int main(int argc, char** argv) {
 
         // The Fermat sieve actually in use, so the (R,i) classes can be
         // checked against the published tables for this classification.
-        if (umod(N, 2) != 0) {
+        if (umod(N, 2) != 0 && umod(N, 5) != 0) {
             const auto dp = fermat_digit_pairs(N);
             std::cout << "sieve  = " << (umod(N, 4) == 1 ? "4k+1" : "4k-1")
                       << ", last digit " << umod(N, 10)
