@@ -1,0 +1,37 @@
+name: Hypercomplex encoding research
+
+on:
+  pull_request:
+    paths:
+      - 'Number Theory Papers/hypercomplex_encoding/**'
+      - '.github/workflows/hypercomplex-encoding.yml'
+  push:
+    paths:
+      - 'Number Theory Papers/hypercomplex_encoding/**'
+      - '.github/workflows/hypercomplex-encoding.yml'
+  workflow_dispatch:
+
+jobs:
+  algebra-codec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: 'Number Theory Papers/hypercomplex_encoding'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Verify Cayley-Dickson algebra and lossless codecs
+        run: python -m unittest -v hypercomplex_suite_tests
+      - name: Reproduce million-dimensional constructed codeword
+        run: python hypercomplex_million_dim_demo.py
+      - name: CLI round trip
+        run: |
+          printf 'real-pair hypercomplex encoding CI sample\n' > /tmp/hc-input.bin
+          python hypercomplex_codec_cli.py encode /tmp/hc-input.bin /tmp/hc-output.hcb --mode cascade --dimension 256 --coefficient bipolar --compress brotli
+          python hypercomplex_codec_cli.py decode /tmp/hc-output.hcb /tmp/hc-recovered.bin
+          cmp /tmp/hc-input.bin /tmp/hc-recovered.bin
