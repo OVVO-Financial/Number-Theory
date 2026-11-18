@@ -1,0 +1,10 @@
+dataset,input_bytes,zlib9_bytes,brotli9_bytes,lzma6_bytes,best_conventional_name,best_conventional_bytes,best_cd_cascade_dim,bipolar,best_cd_cascade_bytes,best_cd_mode_counts,pct_larger_than_baseline,exact
+paper_text,17582,5910,5636,5764,brotli9,5636,65536,False,6930,"{'spectral': 0, 'fill': 0, 'raw': 3, 'blocks': 3, 'avg_spectrum_nonzero': 65425.3}",22.96,True
+python_source,17634,5537,5395,5432,brotli9,5395,65536,False,6359,"{'spectral': 0, 'fill': 0, 'raw': 3, 'blocks': 3, 'avg_spectrum_nonzero': 65426.3}",17.868,True
+paper_PDF,355787,314898,311547,312636,brotli9,311547,65536,False,316023,"{'spectral': 0, 'fill': 1, 'raw': 43, 'blocks': 44, 'avg_spectrum_nonzero': 65402.0}",1.437,True
+document_bitmap,23808,2349,2297,2284,lzma6,2284,65536,False,2318,"{'spectral': 0, 'fill': 0, 'raw': 3, 'blocks': 3, 'avg_spectrum_nonzero': 64477}",1.489,True
+repeated_pattern,65536,85,13,140,brotli9,13,256,True,82,"{'spectral': 0, 'fill': 0, 'raw': 2057, 'blocks': 2057, 'avg_spectrum_nonzero': 220.0}",530.769,True
+random_control,65536,65562,65540,65600,brotli9,65540,65536,False,65584,"{'spectral': 0, 'fill': 0, 'raw': 9, 'blocks': 9, 'avg_spectrum_nonzero': 65358.3}",0.067,True
+sparse_binary,8192,31,15,104,brotli9,15,256,False,33,"{'spectral': 0, 'fill': 257, 'raw': 1, 'blocks': 258, 'avg_spectrum_nonzero': 256}",120.0,True
+CD_basis_binary_1024,65472,13278,12649,10016,lzma6,10016,1024,True,1133,"{'spectral': 512, 'fill': 0, 'raw': 0, 'blocks': 512, 'avg_spectrum_nonzero': 1}",-88.688,True
+CD_basis_binary_4096,65520,6685,6595,5272,lzma6,5272,4096,True,373,"{'spectral': 128, 'fill': 0, 'raw': 0, 'blocks': 128, 'avg_spectrum_nonzero': 1}",-92.925,True
