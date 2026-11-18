@@ -15,6 +15,10 @@ on:
         description: Run the complete file-disjoint SOTA corpus with three timing repetitions
         type: boolean
         default: false
+      run_full_predictive:
+        description: Run full causal prediction and dimension comparisons
+        type: boolean
+        default: false
 
 jobs:
   algebra-codec:
@@ -96,4 +100,58 @@ jobs:
           name: hypercomplex-sota-full
           path: 'Number Theory Papers/hypercomplex_encoding/sota_benchmark/.artifacts/'
           include-hidden-files: true
+          if-no-files-found: error
+
+  compression-predictive-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: 'Number Theory Papers/hypercomplex_encoding'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install predictive benchmark dependencies
+        run: |
+          sudo apt-get install -y libzstd1
+          python -m pip install -r requirements.txt
+      - name: Verify causal CD predictor, all codecs, no future-data leakage
+        run: python -m unittest -v predictive_lab.test_predictor
+      - name: Bounded causal compression comparison and synthetic controls
+        run: python -m predictive_lab.benchmark --smoke --out predictive_lab/.artifacts/smoke --backend zstd9 --repeats 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hypercomplex-predictive-smoke
+          path: 'Number Theory Papers/hypercomplex_encoding/predictive_lab/.artifacts/'
+          if-no-files-found: error
+
+  compression-predictive-full:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_full_predictive == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: 'Number Theory Papers/hypercomplex_encoding'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install predictive benchmark dependencies
+        run: |
+          sudo apt-get install -y libzstd1
+          python -m pip install -r requirements.txt
+      - name: Full same-backend and dimension comparisons
+        run: |
+          python -m predictive_lab.benchmark --out predictive_lab/.artifacts/full-brotli --backend brotli11 --repeats 2
+          python -m predictive_lab.benchmark --out predictive_lab/.artifacts/full-zstd --backend zstd9 --repeats 2
+          python -m predictive_lab.sensitivity --out predictive_lab/.artifacts/dimensions
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hypercomplex-predictive-full
+          path: 'Number Theory Papers/hypercomplex_encoding/predictive_lab/.artifacts/'
           if-no-files-found: error
