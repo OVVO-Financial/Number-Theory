@@ -72,3 +72,9 @@ Reference CSVs in `results/` are frozen snapshots from the November 18, 2026 exp
 The GitHub Actions job runs the 7 algebra/codec regression tests, checks a small CLI round trip, and reproduces the 1,048,576-dimensional synthetic codeword. The larger cross-corpus benchmarks are intentionally opt-in via `sh run_full_suite.sh` because they are resource-intensive and can depend on optional rendered paper-page fixtures. The code is experimental: no GPU run, no universal compression gain, and no factorization speedup are claimed.
 
 Research results are in [the full report](hypercomplex_highdim_full_report.md) and frozen [benchmark CSVs](results/).
+
+## Held-out SOTA compression benchmark
+
+The [compression benchmark](sota_benchmark/README.md) adds a **file-disjoint calibration/held-out protocol** to the original high-dimensional research: Zstandard levels 1/3/9/19 and calibration-trained dictionaries, Brotli up to quality 11, LZMA, a per-block hybrid with exact framing and CRC, encode/decode throughput and sampled memory, and ablations against ordinary Walsh-Hadamard, XOR prediction, dictionary coding, and a specialized basis-index codebook.
+
+Reproduce the complete suite with `sh sota_benchmark/run.sh full`; CI runs `sh sota_benchmark/run.sh smoke`-equivalent checks and uploads its frozen configuration and results as an artifact. The full five-file run is available as an explicit GitHub Actions workflow-dispatch option, not part of every PR CI run. This benchmark does **not** claim broad SOTA competitiveness: previous synthetic basis-aligned results are evaluated separately from truly file-disjoint source-code and research-text heldout inputs.
