@@ -10,6 +10,11 @@ on:
       - 'Number Theory Papers/hypercomplex_encoding/**'
       - '.github/workflows/hypercomplex-encoding.yml'
   workflow_dispatch:
+    inputs:
+      run_full_sota:
+        description: Run the complete file-disjoint SOTA corpus with three timing repetitions
+        type: boolean
+        default: false
 
 jobs:
   algebra-codec:
@@ -35,3 +40,58 @@ jobs:
           python hypercomplex_codec_cli.py encode /tmp/hc-input.bin /tmp/hc-output.hcb --mode cascade --dimension 256 --coefficient bipolar --compress brotli
           python hypercomplex_codec_cli.py decode /tmp/hc-output.hcb /tmp/hc-recovered.bin
           cmp /tmp/hc-input.bin /tmp/hc-recovered.bin
+
+  compression-sota-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: 'Number Theory Papers/hypercomplex_encoding'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install libzstd and benchmark dependencies
+        run: |
+          sudo apt-get install -y libzstd1
+          python -m pip install -r requirements.txt
+      - name: Verify framed hybrid, classical compressors, dictionary, and split protocol
+        run: python -m unittest -v sota_benchmark.test_codec sota_benchmark.test_protocol
+      - name: Freeze hyperparameters using calibration files only
+        run: python -m sota_benchmark.benchmark calibrate --smoke --config sota_benchmark/.artifacts/smoke-config.json
+      - name: Compare all held-out repository files and synthetic controls
+        run: python -m sota_benchmark.benchmark evaluate --smoke --config sota_benchmark/.artifacts/smoke-config.json --output sota_benchmark/.artifacts/smoke-results --synthetic --repeats 2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hypercomplex-sota-smoke
+          path: 'Number Theory Papers/hypercomplex_encoding/sota_benchmark/.artifacts/'
+          if-no-files-found: warn
+
+  compression-sota-full:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_full_sota == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: 'Number Theory Papers/hypercomplex_encoding'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install libzstd and benchmark dependencies
+        run: |
+          sudo apt-get install -y libzstd1
+          python -m pip install -r requirements.txt
+      - name: Calibrate complete development corpus
+        run: python -m sota_benchmark.benchmark calibrate --config sota_benchmark/.artifacts/full-config.json
+      - name: Evaluate complete held-out corpus
+        run: python -m sota_benchmark.benchmark evaluate --config sota_benchmark/.artifacts/full-config.json --output sota_benchmark/.artifacts/full-results --synthetic --repeats 3
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hypercomplex-sota-full
+          path: 'Number Theory Papers/hypercomplex_encoding/sota_benchmark/.artifacts/'
+          if-no-files-found: warn
