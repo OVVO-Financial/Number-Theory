@@ -1,0 +1,5 @@
+dimension,nnz_left,nnz_right,pairs,output_nonzero,output_nnz_rate_percent,sparse_product_ms_median,exact_integer
+4096,64,64,4096,2198,53.6621,0.2739,True
+65536,64,64,4096,3900,5.9509,0.352,True
+262144,64,64,4096,4054,1.5465,0.5411,True
+1048576,64,64,4096,4085,0.3896,2.7029,True
