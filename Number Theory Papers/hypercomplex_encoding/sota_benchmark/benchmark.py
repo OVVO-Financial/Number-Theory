@@ -218,6 +218,14 @@ def evaluate(manifest_path:Path,config_path:Path,output_dir:Path,smoke=False,
             stats={}
             methods.append(('hybrid_'+variant,lambda conf=hcfg,s=stats:hybrid_encode(data,conf,zstd,s),
                            lambda out:hybrid_decode(out,zstd),stats))
+        # Causal ablation: fix the calibrated hypercomplex block size and change ONLY the transform.
+        # Unlike the separately tuned candidates above, these are controlled comparisons.
+        common_block=cfg['selected']['hypercomplex']['block_bytes']
+        for variant in ('walsh','xor','no_spectral','basis_index'):
+            hcfg=HybridConfig(common_block,variant)
+            stats={}
+            methods.append(('fixed_ablation_'+variant,lambda conf=hcfg,s=stats:hybrid_encode(data,conf,zstd,s),
+                           lambda out:hybrid_decode(out,zstd),stats))
         print(f'[{source["label"]}] {source["id"]}: {len(data)} bytes / {len(methods)} codecs',flush=True)
         for name,enc,dec,mode_stats in methods:
             metrics,coded=benchmark_one(data,enc,dec,repeats,include_memory=memory)
@@ -237,7 +245,7 @@ def evaluate(manifest_path:Path,config_path:Path,output_dir:Path,smoke=False,
                   'codec':f'basis_codebook_{basis_dim}','ratio':round(bmetrics['encoded_bytes']/len(data),6),
                   'mode_counts':{'basis_codewords':(len(data)*8)//1023},**bmetrics}
             results.append(brow);entries.append(brow)
-        baseline=min((r for r in entries if not r['codec'].startswith('hybrid_') and not r['codec'].startswith('basis_codebook_')),key=lambda x:x['encoded_bytes'])
+        baseline=min((r for r in entries if not r['codec'].startswith(('hybrid_','fixed_ablation_','basis_codebook_'))),key=lambda x:x['encoded_bytes'])
         hyper=next(r for r in entries if r['codec']=='hybrid_hypercomplex')
         files.append({'id':source['id'],'label':source['label'],'input_bytes':len(data),
                       'best_baseline_oracle':baseline['codec'],'best_baseline_bytes':baseline['encoded_bytes'],
