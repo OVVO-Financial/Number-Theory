@@ -20,6 +20,11 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y libgmp-dev libgmpxx4ldbl build-essential
       - name: Install reference-test dependencies
         run: python -m pip install sympy==1.13.3
+      - name: Build unified C++ factorizer and test factor-five path
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra julia/complex_space_factorization.cpp -lgmpxx -lgmp -pthread -o /tmp/nt_complex_space
+          /tmp/nt_complex_space --selftest
+          /tmp/nt_complex_space 51505 --rsa --only=vf --b1=0 --verbose
       - name: Run bounded exact mathematical and GMP regression tests
         working-directory: Prime Factorization/hybrid_research
         run: |
