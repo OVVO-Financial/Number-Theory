@@ -71,7 +71,7 @@ jobs:
           if-no-files-found: error
 
   compression-sota-full:
-    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 5) || (github.event_name == 'workflow_dispatch' && inputs.run_full_sota == true) }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_full_sota == true }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
