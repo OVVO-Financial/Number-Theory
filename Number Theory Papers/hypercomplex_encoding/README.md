@@ -86,3 +86,9 @@ The new [predictive multiplication laboratory](predictive_lab/README.md) tests a
 **Outcome:** none of the tested natural code/text/PDF data beat direct Brotli11; the causal nonlinear CD predictor typically produced *less compressible* residuals than ordinary AR2. A separate **deliberately CD-generated** synthetic control did benefit (12,335 B CD vs 12,609 B AR2 vs 12,754 B direct Brotli11), demonstrating representational feasibility rather than general compression superiority. The [full analysis](predictive_lab/RESULTS_2026-11-18.md), [raw benchmarks](predictive_lab/results/) and [dimension sweep](predictive_lab/sensitivity.py) are reproducible.
 
 Run `python -m unittest -v predictive_lab.test_predictor` and `python -m predictive_lab.benchmark --smoke --out /tmp/hc-predictive-smoke` from this directory. CI runs these automatically; full benchmarks are available through workflow dispatch. No GPU acceleration or natural-source SOTA advantage is claimed.
+
+## Source-specific algebraic constraints on real data (November 18, 2026)
+
+The [arithmetic-constraint experiment](constraint_discovery/README.md) tests **unit-quaternion norm reconstruction** and **causal Hamilton-product prediction** against ordinary delta/AR2 and shuffled/non-quaternion controls. A four-trajectory EuRoC estimated-orientation probe found that norm reconstruction reduced exact signed-varint byte counts by about 12.17% relative to AR2 across 8,058 held-out quantized quaternion samples. See [the measured results and source hashes](constraint_discovery/results/EUROC_RESULTS.md).
+
+This is **not** a general compression or novel entropy theorem. It encodes 1e-6 fixed-point integers, not original CSV text, and compares a source-specific norm constraint with other fixed-point predictors. The independent CI benchmark also evaluates full zlib/Brotli/Zstd streams and will report separately from the signed-varint probe.
