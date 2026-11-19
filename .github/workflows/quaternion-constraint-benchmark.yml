@@ -1,0 +1,38 @@
+name: Arithmetic constraints on real quaternion data
+
+on:
+  pull_request:
+    paths:
+      - 'Number Theory Papers/hypercomplex_encoding/constraint_discovery/**'
+      - '.github/workflows/quaternion-constraint-benchmark.yml'
+  workflow_dispatch:
+
+jobs:
+  constrained-codec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: 'Number Theory Papers/hypercomplex_encoding/constraint_discovery'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install numpy brotli zstandard
+      - name: Run algebra and exact decoder tests
+        run: python -m unittest -v test_algebraic_codec.py
+      - name: Verify constructed positive and negative controls
+        run: python local_controls.py
+      - name: Reproduce real-trajectory same-backend comparison
+        run: python benchmark_euroc.py --download --out results/euroc
+      - name: Archive results and provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quaternion-constraint-real-benchmark
+          path: |
+            Number Theory Papers/hypercomplex_encoding/constraint_discovery/results/euroc/
+            Number Theory Papers/hypercomplex_encoding/constraint_discovery/results/local_controls/
+          retention-days: 30
