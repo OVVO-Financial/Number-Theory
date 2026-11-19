@@ -1,0 +1,140 @@
+[
+  {
+    "dataset": "MH_01_easy",
+    "original_rows": 3639,
+    "train_rows": 909,
+    "test_rows": 2730,
+    "quantized_scale": 1000000,
+    "stride": 10,
+    "source_sha256": "aae2d7c5684724c8afe364d2fd8499a6ed77a9169adf03736531f67d8e7b2117",
+    "trained_temporal_modes": {
+      "position": "ar2",
+      "quaternion": "ar2",
+      "velocity": "delta",
+      "bias": "delta"
+    },
+    "training_group_scores": {
+      "position": {
+        "raw": 6336,
+        "delta": 4423,
+        "ar2": 4040
+      },
+      "quaternion": {
+        "raw": 8011,
+        "delta": 5653,
+        "ar2": 5582
+      },
+      "velocity": {
+        "raw": 6497,
+        "delta": 6040,
+        "ar2": 6155
+      },
+      "bias": {
+        "raw": 1980,
+        "delta": 648,
+        "ar2": 732
+      }
+    },
+    "selected_kinematic": "p_from_v",
+    "kinematic_training_bytes": {
+      "p_from_v": 18971,
+      "v_from_p": 19496
+    },
+    "reference_url": "https://raw.githubusercontent.com/rpng/open_vins/master/ov_data/euroc_mav/MH_01_easy.csv",
+    "test_quantized_sha256": "792ffb5f26629c8abc013f1d090e44d598ad23b90dbf43bd35e1855afd8d3b9f",
+    "median_timestamp_step_ns": 49999872,
+    "baseline_train_only": true
+  },
+  {
+    "dataset": "MH_03_medium",
+    "original_rows": 2631,
+    "train_rows": 657,
+    "test_rows": 1974,
+    "quantized_scale": 1000000,
+    "stride": 10,
+    "source_sha256": "7e52fd28088b0d428509cc365fbb44ed5d910e5174ac155e1d987923c056000f",
+    "trained_temporal_modes": {
+      "position": "ar2",
+      "quaternion": "ar2",
+      "velocity": "ar2",
+      "bias": "delta"
+    },
+    "training_group_scores": {
+      "position": {
+        "raw": 5567,
+        "delta": 4119,
+        "ar2": 3390
+      },
+      "quaternion": {
+        "raw": 6778,
+        "delta": 4835,
+        "ar2": 4666
+      },
+      "velocity": {
+        "raw": 5369,
+        "delta": 4702,
+        "ar2": 4666
+      },
+      "bias": {
+        "raw": 906,
+        "delta": 439,
+        "ar2": 491
+      }
+    },
+    "selected_kinematic": "p_from_v",
+    "kinematic_training_bytes": {
+      "p_from_v": 15091,
+      "v_from_p": 15580
+    },
+    "reference_url": "https://raw.githubusercontent.com/rpng/open_vins/master/ov_data/euroc_mav/MH_03_medium.csv",
+    "test_quantized_sha256": "4a297bd64d53d80dce71dd2689c314141af559ddc451e4777d94527a622ad9d1",
+    "median_timestamp_step_ns": 49999872,
+    "baseline_train_only": true
+  },
+  {
+    "dataset": "MH_05_difficult",
+    "original_rows": 2222,
+    "train_rows": 555,
+    "test_rows": 1667,
+    "quantized_scale": 1000000,
+    "stride": 10,
+    "source_sha256": "da13e5dcb3d5fc2f12c4e8bfae10dd380d765150be3312f989b0bc5550965451",
+    "trained_temporal_modes": {
+      "position": "ar2",
+      "quaternion": "ar2",
+      "velocity": "ar2",
+      "bias": "delta"
+    },
+    "training_group_scores": {
+      "position": {
+        "raw": 4418,
+        "delta": 3182,
+        "ar2": 2664
+      },
+      "quaternion": {
+        "raw": 5604,
+        "delta": 3782,
+        "ar2": 3630
+      },
+      "velocity": {
+        "raw": 4339,
+        "delta": 3959,
+        "ar2": 3797
+      },
+      "bias": {
+        "raw": 846,
+        "delta": 387,
+        "ar2": 435
+      }
+    },
+    "selected_kinematic": "p_from_v",
+    "kinematic_training_bytes": {
+      "p_from_v": 12020,
+      "v_from_p": 12433
+    },
+    "reference_url": "https://raw.githubusercontent.com/rpng/open_vins/master/ov_data/euroc_mav/MH_05_difficult.csv",
+    "test_quantized_sha256": "bd3ba2dc98a399d2d7f35715d6092d1ac3689ac43ac4620bf1052d87a939054b",
+    "median_timestamp_step_ns": 49999872,
+    "baseline_train_only": true
+  }
+]
