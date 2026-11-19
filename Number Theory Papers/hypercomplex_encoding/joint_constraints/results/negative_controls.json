@@ -1,0 +1,92 @@
+[
+  {
+    "control": "q_w_disconnected",
+    "mode": "temporal",
+    "bytes": 68386,
+    "exact": true
+  },
+  {
+    "control": "q_w_disconnected",
+    "mode": "N",
+    "bytes": 67971,
+    "exact": true
+  },
+  {
+    "control": "q_w_disconnected",
+    "mode": "K",
+    "bytes": 65115,
+    "exact": true
+  },
+  {
+    "control": "q_w_disconnected",
+    "mode": "B",
+    "bytes": 68386,
+    "exact": true
+  },
+  {
+    "control": "q_w_disconnected",
+    "mode": "N+K+B",
+    "bytes": 64799,
+    "exact": true
+  },
+  {
+    "control": "velocity_disconnected",
+    "mode": "temporal",
+    "bytes": 70283,
+    "exact": true
+  },
+  {
+    "control": "velocity_disconnected",
+    "mode": "N",
+    "bytes": 66851,
+    "exact": true
+  },
+  {
+    "control": "velocity_disconnected",
+    "mode": "K",
+    "bytes": 75267,
+    "exact": true
+  },
+  {
+    "control": "velocity_disconnected",
+    "mode": "B",
+    "bytes": 70283,
+    "exact": true
+  },
+  {
+    "control": "velocity_disconnected",
+    "mode": "N+K+B",
+    "bytes": 71896,
+    "exact": true
+  },
+  {
+    "control": "bias_disconnected",
+    "mode": "temporal",
+    "bytes": 85708,
+    "exact": true
+  },
+  {
+    "control": "bias_disconnected",
+    "mode": "N",
+    "bytes": 80762,
+    "exact": true
+  },
+  {
+    "control": "bias_disconnected",
+    "mode": "K",
+    "bytes": 81011,
+    "exact": true
+  },
+  {
+    "control": "bias_disconnected",
+    "mode": "B",
+    "bytes": 85708,
+    "exact": true
+  },
+  {
+    "control": "bias_disconnected",
+    "mode": "N+K+B",
+    "bytes": 79288,
+    "exact": true
+  }
+]
