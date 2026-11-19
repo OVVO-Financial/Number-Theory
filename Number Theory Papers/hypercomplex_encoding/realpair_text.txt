@@ -1,0 +1,281 @@
+ Real-Pair Representations of Complex Numbers and Quaternions:
+          Algebra, Arithmetic Coordinates, and Implementations in R and Python
+
+                                                Fred Viole
+
+                                           November 4, 2026
+
+
+                                                 Abstract
+          We study the real-pair transform ϕ(a + bi) = (a − b, a + b) and its blockwise extension to
+     quaternions. These maps are scaled orthogonal changes of coordinates; complex multiplication
+     and quaternion multiplication are transported to explicitly defined products on R2 and R4 ,
+     rather than ordinary componentwise multiplication. We give exact identities for conjugation,
+     multiplication, inversion, norms and exponentials. We also identify two specific arithmetic
+     interpretations: ϕ(Z[i]) is an index-two parity sublattice, and the inverse map turns a factor pair
+     (c, q) into a Fermat midpoint/half-gap complex coordinate whose square has real part cq. We
+     describe the corresponding real-coordinate form of zeta-zero reflection without asserting any
+     new zero-free theorem. Reproducible implementations in base R and standard-library Python
+     provide complex and quaternion operations, worked examples, and deterministic and randomized
+     verification. Together, the results give an exact coordinate dictionary for arithmetic, algebraic,
+     and spectral computations.
+
+
+1    Introduction and scope
+Representing complex numbers by real coordinate pairs is a standard algebraic technique. This
+paper develops the particular transform (a, b) 7→ (a − b, a + b) as a common coordinate system for
+complex and quaternion arithmetic, integer factor-pair geometry, and spectral calculations. Explicit
+transported operations make the representation usable in real-valued computational environments,
+including R and Python.
+    The selected coordinates are especially natural for factor-pair bookkeeping: they recover the
+two factors in Fermat’s difference-of-squares parameterization directly from midpoint and half-gap
+coordinates. The same representation preserves normalized Gram products and expresses complex
+spectral modes through real vectors without altering their zeros or analytic properties. Sections 2–4
+prove the identities; Sections 3 and 5 explain the arithmetic and spectral interpretations. Code and
+verification procedures and the companion source archive are described in Section 6.
+
+
+2    Complex arithmetic in real-pair coordinates
+Define                                                        !                      !
+                                                         a−b                  1 −1
+                    ϕ : C −→ R2 ,        ϕ(a + bi) =         ,         T =         .                       (1)
+                                                         a+b                  1 1
+
+Since T T T = 2I and det T = 2, the inverse is
+                                                     x+y    y−x
+                                      ϕ−1 (x, y) =       +i     .                                          (2)
+                                                      2      2
+
+                                                     1
+
+          √                                                                                     √
+Thus T / 2 is orthogonal, and ϕ is an invertible real-linear mapping (a 45◦ rotation followed by 2
+scaling).
+Theorem 2.1 (Transported complex field). Equip R2 with ordinary vector addition, the multiplicative
+identity e = (1, 1), and the product
+                                                xv + yu − yv + xu xv + yu + yv − xu
+                                                                                          
+                        (x, y) ⊙ (u, v) =                        ,                  .              (3)
+                                                        2                 2
+Then ϕ : C → (R2 , +, ⊙) is a field isomorphism. Complex conjugation and squared modulus become
+
+                                                             x2 + y 2
+                             ϕ(z) = (y, x),         |z|2 =            ,   (x, y) = ϕ(z).           (4)
+                                                                2
+For (x, y) ̸= (0, 0),
+                                                            2
+                                             (x, y)−1
+                                                   ⊙ =            (y, x).                          (5)
+                                                         x2 + y 2
+Proof. Write a = (x + y)/2 and b = (y − x)/2, with corresponding c = (u + v)/2 and d = (v − u)/2.
+Complex multiplication yields (ac − bd) + i(ad + bc). Applying (1) and expanding gives (3). Since
+this is the transported product, associativity, distributivity, and inverses follow from those of C.
+The real unit 1 maps to (1, 1), and i maps to (−1, 1). Replacing b by −b swaps x, y. Finally,
+(a − b)2 + (a + b)2 = 2(a2 + b2 ), which gives the norm and inverse formulas.
+
+Remark 2.2. The expression “field isomorphism” refers to R2 with the transported product ⊙.
+With ordinary componentwise multiplication, R × R is not a field, so the unqualified statement that
+ϕ preserves multiplication in standard R2 would be incorrect.
+    For z = a + bi and ϕ(z) = (x, y), the transported exponential is
+
+                                   ϕ(ez ) = ea (cos b − sin b, cos b + sin b).                     (6)
+
+Furthermore, if m = α + iβ and v = ϕ(z), then
+                                                   !
+                                            α −β              ∥ϕ(mz)∥22        ∥v∥22
+                             ϕ(mz) =             v,                     = |m|2       .             (7)
+                                            β α                  2              2
+
+These identities permit complex spectral multipliers to be applied to a pair of real coordinates while
+preserving their normalized energy.
+
+
+3    Arithmetic meaning of the chosen transform
+The map is not a new field, but the choice of coordinates has useful arithmetic interpretations.
+Proposition 3.1 (Gaussian-integer parity lattice). The image of the Gaussian integers is
+
+                                 ϕ(Z[i]) = {(x, y) ∈ Z2 : x ≡ y           (mod 2)}.                (8)
+
+It is an additive sublattice of index two. The Gaussian norm is
+
+                                                                     x2 + y 2
+                                       N (a + bi) = a2 + b2 =                 ,                    (9)
+                                                                        2
+which is multiplicative under ⊙.
+
+                                                         2
+
+Proof. If a, b ∈ Z, then x = a − b and y = a + b have the same parity. Conversely, if x ≡ y
+(mod 2), then (x + y)/2 and (y − x)/2 are integers. Exactly two parity classes of Z2 exist under
+the homomorphism (x, y) 7→ x − y (mod 2), giving index two. The norm identity is (4); its
+multiplicativity follows from |zw|2 = |z|2 |w|2 .
+
+Proposition 3.2 (Fermat factor-pair coordinates). For real numbers c, q set
+                                                    c+q    q−c
+                                        z(c, q) =       +i     .                                   (10)
+                                                     2      2
+Then the factor pair is recovered exactly:
+                                                                          q 2 − c2
+                           ϕ(z(c, q)) = (c, q),       z(c, q)2 = cq + i            .               (11)
+                                                                              2
+In particular, if n = cq, the real part of z(c, q)2 is n. If c, q are integers of the same parity, then
+z(c, q) ∈ Z[i].
+Proof. The first identity is the substitution of (10) into (1). The real part of the square is
+((c + q)/2)2 − ((q − c)/2)2 = cq; its imaginary part is 2((c + q)/2)((q − c)/2) = (q 2 − c2 )/2. The
+parity assertion follows from (8).
+
+    For integer a, b, this is precisely the difference-of-squares identity (a − b)(a + b) = a2 − b2 ,
+expressed with the two factors as the output coordinates. This is a reason to prefer T over the
+standard (a, b) coordinates for factor-pair bookkeeping; it is not a faster factorization algorithm or a
+new prime-distribution theorem. The Gaussian-integer context is classical; see [2, 3].
+
+
+4     Quaternion arithmetic in real quadruples
+Use the quaternion convention i2 = j 2 = k 2 = ijk = −1 and identify
+                  q = a + bi + cj + dk = z1 + z2 j,           z1 = a + bi,      z2 = c + di.       (12)
+Define the blockwise transform
+                       ψ(q) = (a − b, a + b, c − d, c + d) = (ϕ(z1 ), ϕ(z2 )) ∈ R4 .               (13)
+It is an invertible real-linear map. It is not an algebra isomorphism for ordinary componentwise
+multiplication: quaternion multiplication must be transported, and it is noncommutative.
+Theorem 4.1 (Transported quaternion operations). With q = z1 +z2 j and r = w1 +w2 j, quaternion
+multiplication is
+                           qr = (z1 w1 − z2 w2 ) + (z1 w2 + z2 w1 )j.                      (14)
+Applying ϕ to both complex components defines the corresponding product ⋆ on R4 . If p = ψ(q) =
+(x1 , y1 , x2 , y2 ), then
+                                  ψ(q) = (y1 , x1 , −x2 , −y2 )                             (15)
+and
+                                                             x21 + y12 + x22 + y22
+                           ∥q∥2H = a2 + b2 + c2 + d2 =                             .               (16)
+                                                                       2
+For q ̸= 0 the transported inverse is
+                                               2
+                             p−1
+                              ⋆ =                          (y1 , x1 , −x2 , −y2 ).                 (17)
+                                     x21 + y12 + x22 + y22
+
+                                                      3
+
+Proof. The relation jz = zj for z ∈ C and j 2 = −1 gives (14) by expansion; this is the standard
+complex-pair form of quaternion multiplication [1]. Quaternion conjugation sends z1 + z2 j to z1 − z2 j.
+Complex conjugation swaps the entries of ϕ(z1 ), while −z2 negates both entries of ϕ(z2 ), proving (15).
+The norm follows by two applications of (4). Finally q −1 = q/∥q∥2H for nonzero quaternions, which
+gives (17).
+
+Conjugation, inverse, and right division. The first real pair of a quaternion is complex-
+conjugated by swapping its two entries; the second real pair changes sign, as follows from z1 + z2 j =
+z1 − z2 j. For example, ψ(j) = (0, 0, 1, 1) and ψ(j −1 ) = (0, 0, −1, −1), since j 2 = −1. Quaternion
+                                                                                −1
+multiplication is noncommutative, so right division√ is defined by p/q = p ⋆ q⋆ .
+    For q = a + v, with v = bi + cj + dk and r = b2 + c2 + d2 , the quaternion exponential is
+
+                                                       sin r       sin r
+                                                            
+                                       a
+                          exp(q) = e           cos r +       v ,           = 1.                    (18)
+                                                         r           r r=0
+
+The companion code uses the fourth-order Taylor polynomial near zero instead of setting the vector
+component to zero, thereby preserving small nonzero imaginary components.
+
+
+5    Real coordinates for complex spectral parameters
+The same transform can encode a complex spectral parameter without changing its analytic meaning.
+If ρ = β + iγ and (u, v) = ϕ(ρ), then
+
+                      u = β − γ,           v = β + γ,        ℜρ = 12 ⇐⇒ u + v = 1.                 (19)
+
+The reflection ρ 7→ 1 − ρ becomes
+
+                                           (u, v) 7−→ (1 − v, 1 − u).                              (20)
+
+These are exact coordinate statements; they do not place any zeros on the critical line.
+   For an illustrative homogeneous factor m = q 2ρ−1 with q > 0, Equation (7) gives the real-pair
+squared-energy multiplier
+                                         |m|2 = q 4β−2 .                                     (21)
+At β = 1/2 this multiplier is one; at β > 1/2 it is greater than one for q > 1. Equation (21) concerns
+an individual complex multiplier; turning it into a bound on an actual prime- or Möbius-weighted
+sum requires additional arithmetic estimates.
+    Lean formalizations of the real-pair interface, its Gram identity, and the factor-pair correspon-
+dence are available in the RH_Lean repository, notably realification module and Fermat-coordinate
+module. That project also includes a conditional square-endpoint reformulation of the von Koch
+prime-counting criterion. The present note does not prove the Riemann hypothesis or an improved
+prime-counting error bound; those are separate questions.
+
+
+6    Implementation and verification
+The supplied files Real_Pair_Representations.R and Real_Pair_Representations.py imple-
+ment complex real-pair and quaternion real-quadruple arithmetic using base R and the Python
+standard library, respectively. Conversions to and from each language’s native complex type are
+restricted to phi and phi_inv; the remaining arithmetic functions use real-valued vectors or tuples.
+
+                                                         4
+
+This facilitates use with numerical code expecting real vectors, although no speed advantage over
+native complex operations is claimed.
+    Two numerical details matter. First, norm-squared expressions are scaled by the largest absolute
+entry before inversion, reducing avoidable intermediate overflow/underflow in squared terms (without
+guaranteeing accuracy at every floating-point extreme). Second, the quaternion exponential evaluates
+sin r/r through its Taylor series near zero. We use exact zero checks for algebraic inverses rather
+than silently rejecting valid small nonzero quaternions by an arbitrary absolute threshold.
+
+             Table 1: Properties checked by the companion R and Python test suites.
+    Check                               Assertion
+    Complex transport                   Multiplication, division and exponential agree with native
+                                        R and Python complex arithmetic.
+    Quaternion basis                    ij = k, ji = −k, j 2 = −1.
+    Quaternion inverses                 j −1 = −j, k −1 = −k; left and right inverse identities.
+    Right division                      k/i = −j.
+    Quaternion exponential              e0 = 1, eπj = −1, and a small nonzero j component.
+    Randomized comparisons              1000 seeded cases in R and 10,000 seeded cases in Python
+                                        against the independent quaternion coefficient formula;
+                                        norm multiplicativity.
+
+    The R suite uses stopifnot, and the Python suite uses unittest. The test sources include
+deterministic quaternion basis cases, both-sided inverses, Gaussian norms, factor-pair identities,
+complex exponentials, and seeded randomized comparisons to an independent quaternion coefficient
+formula. The Python tests require no third-party packages. All implementations and verification
+scripts are freely available in the Number-Theory companion code directory.
+
+                             Language    Implementation     Test suite
+                             R           Source (.R)        Tests (.R)
+                             Python      Source (.py)       Tests (.py)
+
+The repository also provides worked Python examples, independent numerical checks, and a
+README with execution instructions.
+
+
+7    Conclusion
+The transform ϕ(a + bi) = (a − b, a + b) is a classical linear change of coordinates equipped with
+explicitly transported operations. Its concrete value here lies in preserving complex and quaternion
+algebra using real vectors, representing Gaussian integers as a parity lattice, and recovering Fermat
+factor pairs directly from the midpoint/half-gap complex coordinate. Base-R and standard-library
+Python implementations make the operations computationally reproducible, with explicit treatment
+of quaternion inversion and the exponential near zero. Both companion test suites exercise the
+transported algebra through deterministic examples and randomized identities. These coordinate
+relations can support further arithmetic and spectral analyses, while a factorization algorithm or a
+new zero-free theorem would require additional mathematical arguments.
+
+
+
+
+                                                    5
+
+References
+[1] J. H. Conway and D. A. Smith, On Quaternions and Octonions: Their Geometry, Arithmetic,
+    and Symmetry, A K Peters, 2003.
+
+[2] K. Ireland and M. Rosen, A Classical Introduction to Modern Number Theory, 2nd ed., Springer,
+    1990.
+
+[3] G. H. Hardy and E. M. Wright, An Introduction to the Theory of Numbers, 6th ed., Oxford
+    University Press, 2008.
+
+[4] H. von Koch, “Sur la distribution des nombres premiers,” Acta Mathematica 24 (1901), 159–182.
+
+[5] OVVO Financial, RH_Lean: Square-block prime and Möbius formalizations, 2026, https:
+    //github.com/OVVO-Financial/RH_Lean.
+
+
+
+
+                                               6

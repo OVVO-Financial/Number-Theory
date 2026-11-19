@@ -1,0 +1,44 @@
+name: Hutter Wikipedia direct equation discovery
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/hutter-equation-discovery.yml'
+      - 'Number Theory Papers/hypercomplex_encoding/hutter_equations/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  enwik8-direct-arithmetic-constraints:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install bounded test dependencies
+        run: python -m pip install numpy brotli
+      - name: Download official Hutter enwik8 and verify full corpus
+        run: |
+          curl --retry 3 -fsSL --connect-timeout 30 --max-time 240 https://mattmahoney.net/dc/enwik8.zip -o /tmp/enwik8.zip
+          unzip -p /tmp/enwik8.zip enwik8 > /tmp/enwik8
+          echo '57b8363b814821dc9d47aa4d41f58733519076b2  /tmp/enwik8' | sha1sum -c -
+          test "$(wc -c </tmp/enwik8)" -eq 100000000
+      - name: Test exact equations, causality, and decode fidelity
+        working-directory: 'Number Theory Papers/hypercomplex_encoding/hutter_equations'
+        run: python -m unittest -v test_equations
+      - name: Evaluate two disjoint Wikipedia chronological windows
+        working-directory: 'Number Theory Papers/hypercomplex_encoding/hutter_equations'
+        run: |
+          python benchmark.py --input /tmp/enwik8 --source-label official-verified-enwik8 --offsets 0 2000000 --output results
+          cat results/offset_0/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          cat results/offset_2000000/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hutter-direct-equation-discovery
+          path: 'Number Theory Papers/hypercomplex_encoding/hutter_equations/results/'
+          if-no-files-found: warn

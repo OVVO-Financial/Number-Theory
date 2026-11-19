@@ -86,3 +86,9 @@ Additional background, proofs, and derivations can be found in the [Number Theor
 The [complex-space hybrid research suite](Prime%20Factorization/hybrid_research/README.md) contains the verified C++/GMP and Python implementations, exact mathematical derivations, and raw benchmarking evidence for the squared `2ab` vertical lattice, Newton/Fermat region certificates, naive grouping, iterated-average dyadic progressions, product-tree factor bands, Gaussian norm-one group factoring, and the independent complex norm residual. See its [research status and reproduction steps](Prime%20Factorization/hybrid_research/RESEARCH_STATUS.md).
 
 This is a collection of independently tested algorithms and conditional accelerators, **not** a claimed GNFS breakthrough or a completed competitive RSA factorizer.
+
+## High-dimensional imaginary-coefficient encoding (November 2026)
+
+The [hypercomplex encoding research suite](Number%20Theory%20Papers/hypercomplex_encoding/README.md) extends the real-pair/quaternion transformation to genuine Cayley-Dickson imaginary-basis multiplication, a reversible signed mixing cascade, and a tested lossless codec at dimensions through 1,048,576. It includes [mathematical and computational findings](Number%20Theory%20Papers/hypercomplex_encoding/hypercomplex_highdim_full_report.md), [reference benchmarks](Number%20Theory%20Papers/hypercomplex_encoding/results/), a CLI, and automated regression tests.
+
+The largest compression gains occur on deliberately constructed basis-aligned signals; the tested ordinary documents, source, PDF, bitmap, and random files do **not** beat conventional compressors. No GPU speedup, GNFS challenge, or general compression breakthrough is claimed.

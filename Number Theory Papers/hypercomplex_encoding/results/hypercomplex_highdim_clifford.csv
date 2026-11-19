@@ -1,0 +1,10 @@
+generators_bits,full_clifford_dimension_exact,vector_coefficients,bivector_possible,nonzero_bivectors,scalar_coefficient,vector_product_ms_median,array_bivector_i16_bytes,roundtrip_source_vectors
+4,2^4,4,6,1,-1,0.0351,12,True
+8,2^8,8,28,8,-2,0.0212,56,True
+16,2^16,16,120,40,-4,0.0275,240,True
+32,2^32,32,496,280,-10,0.0288,992,True
+64,2^64,64,2016,692,-23,0.0467,4032,True
+128,2^128,128,8128,2908,-26,0.0827,16256,True
+256,2^256,256,32640,12287,-65,0.2632,65280,True
+512,2^512,512,130816,43679,-97,1.032,261632,True
+1024,2^1024,1024,523776,205368,-258,3.5776,1047552,True

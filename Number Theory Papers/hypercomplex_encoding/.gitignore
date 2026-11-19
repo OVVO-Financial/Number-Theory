@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.nbi
+*.nbc
+hypercomplex_*results.json
+hypercomplex_*_results.json
+hypercomplex_*.csv
+*.hcb
+*.hcz
+*.hcsp
+realpair_renders/
