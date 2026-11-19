@@ -17,6 +17,25 @@ Each real sequence was downsampled by a fixed `--stride 10`, split chronological
 
 The two-constraint method saves **14,867 bytes (9.72%)** against the frozen temporal baseline. The combined saving is greater than the sum of the single-constraint improvements by 1,022 bytes due to nonlinear effects in the common entropy coder and joint residual statistics; this must not be interpreted as 1,022 bits of newly created information.
 
+## Local algebraic independence (and why this counts as more than one restriction)
+
+Write the proposed source constraints on current orientation and translation as
+
+\[
+F_N(q)=w^2+x^2+y^2+z^2-1,\qquad
+F_K(p_t,p_{t-1},v_t,v_{t-1})=p_t-p_{t-1}-\frac{\Delta t}{2}(v_t+v_{t-1}).
+\]
+
+The kinematic expression is a three-vector. Hold the other coordinates fixed and
+differentiate these **four scalar equations** with respect to the current
+unknown coordinates \(w,p_x,p_y,p_z\). The Jacobian is
+\(\operatorname{diag}(2w,1,1,1)\), of rank **4 whenever \(w\neq0\)**.
+Thus the model carries one norm restriction and three translational restrictions
+that are locally independent. For real sampled/estimated data these are
+**approximate** equalities, so the codec transmits exact integer corrections
+for each predicted coordinate. The rank statement is about the physical model,
+not about four exactly redundant stored coefficients in the observed files.
+
 ## Genuine independence vs. redundant identities
 
 - **N, quaternion unit norm:** predicts the quaternion scalar w from same-row xyz and prior sign, then transmits the exact integer correction. It operates on orientation.
