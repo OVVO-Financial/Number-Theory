@@ -1,0 +1,37 @@
+name: Joint algebraic constraints on real EuRoC states
+
+on:
+  pull_request:
+    paths:
+      - 'Number Theory Papers/hypercomplex_encoding/joint_constraints/**'
+      - '.github/workflows/joint-constraints.yml'
+  workflow_dispatch:
+
+jobs:
+  joint-constraints:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: 'Number Theory Papers/hypercomplex_encoding/joint_constraints'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Exact codec and independence regression tests
+        run: python -m unittest -v test_joint_codec
+      - name: Confirm controlled double-constraint positive example
+        run: python benchmark_joint.py --synthetic --out results/synthetic
+      - name: Evaluate independent source constraints on three real EuRoC flights
+        run: python benchmark_joint.py --download --stride 10 --out results/euroc --datasets MH_01_easy MH_03_medium MH_05_difficult
+      - name: Upload reproducible tables and source SHA256 manifests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: joint-constraints-euroc
+          path: |
+            Number Theory Papers/hypercomplex_encoding/joint_constraints/results/
+          if-no-files-found: warn
