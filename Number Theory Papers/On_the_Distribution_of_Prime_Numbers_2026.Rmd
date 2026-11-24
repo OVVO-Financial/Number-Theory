@@ -1,0 +1,1150 @@
+---
+title: "On the Distribution of Prime Numbers"
+subtitle: "Square-block geometry, canonical VF, and signed partial moments"
+author: "Fred Viole"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  html_document:
+    mathjax: default
+geometry: margin=1in
+fontsize: 11pt
+params:
+  mode:
+    label: "Replication mode"
+    value: "full"
+    input: select
+    choices: ["full", "core", "render"]
+  nns_source:
+    label: "NNS 2.4.0 installation source"
+    value: "git"
+    input: select
+    choices: ["git", "wheel"]
+  python_path: ""
+  rebuild_primary: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(error = FALSE, cache = FALSE)
+# Knit uses the input file directory, including when launched from elsewhere.
+root <- normalizePath(dirname(knitr::current_input(dir = TRUE)),
+                      winslash = "/", mustWork = TRUE)
+if (!file.exists(file.path(root, "replay.py"))) {
+  stop("Extract the entire ZIP and open the Rmd beside replay.py and archived/.")
+}
+knitr::opts_knit$set(root.dir = root)
+stopifnot(params$mode %in% c("full", "core", "render"),
+          params$nns_source %in% c("git", "wheel"))
+run_python <- params$mode != "render"
+if (run_python) {
+  if (!nzchar(system.file(package = "reticulate"))) {
+    utils::install.packages("reticulate", repos = "https://cloud.r-project.org")
+  }
+  if (utils::packageVersion("reticulate") < "1.41") {
+    stop("reticulate >= 1.41 required. Run source('setup.R'), restart R, and knit again.")
+  }
+  if (reticulate::py_available(initialize = FALSE)) {
+    stop("Python is already initialized. Knit in a fresh R session.")
+  }
+  deps <- c("numpy==2.3.5", "scipy==1.17.0", "matplotlib==3.10.8")
+  if (params$mode == "full") {
+    nns_dep <- if (params$nns_source == "wheel") "ovvo-nns==2.4.0" else
+      paste0("ovvo-nns @ git+https://github.com/OVVO-Financial/",
+             "NNS-python.git@d4bf8092e29f45393b33ac6563c2f56f03f1fbb6")
+    deps <- c(deps, nns_dep)
+  }
+  if (nzchar(params$python_path)) {
+    Sys.setenv(RETICULATE_PYTHON = normalizePath(params$python_path,
+                                                winslash = "/", mustWork = TRUE))
+  } else {
+    # Explicitly force the managed environment, rather than an unrelated Python.
+    Sys.setenv(RETICULATE_PYTHON = "managed")
+  }
+  Sys.setenv(MPLBACKEND = "Agg")
+  reticulate::py_require(deps, python_version = "==3.13.5")
+  knitr::knit_engines$set(python = reticulate::eng_python)
+  cfg <- reticulate::py_config()
+  main <- reticulate::import_main(convert = FALSE)
+  main$vf_root <- root
+  main$vf_mode <- params$mode
+  main$vf_rebuild <- params$rebuild_primary
+  main$vf_python <- normalizePath(cfg$python, winslash = "/", mustWork = TRUE)
+}
+```
+
+Original manuscript: April 25, 2017. Certificate-complete revision: November 24, 2026.
+
+Revised research manuscript \| Python replication and extension.
+
+## Abstract
+
+We revisit the square-root partition of the integers introduced in the 2017 manuscript and develop its current canonical Viole function (VF), replacing the original R implementations with reproducible Python. The square-block geometry supplies an exact finite sieve and a deterministic midpoint approximation to the normalized logarithmic integral. Canonical VF incorporates a single fixed $\sqrt{2}$ initial boundary convention and a live partial-block quadrature. We prove a uniform deterministic bound $0<\operatorname{Li}_2(x)-\operatorname{VF}_{\rm can}(x)<3$ for every real $x\ge4$ without a numerical or prime-distribution assumption, then sharpen it to $<0.7$ with an integer-arithmetic certificate. The independently formalized native square-prefix Möbius proof of the prime number theorem supplies an unconditional arithmetic baseline, $\pi(x)\sim\operatorname{VF}_{\rm can}(x)$. We prove the equivalence of the square-endpoint and all-real von Koch error bounds; their identification with RH uses the classical theorem, not a proof of its arithmetic hypothesis. We extend the numerical study from $10^4$ (original fitted-error comparison) and $10^7$ (original phase histogram) to $10^8$, using all 5,761,455 primes and 9,998 complete square blocks. The original VF is retained as a historical benchmark, and Riemann’s Gram-series approximation is added. Signed partial moments describe error asymmetry and the exact decomposition of the block residual over odd integers. A deterministic convexity argument gives a finite limiting quadrature gap, with tail asymptotic $1/(12\log R)$ and a certified enclosure $[0.698708693544,0.698713203363]$ for its limit. Global phase balance is strong in the tested range, but neither exact within-block uniformity nor universal crossing is supported. The uniform RH-scale bound for the actual arithmetic discrepancy remains open.
+
+**Keywords:** prime counting, square blocks, midpoint quadrature, partial moments, VF, Riemann hypothesis.  
+**MSC (2020):** 11A41, 11N05, 11M26, 65D32.
+
+## Introduction
+
+The original paper \[1\] investigated whether the whole-number part of $\sqrt{x}$ offers a more informative finite coordinate than $x$ alone. Its experiments examined the locations of primes between consecutive squares, variable logarithmic bases, and the interpolation of a step approximation to $\pi(x)$. We retain these three themes, while distinguishing an exact finite arithmetic partition from a probability model and an asymptotic theorem.
+
+The prime number theorem (PNT) states $\pi(x)\sim x/\log x$, equivalently $\pi(x)\sim\operatorname{Li}_2(x)$. It does not assert that a particular integer is prime with probability exactly $1/\log x$, nor that prime events in short intervals are independent. The square-block partition does not contradict the PNT. It instead provides a natural coordinate for studying deviations from it. The current VF in RH_Lean \[5, 7, 8\] is the primary model throughout this revision; the 2017 expression and its midpoint interpolation are distinguished explicitly. The repository also contains a native elementary proof of PNT in the square-prefix Möbius architecture [12], developed independently of the smooth VF quadrature. Section 3.5 documents this milestone and its precise consequence for canonical VF.
+
+**Historical motivation and the RH_Lean research program.** The geometric observations introduced in the 2017 manuscript motivated the development of RH_Lean. The original investigation of prime placement, square-root coordinates and VF evolved into an exact arithmetic framework involving square-block geometry, prime wheels, Möbius inversion, reciprocal fibres and signed partial moments. The native rederivation of PNT demonstrates the mathematical utility of these coordinates, while the uniformly bounded canonical VF–Li difference permits the classical RH criterion to be expressed in the original geometry. This paper establishes the foundation for a prospective subsequent RH proof paper, independently of the still-open RH-strength arithmetic estimate.
+
+**Archived reproducibility.** All new sieve and numerical results were executed in Python. The accompanying program uses the documented `ovvo-nns` API when available. Partial moments in the new results are evaluated by their defining NumPy formulas, and the package regression and bootstrap are supplied as executable, unrun extensions. Previously recorded NNS experiments are separately identified. No numerical fit is represented as a proof of an asymptotic bound. Appendix C separately reports the actual current RStudio knit-time replication.
+
+## What changed from 2017
+
+This is a replacement manuscript, not a silent substitution of a later formula into the original results. The following crosswalk records the substantive revisions and their evidentiary status.
+
+| 2017 treatment                                                            | Treatment in this revision                                                                                                                                                                              |
+|:--------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| §1: equal prime probability within a square block; alleged PNT conflict   | Exact moving sieve and half-block geometry; pooled uniformity is a finite observation compatible with PNT, not a local probability law.                                                                 |
+| §2.1–2.2: dynamic logarithmic base and rounded VF                         | Closed-form optimum base as a diagnostic, historical VF reproduced independently, and its asymptotic discrepancy from Li proved.                                                                        |
+| §2.3: proposed universal crossing                                         | Separate real VF from its derived integer level; explicitly exhibit finite failures of even weak capture.                                                                                               |
+| §3: level midpoints and NNS regression                                    | Preserve the historical midpoint interpolation; use the fixed $\sqrt2$ canonical formula, with a proved live-band quadrature. Python NNS API retained; unrun package-specific results are not asserted. |
+| Limits and comments: Euler-product truncation and conjectured finite bias | Separate exact Euler identity from finite truncations; state Littlewood’s oscillation theorem. Prove a deterministic Li comparison, not a prime-distribution bound.                                     |
+| Scope of computation                                                      | Extend exact sieve to $10^8$, add Riemann’s R, signed moments, a rational limit certificate, full raw data, independent data validation and a proof-status ledger.                                      |
+
+## 1. Prime occurrence in a square block
+
+For real $x\ge 4$, let $R=\lfloor\sqrt{x}\rfloor$. For integer positions, set
+
+$$
+B_R=\{R^2+1,\ldots,(R+1)^2-1\},\qquad R\ge2.\tag{1}
+$$
+
+There are $2R$ interior sites, exactly $R$ odd sites, and the full continuous band has length $2R+1$. Both square endpoints are composite for $R\ge2$. For every composite $n\in B_R$, some prime divisor $q$ satisfies $q\le \sqrt n<R+1$, hence $q\le R$. Conversely, any interior integer divisible by a prime $q\le R$ is composite. The sieve using all primes up to $R$ therefore determines the block exactly. For example, 101 and 119 both have $R=10$, but the latter is divisible by 7 and the former survives the entire wheel. The admissible divisor set is constant across the block; the deterministic outcomes and local residue classes are not.
+
+The finite wheel identity can be expressed as
+
+$$
+P_R=\sum_{n\in B_R}\prod_{q\le R,\ q\ {\rm prime}}(1-\mathbf 1_{q\mid n})
+=\pi((R+1)^2)-\pi(R^2).\tag{2}
+$$
+
+This is an exact arithmetic identity, not an assumption of a uniform probability. The four possible final decimal digits of primes larger than 5 are only a preliminary filter. A genuine finite probability interpretation requires a specified random choice of site, for example $P_R/(2R)$ on the uniform interior sites or $P_R/R$ on the odd sites. Neither fraction is specified by $R$ without the sieve.
+
+### 1.1. The uniformity question in two coordinates
+
+Let $m_R=R^2+R+\tfrac12$ be the midpoint of the continuous band and define the fractional square-root phase $u(p)=\sqrt p-\lfloor\sqrt p\rfloor$. For an integer prime in $B_R$,
+
+$$
+u(p)<\tfrac12\quad\Longleftrightarrow\quad p\le R^2+R.\tag{3}
+$$
+
+Thus the two half-blocks have exactly $R$ integer sites each, and the phase half-population is exactly the integer midpoint population. Write $L_R^{p}$ and $U_R^{p}$ for the respective prime counts below and above the continuous midpoint; $P_R=L_R^{p}+U_R^{p}$. This equivalence is the appropriate starting point for the original uniformity tests.
+
+Uniform phase does not require equal prime counts in every block. With a smooth reference density $1/\log x$, the change of coordinates $x=(R+u)^2$ gives a density proportional to
+
+$$
+\frac{2(R+u)}{\log((R+u)^2)}=\frac{R+u}{\log(R+u)},\quad 0\le u<1.\tag{4}
+$$
+
+Its relative variation within a band tends to zero. Hence asymptotic phase uniformity is compatible with the smooth prime-density model, not evidence against the PNT. Actual global equidistribution, local block balance, and a uniform signed error bound are logically distinct.
+
+```{r figure-1-half-balance, echo=FALSE, fig.width=7.2, fig.height=4.2, out.width="100%", fig.align="center"}
+# Plot the exact archived Python-generated half-block counts at knit time.
+# Do not reuse the historical PNG, whose fixed upper limit clipped early peaks.
+blocks <- read.csv(file.path(root, "archived", "results", "square_endpoints.csv"))
+blocks <- blocks[!is.na(blocks$left) & !is.na(blocks$right), ]
+stopifnot(nrow(blocks) > 0L, all(diff(blocks$R) == 1),
+          all(blocks$left >= 0), all(blocks$right >= 0),
+          all(blocks$left + blocks$right == blocks$block_primes))
+left_total <- cumsum(blocks$left)
+right_total <- cumsum(blocks$right)
+ratio <- rep(NA_real_, nrow(blocks))
+defined <- right_total > 0
+ratio[defined] <- left_total[defined] / right_total[defined]
+stopifnot(any(is.finite(ratio)))
+
+# Include every finite observation and the equality reference, with headroom.
+y_range <- range(c(1, ratio[is.finite(ratio)]))
+y_pad <- max(0.03, 0.05 * diff(y_range))
+y_limits <- y_range + c(-y_pad, y_pad)
+stopifnot(all(ratio[is.finite(ratio)] > y_limits[1]),
+          all(ratio[is.finite(ratio)] < y_limits[2]))
+
+local({
+  old_par <- par(mar=c(4.3, 4.6, 0.9, 0.8), mgp=c(2.8, 0.7, 0))
+  on.exit(par(old_par), add=TRUE)
+  plot(blocks$R, ratio, type="n", log="x", ylim=y_limits,
+       yaxs="i", las=1, xlab="Completed square-block index R",
+       ylab="Cumulative lower / upper", bty="l")
+  abline(h=pretty(y_limits), v=10^seq.int(floor(log10(min(blocks$R))),
+                                       ceiling(log10(max(blocks$R)))),
+         col="grey90", lwd=0.7)
+  abline(h=1, col="grey25", lty=2, lwd=0.9)
+  lines(blocks$R, ratio, col="#8c2456", lwd=1.6)
+})
+```
+
+**Figure 1.** Cumulative lower-half/upper-half prime counts over complete blocks. The horizontal reference is equality. The vertical range includes every finite observed ratio, including the early peaks. This corrects the original code’s distinction between a per-block ratio and a cumulative ratio. The plotting chunk reads the archived Python-generated counts directly, including in render-only mode; no historical data or numerical result is changed.
+
+### 1.2. Extension of the 2017 phase experiments
+
+An exact Eratosthenes sieve through $10^8$ yields 5,761,455 primes, of which 5,761,453 belong to the complete blocks $2\le R\le9999$. The cumulative lower and upper counts are 2,881,669 and 2,879,784, respectively (ratio $1.000655$). Only 293 of the 9,998 blocks have exactly equal half-counts. No complete block is empty in this finite experiment, a fact that cannot establish the conjecture of a prime between every pair of consecutive squares.
+
+![Figure 2](figures/phase_histogram.png)
+
+**Figure 2.** Fractional square-root phases for all 5,761,455 primes up to $10^8$. Each of 100 equal-width bins has a reference mass of 1%.
+
+For a phase sample of size $N$, measure the finite grid discrepancy 
+
+$$
+d_{100}=\max_{1\le j\le100}\left|N^{-1}\#\{p:u(p)<j/100\}-j/100\right|.
+$$
+
+For the full sample it is $0.00016359$ (about $0.0164$ percentage points). Table 1 evaluates the original equal-quartile observation on nonoverlapping decades, not overlapping cumulative samples. Boundary counts are assigned to the bin on the right; the grid is a finite discrepancy, not a supremum over every real threshold.
+
+**Table 1.** Fractional square-root phase by disjoint decade; all primes in each interval. Quartile columns are percentages.
+
+|      Interval | Prime count | $[0,.25)$ | $[.25,.5)$ | $[.5,.75)$ | $[.75,1)$ | $d_{100}$ |
+|--------------:|------------:|----------:|-----------:|-----------:|----------:|----------:|
+|    $(3,10^2]$ |          23 |    21.739 |     30.435 |     26.087 |    21.739 |  0.110000 |
+| $(10^2,10^3]$ |         143 |    23.077 |     27.972 |     25.175 |    23.776 |  0.051119 |
+| $(10^3,10^4]$ |       1,061 |    24.788 |     25.825 |     23.845 |    25.542 |  0.012846 |
+| $(10^4,10^5]$ |       8,363 |    25.218 |     24.955 |     24.919 |    24.907 |  0.004738 |
+| $(10^5,10^6]$ |      68,906 |    24.931 |     25.002 |     25.133 |    24.934 |  0.001772 |
+| $(10^6,10^7]$ |     586,081 |    24.997 |     25.003 |     24.951 |    25.050 |  0.000733 |
+| $(10^7,10^8]$ |   5,096,876 |    24.999 |     25.020 |     24.983 |    24.998 |  0.000190 |
+
+![Figure 3](figures/local_balance.png)
+
+**Figure 3.** Individual block imbalance, $(L_R^{p}-U_R^{p})/P_R$. Local imbalance is plainly present despite the nearly flat pooled phase histogram.
+
+The distinction matters for proof: neither pooling across blocks nor comparing the average signed imbalance with zero controls an exceptional block or a long run of coherently signed errors. RH_Lean records the exact partial-wheel decomposition and a separate open descent problem \[9\]. For example, a fixed wheel of period $W$ contributes identical survivor counts on the full periods in the two half-blocks. Its imbalance is bounded by the length of the residual period, less than $W$; the moving prime cutoff is a different problem.
+
+## 2. Convergences and the original Viole function
+
+### 2.1. Logarithmic bases
+
+The original paper compares two sequences converging to $e$:
+
+$$
+b_1(x)=(1+1/x)^{1+x},\qquad b_2(x)=(1+1/\log_{10}x)^{1+\log_{10}x}.\tag{5}
+$$
+
+The second is slower. In Python, `log1p` evaluates these stably without loss of the increment when $x$ is large.
+
+![Figure 4](figures/convergence.png)
+
+**Figure 4.** The two convergence rates in the 2017 manuscript, evaluated at $x=10^k$.
+
+For any $x>1$ with $\pi(x)>0$, the unique base reproducing the exact prime count is
+
+$$
+\frac{x}{\log_{b_*(x)}x}=\pi(x),\qquad b_*(x)=\exp\!\left(\frac{\pi(x)\log x}{x}\right).\tag{6}
+$$
+
+No root finder is necessary. For any estimator $g(x)>0$, define its effective base by $b_g(x)=\exp(g(x)\log x/x)$. This is a diagnostic coordinate: the optimum base uses the unknown true prime count and is not an independent prediction. The PNT immediately implies $b_*(x)\to e$; all models with the same leading term have the same limiting base. Equality at finite $x$ is not required by the PNT.
+
+![Figure 5](figures/effective_base.png)
+
+**Figure 5.** Implied optimum and effective bases of the three approximations and Riemann’s R function. All approach $e$ asymptotically, without requiring equal finite errors.
+
+### 2.2. The 2017 estimator and its asymptotic limitation
+
+The published R function in Equation (3) of the 2017 manuscript [1] is reproduced, with $a=\lfloor\sqrt{x}\rfloor^2$, as
+
+$$
+\operatorname{VF}_{2017}(x)=\max\!\left\{0,\left\lfloor\frac{a}{\log a-(1+\log_{10}x)\log(1+1/\log_{10}x)}\right\rfloor\right\}.\tag{7}
+$$
+
+The floor of $\sqrt{x}$ imposes square discontinuities, while the denominator still changes within a band. Hence this is not strictly constant before the final rounding. All comparisons below use $x\ge4$ and the standard convention $\pi(x)=\#\{p:p\le x\}$. The original plotting code counted primes strictly less than $x$; that difference is one at prime arguments. We standardize the endpoint convention rather than silently mix them.
+
+The original dynamic-base argument can now be evaluated analytically. Put $T=\log x$ and $c=\log 10$. Taylor expansion gives 
+
+$$
+(1+T/c)\log(1+c/T)=1+\frac{c}{2T}-\frac{c^2}{6T^2}+O(T^{-3}).
+$$
+
+Since $a=x+O(\sqrt{x})$, the original estimator has expansion
+
+$$
+\operatorname{VF}_{2017}(x)=\frac{x}{T}+\frac{x}{T^2}+\left(1+\frac{c}{2}\right)\frac{x}{T^3}
++O\!\left(\frac{x}{T^4}+\frac{\sqrt{x}}{T}+1\right).\tag{8}
+$$
+
+By repeated integration by parts, 
+
+$$
+\operatorname{Li}_2(x)=\frac{x}{T}+\frac{x}{T^2}+\frac{2x}{T^3}+O(x/T^4).
+$$
+
+Consequently $\operatorname{VF}_{2017}(x)-\operatorname{Li}_2(x)\sim(\frac12\log 10-1)x/(\log x)^3$. The coefficient is positive (approximately $0.151293$). Although the old estimator is often quite accurate at moderate $x$, its difference from the logarithmic integral cannot be uniformly bounded. The first few terms of the logarithmic-integral asymptotic expansion have coefficients $k!$ (the third coefficient is $2$, not $1$); the expansion is asymptotic, not a convergent series at fixed $x$. This gives a principled reason to distinguish historical fit from the canonical definition in the following section.
+
+## 3. From midpoints to the canonical VF
+
+The original manuscript used midpoints of the rounded levels of Equation (7) as regression anchors. The current RH_Lean architecture instead places the midpoint rule directly on the square partition. Define
+
+$$
+\begin{aligned}
+m_r&=r^2+r+\tfrac12, & V_r&=\frac{2r+1}{\log m_r}, & F_R&=\sum_{r=2}^{R-1}V_r,
+\end{aligned}\tag{9}
+$$
+
+$$
+\begin{aligned}
+L_R(x)&=\frac{x-R^2}{\log((R^2+x)/2)}, & R&=\lfloor\sqrt x\rfloor.
+\end{aligned}\tag{10}
+$$
+
+The current public definition, adopted in RH_Lean PR \#932 on October 12, 2026, is \[5, 8\]
+
+$$
+\boxed{\operatorname{VF}_{\rm can}(x)=\sqrt2+\sum_{r=2}^{R-1}\frac{2r+1}{\log(r^2+r+1/2)}
++\frac{x-R^2}{\log((R^2+x)/2)},\quad x\ge4.}\tag{11}
+$$
+
+The sum covers completed bands; the final term uses the midpoint of the live interval $[R^2,x]$, rather than the midpoint of the full band or a straight-line interpolation. At a square endpoint the live term vanishes, and at the next endpoint its limit equals $V_R$. The curve is therefore continuous. The constant $\sqrt2$ is applied once globally, and is not a fitted parameter in this revision. The historical raw midpoint coordinate is $\operatorname{VF}_{\rm mid}(x)=\operatorname{VF}_{\rm can}(x)-\sqrt2$.
+
+**Geometric motivation for the initial boundary convention.**
+
+The completed-band sum starts at $r=2$. In particular the initial square block $[1,4)$, containing the primes 2 and 3, has no term in that sum. It is this omitted initial interval, not the first completed band $[4,9)$, that has the singular endpoint $t=1$ for $1/\log t$. The normalized Li integral starts at 2 instead. The raw VF is therefore zero at $x=4$ despite the two already counted primes. An initial constant is necessary if one wishes to represent a nonzero boundary level while keeping all subsequent square-block increments unchanged. The chosen $\sqrt{2}$ is the square-root coordinate of the first prime, and has the geometric interpretation 
+
+$$
+\pi(4)-\operatorname{VF}_{\rm can}(4)=2-\sqrt2=\sqrt4-\sqrt2.
+$$
+
+That is, the initial count discrepancy is numerically equal to the length of the omitted prime-bearing interval $[2,4]$ in square-root coordinates. Equivalently, we may impose this boundary convention on the raw path and obtain the additive phase $\sqrt2$. This is a choice of normalization, not an equality between a prime count and a geometric length derived from the sieve. Exact count matching at 4 would instead choose the phase 2, and exact matching to $\operatorname{Li}_2(4)$ would choose a different constant. All fixed phases yield the same block increments and the same von Koch criterion; none is forced or proved optimal by the omitted block alone.
+
+The canonical phase differs from the calibration $4-5/\log(13/2)\approx1.328778$ that forces equality at $x=9$. At $x=4$, canonical VF is $\sqrt2$; at $x=9$, it is approximately $4.085436$, rather than exactly $\pi(9)=4$. The phase neither changes a completed-band mass nor an actual prime event. The auxiliary integer level is defined by the floor function (rounding down, not nearest-integer rounding): 
+
+$$
+K_R:=\left\lfloor\operatorname{VF}_{\rm can}(R^2)\right\rfloor.
+$$
+
+It is not the real canonical curve.
+
+### 3.1. Theorem 1: unconditional quadrature and limiting gap
+
+**Statement.** For the independently defined canonical VF in Equation (11), $\delta(x)=\operatorname{Li}_2(x)-\operatorname{VF}_{\rm can}(x)$ is positive, nondecreasing and bounded by $3$ for all real $x\ge4$. It converges to a finite $\delta_\infty$, with $\delta_\infty-\delta(R^2)\sim 1/(12\log R)$. Neither the statement nor its proof involves $\pi(x)$. The normalized integral is $\operatorname{Li}_2(x)=\int_2^x (\log t)^{-1}\,dt$. Let $f(t)=1/\log t$ for $t>1$. Its first and second derivatives are 
+
+$$
+f'(t)=-\frac{1}{t(\log t)^2},\qquad f''(t)=\frac{\log t+2}{t^2(\log t)^3}>0.
+$$
+
+On each complete band, define the deterministic quadrature defect
+
+$$
+q_r=\int_{r^2}^{(r+1)^2} f(t)\,dt-(2r+1)f(m_r).\tag{12}
+$$
+
+**Proof.** On an interval $[a,b]$ of length $h$ and midpoint $m$, Taylor’s theorem gives 
+
+$$
+\tfrac12\inf_{[a,b]} f''\,(t-m)^2
+\le f(t)-f(m)-f'(m)(t-m)
+\le \tfrac12\sup_{[a,b]} f''\,(t-m)^2.
+$$
+
+Integrating, the linear term vanishes and $\int_a^b(t-m)^2dt=h^3/12$. Thus the midpoint defect lies between $h^3\inf f''/24$ and $h^3\sup f''/24$. Since $f''(t)=t^{-2}((\log t)^{-2}+2(\log t)^{-3})$ is positive and decreasing for $t>1$, we obtain
+
+$$
+0\le q_r\le \frac{(2r+1)^3}{24} f''(r^2)
+=\frac{(2+1/r)^3(1+1/\log r)}{96r(\log r)^2}.\tag{13}
+$$
+
+The series converges by the integral test. For the live interval, put $a=R^2$, $h=x-a$, and 
+
+$$
+q(a,h)=\int_a^{a+h} f(t)\,dt-h f(a+h/2).
+$$
+
+Its derivative with respect to $h$ is $f(a+h)-f(a+h/2)-(h/2)f'(a+h/2)\ge0$ by the tangent inequality for convex functions. Thus $0\le q(a,h)\le q_R$. The deterministic all-real gap satisfies
+
+$$
+\begin{aligned}
+\delta(x)&:=\operatorname{Li}_2(x)-\operatorname{VF}_{\rm can}(x)
+\end{aligned}\tag{14}
+$$
+
+$$
+\begin{aligned}
+&=\operatorname{Li}_2(4)-\sqrt2+\sum_{r=2}^{R-1}q_r+q(R^2,x-R^2).
+\end{aligned}\tag{15}
+$$
+
+For positivity at the initial endpoint, $\operatorname{Li}_2(4)>2/\log4=1/\log2>\sqrt2$, using $2/3<\log2<7/10$ (from the convergent series for $\log2=2\sum_{j\ge0}3^{-(2j+1)}/(2j+1)$). Across each band the live defect is nondecreasing, and the value at the next endpoint matches the completed-band defect. Consequently $\delta$ is positive and nondecreasing, with finite limit
+
+$$
+\delta_\infty=\operatorname{Li}_2(4)-\sqrt2+\sum_{r=2}^{\infty}q_r.\tag{16}
+$$
+
+An explicit wholly analytic constant follows without numerical quadrature: $\operatorname{Li}_2(4)<2/\log2<3$ and $\sqrt2>7/5$, so $\delta(4)<8/5$. From (13), for $r\ge2$, 
+
+$$
+\sum_{r\ge2}q_r\le\frac{(5/2)^3(5/2)}{96}
+\left(\frac{9}{8}+\frac{3}{2}\right)<\frac{7}{5},
+$$
+
+where the parenthesis bounds $\sum_{r\ge2}1/(r\log^2r)$ by its first term plus its integral. This proves $0<\delta(x)<3$ for all real $x\ge4$, and in particular $\operatorname{VF}_{\rm can}(x)-\operatorname{Li}_2(x)=O(1)$. The uniform bound and the canonical phase transport are already formalized in RH_Lean \[6, 5, 7\]. The monotone-gap and explicit tail calculations here are elementary mathematical extensions of that bound, not claims of new Lean verification.
+
+For square endpoints an explicit tail estimate follows from Equation (13):
+
+$$
+0\le\delta_\infty-\delta(R^2)\le
+\frac{(2+1/R)^3(1+1/\log R)}{96}
+\left(\frac{1}{R(\log R)^2}+\frac{1}{\log R}\right).\tag{17}
+$$
+
+Moreover, the midpoint error equals $(2r+1)^3 f''(\xi_r)/24$ for some $\xi_r\in[r^2,(r+1)^2]$. As $r\to\infty$, $f''(\xi_r)\sim(4r^4(\log r)^2)^{-1}$ uniformly on the band. Hence $q_r\sim(12r(\log r)^2)^{-1}$, yielding the sharper asymptotic description
+
+$$
+\delta_\infty-\delta(R^2)\sim\frac{1}{12\log R}.\tag{18}
+$$
+
+Indeed the tail of $\sum 1/(r\log^2r)$ is asymptotic to its integral $1/\log R$, and the asymptotic equivalence of positive summands transfers to their tails by an arbitrary $1\pm\varepsilon$ comparison. This proves Theorem 1. $\square$
+
+### 3.2. Certified sharpening of the bound
+
+The midpoint lower bound also gives, for $r\ge R\ge2$, 
+
+$$
+q_r\ge\frac{(2r+1)^3}{24}f''((r+1)^2)
+\ge\frac{1}{12}\left(\frac{R}{R+1}\right)^3
+(g_2(r+1)+g_3(r+1)),\quad g_j(t)=\frac{1}{t(\log t)^j}.
+$$
+
+Combining the upper bound in (13) with decreasing-series integral comparisons, define $I(t)=1/\log t+1/(2\log^2t)$. Then
+
+$$
+\begin{aligned}
+\frac{1}{12}\left(\frac R{R+1}\right)^3 I(R+1)
+&\le\delta_\infty-\delta(R^2)\\
+&\le\frac{(2+1/R)^3}{96}\big[g_2(R)+g_3(R)+I(R)\big].
+\end{aligned}\tag{19}
+$$
+
+**Corollary 1 (computer-assisted enclosure).** At $R=10000$, evaluate the finite sum and the two analytic tail bounds by outward-rounded fixed-point integer arithmetic, using the convergent series and rigorous remainders specified in Appendix B. The certificate printed in full in Appendix B returns 
+
+$$
+\begin{aligned}
+0.689172685526&\le\delta(10^8)\le0.689172685527,\\
+0.009536008017&\le\delta_\infty-\delta(10^8)\le0.009540517837,\\
+0.698708693544&\le\delta_\infty\le0.698713203363.
+\end{aligned}
+$$
+
+In particular the exact upper numerator, at scale $S=10^{50}$, is
+
+`69871320336261887719026650766622602398609250019057`.
+
+It is strictly less than $7S/10$ by integer comparison (the certificate asserts this directly). Thus, by Theorem 1, $0<\operatorname{Li}_2(x)-\operatorname{VF}_{\rm can}(x)<0.7$ for every real $x\ge4$. The bound $3$ has an entirely analytic proof above; the sharper bound is computer-assisted, with the executable certificate and exact integer endpoints provided. No claim of Lean verification is made for this new sharpening.
+
+![Figure 6](figures/quadrature_gap.png)
+
+**Figure 6.** Canonical VF minus the normalized logarithmic integral at every square endpoint through $10^8$. The gap is negative; its magnitude approaches a finite limit.
+
+The plotted double-precision values agree with the certified interval to the displayed six decimals; the plotted endpoint differs from the certified finite-sum value by about $1.8\times10^{-8}$ due to floating-point evaluation. The plot is illustrative, not a premise of either bound. The real canonical VF is therefore an independently computed square-coordinate representation of the logarithmic integral, not an asymptotically distinct approximation to prime counts.
+
+### 3.3. Theorem 2: the exact defect and the von Koch criterion
+
+Set $D_R=\pi(R^2)-\operatorname{VF}_{\rm can}(R^2)$, with $P_R$ defined in Equation (2) of Section 1. At consecutive squares,
+
+$$
+D_{R+1}=D_R+(P_R-V_R),\qquad D_2=2-\sqrt2.\tag{20}
+$$
+
+This is an exact telescoping identity retaining the actual sieve. It partitions the running error into a finite anchor and signed block innovations. A vertical change of phase cancels in the innovation, but not in the squared endpoint defect. In particular $(D_R^{\rm raw}-\sqrt2)^2=(D_R^{\rm raw})^2-2\sqrt2 D_R^{\rm raw}+2$.
+
+**Statement.** The following three propositions are equivalent, with finite nonnegative constants independent of $x$ and $R$: 
+
+$$
+\begin{aligned}
+&(A)\quad \exists C\ \forall R\ge2:\ |D_R|\le CR\log R;\\
+&(B)\quad \exists B\ \forall x\ge4:\ |\pi(x)-\operatorname{VF}_{\rm can}(x)|\le B\sqrt{x}\log x;\\
+&(C)\quad \exists K\ \forall x\ge4:\ |\pi(x)-\operatorname{Li}_2(x)|\le K\sqrt{x}\log x.
+\end{aligned}
+$$
+
+**Proof.** At a square $x=R^2$, the real weight is $2R\log R$. Thus (B) implies (A) with $C=2B$. Conversely, take $R=\lfloor\sqrt x\rfloor$. The count increment $\pi(x)-\pi(R^2)$ and the live mass $L_R(x)$ each belong to $[0,2R+1]$: the first is bounded by the number of integer sites, and the second by $x-R^2<2R+1$ because $\log((R^2+x)/2)>1$. Hence 
+
+$$
+|\pi(x)-\operatorname{VF}_{\rm can}(x)|\le |D_R|+2R+1
+\le (C+4) R\log R\le \frac{C+4}{2}\sqrt{x}\log x,
+$$
+
+using $2R+1\le4R\log R$ for $R\ge2$ (since $\log R>2/3$). This proves (A) implies (B). Finally Theorem 1 gives 
+
+$$
+\big|\,|\pi(x)-\operatorname{VF}_{\rm can}(x)|-|\pi(x)-\operatorname{Li}_2(x)|\,\big|<3.
+$$
+
+Because $\sqrt x\log x>1$ on the domain, (B) implies (C) with $K=B+3$, and (C) implies (B) with $B=K+3$. This completes the equivalence without any hypothesis about primes. $\square$
+
+**Classical external theorem.** The von Koch prime-counting criterion (see \[2\]) identifies (C) with RH. For clarity, its forward direction uses the classical conditional explicit-formula estimate $\psi(x)=x+O(\sqrt{x}\log^2x)$ under RH, where $\psi(x)=\sum_{p^k\le x}\log p$. Prime powers with $k\ge2$ contribute $O(\sqrt{x}\log^2x)$ by the trivial count of integers up to $x^{1/k}$, so the same estimate holds for $\theta(x)=\sum_{p\le x}\log p$. Partial summation then yields (C). Conversely (C) gives $\theta(x)=x+O(\sqrt{x}\log^2x)$ by partial summation of $\pi(x)$, and hence the same estimate for $\psi$. For $\Re s>1$, the Euler product and partial summation yield 
+
+$$
+-\frac{\zeta'(s)}{\zeta(s)}-\frac{s}{s-1}
+=s\int_1^\infty(\psi(t)-t)t^{-s-1}dt.
+$$
+
+The right side is holomorphic for $\Re s>1/2$ by locally uniform absolute convergence. By uniqueness of meromorphic continuation the left side has no poles there; thus $\zeta$ has no zeros there, and the functional equation reflects any nontrivial zero left of $1/2$ to the right. This is the standard converse. The conditional explicit-formula estimate and classical zeta continuation/functional equation are cited inputs, not new results of this paper.
+
+Consequently, as a corollary of Theorem 2 and that classical theorem,
+
+$$
+\boxed{\mathrm{RH}\ \Longleftrightarrow\ \exists C\ge0\ \forall R\ge2:\ |D_R|\le C R\log R.}\tag{21}
+$$
+
+### 3.4. Dependency audit of the RH equivalence
+
+The RH equivalence in Equation (21) is distinct from the exact block recurrence in Equation (20). The two implications in Theorem 2 are genuine transfers: the prime staircase is defined independently of the VF path and no estimate of the unknown error is built into either definition. The all-real bound follows from an integer-site count, not a conjectured short-interval PNT. The fixed phase does not enter the size of the live increment.
+
+**Lean source audit.** The current source uses `Nat.primeCounting` at the natural floor of a real cutoff, `Real.log` and an actual interval integral. The declarations checked are not aliases of one another’s error terms. The original square-to-real transfer uses `abs_vfMidPrimeError_sub_square_le`, with bound $(3+3/\log4)R$, followed by `vfMidVonKochBounded_of_squareEndpoint` and its reverse restriction to squares. The legacy VF-to-Li equivalence uses the already proved `vfMidLiRootBounded`, which is only $O(\sqrt x)$ and is sufficient; the stronger all-real $O(1)$ theorem is a separate result, not an additional premise required by the equivalence. Canonical phase transport adds a fixed constant to each existential bound. These steps compose in the declarations below.
+
+> vfCanonicalSquareVonKoch_iff_primeLiVonKoch  
+> vfCanonicalSquareVonKoch_iff_realVonKoch  
+> riemannHypothesis_of_vfCanonicalSquare
+
+The last declaration is a conditional RH consumer. It takes two explicit arguments: the classical von Koch criterion and the actual-prime inequality (A). The source names the criterion `ClassicalVonKochRHCriterion`. Neither input is silently discharged. The arithmetic bound (A) is an open, RH-equivalent research target; the reduction does not prove (A), (B), (C) or RH. This manuscript supplies an independent ordinary-mathematical proof of the transport, not a fresh Lean build.
+
+**Historical kernel evidence.** PR \#932 was merged on October 12, 2026. At tested head `2713d8ef495e` (full hash in the companion audit), the [canonical VF workflow](https://github.com/OVVO-Financial/RH_Lean/actions/runs/38267118782) succeeded. Its [all-real quadrature job](https://github.com/OVVO-Financial/RH_Lean/actions/runs/38267118782/job/114871949452) and [canonical kernel job](https://github.com/OVVO-Financial/RH_Lean/actions/runs/38267118782/job/114871949629) were inspected directly. The latter printed exactly `propext`, `Classical.choice`, and `Quot.sound` for the uniform canonical Li bound, the exact canonical recurrence, and the canonical square-to-Li equivalence. Those results rule out extra axioms for those audited declarations at that head, but do not discharge ordinary theorem arguments. The current main declarations of the square criterion, square-to-Li equivalence and terminal RH consumer agree with the corresponding historical declarations. Some source blobs have since changed; this is not a new exact-head kernel replay of current main. The companion audit record identifies both source snapshots, the job evidence, and the two explicit hypotheses; it also supplies a Lean audit file for replay against the repository. No assertion about other RH_Lean routes follows from this focused audit.
+
+### 3.5. Unconditional PNT in the native square-prefix architecture
+
+The square-block framework has already achieved an unconditional prime-distribution theorem, independently of the RH-equivalent estimate in Theorem 2. On August 12, 2026, RH_Lean merged the fully rederived elementary Selberg–Erdős route in PRs #311–313 [12]. The arithmetic cutoff is the complete square prefix $X_n=(n+1)^2-1$; the terminal theorem covers all natural-number cutoffs $N$, not just squares. This is a formal rederivation of the classical PNT using the native arithmetic architecture, not a claim of a new prime number theorem or of a proof solely from the VF quadrature formula.
+
+**Native PNT proof mechanism.** For a fresh prime $p$ coprime to $m$, the exact Möbius relation $\mu(mp)=-\mu(m)$ yields a paired reciprocal weight $\mu(m)(1-1/p)/m$. The convolution identity $\mu*\log=\Lambda$ reindexes the von Mangoldt weighted error over reciprocal floor fibres. The native proof rederives the one-log and squared Selberg recurrences, obtains a complete-square good-fibre density, and establishes a compensated cubic improvement of nonnegative affine error-envelope slopes. Arbitrarily small slopes then give $\psi(N)/N\to1$. The elementary prime-power correction $0\le\psi(N)-\theta(N)\le\lfloor\sqrt N\rfloor\log N=o(N)$ transfers the limit to $\theta(N)/N\to1$; finite multiplicative cutoffs and a weak Chebyshev bound transfer it to actual prime counts. Here $\psi(N)=\sum_{n\le N}\Lambda(n)$ and $\theta(N)=\sum_{p\le N}\log p$.
+
+The terminal declarations are `nativePNTSquarePrefixPsi_div_atTop_one` and `nativePNTSquarePrefixPrimeNumberTheorem`. The latter has no PNT or RH hypothesis and concludes
+
+$$
+\lim_{N\to\infty}\frac{\pi(N)\log N}{N}=1.
+$$
+
+The square-prefix transfer uses elementary lemmas from `NativePNTTransfer` but does not call the earlier `nativePrimeNumberTheorem` or `nativeTheta_div_atTop_one`. The [merged proof source](https://github.com/OVVO-Financial/RH_Lean/blob/ab0616da18449254b348b3508ce409360f3087dc/RHLean/Analysis/NativePNTSquarePrefixTransfer.lean#L309-L315), its [Chebyshev predecessor](https://github.com/OVVO-Financial/RH_Lean/blob/ab0616da18449254b348b3508ce409360f3087dc/RHLean/Analysis/NativePNTSquarePrefixPNT.lean#L114-L129), and the [PR #312 validation record](https://github.com/OVVO-Financial/RH_Lean/pull/312) establish the scope of this result. The PR records a successful hosted Lean build; the source-audit and public-export workflow statuses were checked on its final head. This revision checks the theorem statements and their immediate dependency chain, not a fresh full transitive kernel or axiom replay.
+
+**Consequence for canonical VF.** The native PNT and Theorem 1 imply $\pi(x)\sim\operatorname{Li}_2(x)\sim\operatorname{VF}_{\rm can}(x)\sim x/\log x$. The first equivalence extends from integer to real cutoffs by the natural floor; the second uses the bounded quadrature difference, and the last follows from elementary logarithmic-integral asymptotics. In particular,
+
+$$
+\frac{\pi(x)}{\operatorname{VF}_{\rm can}(x)}\to1,
+\qquad
+D_R=o\!\left(\frac{R^2}{2\log R}\right).
+$$
+
+The second conclusion follows by restricting the difference of asymptotically equivalent functions to $x=R^2$. It gives an unconditional relative-error baseline in the same coordinates as the exact recurrence (20). It does not imply a power saving, prime supply in every individual square band, or the much stronger uniform $O(R\log R)$ estimate in (21). The distinction between the proved PNT-scale convergence and the open RH-scale cancellation is essential.
+
+## 4. Extended numerical comparison
+
+### 4.1. Design and conventions
+
+Every prime through $10^8$ is generated by the sieve and counted using $\pi(x)=\#\{p\le x\}$. The total counts at powers of ten are independently checked against known exact values. We compare six estimators: $x/\log x$, the 2017 VF, $\operatorname{Li}_2$, the principal-value $\operatorname{li}(x)=\operatorname{Ei}(\log x)$, canonical VF, and Riemann’s smooth R approximation. The latter, distinct from the full explicit formula involving zeta zeros, is evaluated by its convergent Gram series \[4\]:
+
+$$
+\mathcal R(x)=1+\sum_{k=1}^{\infty}\frac{(\log x)^k}{k\,k!\,\zeta(k+1)}.\tag{22}
+$$
+
+We sum 80 terms using a factorial recurrence; for $x\le10^8$ the remaining positive terms are negligible relative to floating-point rounding. The prime counts are exact integer counts; logarithmic and quadrature calculations use double precision. The comparison grid is all integer $x$ from 4 through $10^6$ and 32 equally spaced integer locations per later square band (including its left endpoint), plus the final endpoint. It contains 1,287,997 distinct sites. All 9,999 square endpoints from $R=2$ through $10000$ are evaluated separately. The phase study uses all primes, not the model grid. Metrics beyond $10^6$ are grid-based, not exhaustive integer extrema or equally weighted integer-population estimates.
+
+### 4.2. Replication of the 2017 midpoint experiment
+
+The R code originally grouped $x$ values by their rounded historical VF level and calculated the mean $x$ within each group. We reproduce that exact grouping for $4\le x\le n$. For a deterministic baseline we linearly interpolate the resulting anchors, holding the nearest anchor at the two outer ends. The paper originally proposed this interpolation as a potentially faster alternative to `NNS.reg`. The Python NNS replication is provided separately (Section 5.3); its results have not been substituted with the interpolation.
+
+![Figure 7](figures/legacy_errors_1000.png)
+
+**Figure 7.** Replication at $x\le1000$ with standard inclusive prime counting. Positive residuals mean an underestimate of the actual count; negative residuals mean an overestimate.
+
+![Figure 8](figures/legacy_errors_10000.png)
+
+**Figure 8.** Replication at $x\le10000$, extended to canonical VF and Riemann’s R function.
+
+**Table 2.** RMSE and MAE on all integer sites $4\le x\le n$. Linear historical interpolation is trained only on model anchors, not on actual primes.
+
+| Model                 | RMSE ($n=1000$) | MAE ($n=1000$) | RMSE ($n=10000$) | MAE ($n=10000$) |
+|:----------------------|----------------:|---------------:|-----------------:|----------------:|
+| $x/\log x$            |          14.854 |         13.389 |           88.147 |          79.233 |
+| VF 2017               |           2.458 |          2.033 |            5.276 |           4.233 |
+| 2017 midpoint linear  |           1.244 |          1.010 |            2.347 |           1.853 |
+| $\operatorname{Li}_2$ |           6.309 |          6.009 |           14.032 |          13.455 |
+| $\operatorname{li}$   |           7.311 |          7.052 |           15.038 |          14.500 |
+| Canonical VF          |           5.678 |          5.350 |           13.385 |          12.780 |
+| Riemann R             |           0.715 |          0.571 |            1.727 |           1.318 |
+
+As in the original analysis, historical midpoint interpolation markedly reduces the step oscillation. The 2017 model outperforms the normalized logarithmic integral in these small samples. The new canonical model is not designed to minimize small-sample count error: its deterministic approximation to $\operatorname{Li}_2$ makes it closer to that curve. Riemann’s R has the lowest RMSE in both replications. The original NNS fitted $R^2$ near unity measures fit to the VF anchors, not accuracy against the independent prime-count target. Accordingly the error metrics above use $\pi(x)$ directly.
+
+### 4.3. Expansion through $10^8$
+
+**Table 3.** Exact counts and signed endpoint errors $\pi(x)-g(x)$, rounded to two decimals.
+
+|    $x$ |  $\pi(x)$ | $x/\log x$ |  VF 2017 | $\operatorname{Li}_2$ | Canonical VF | Riemann R |
+|-------:|----------:|-----------:|---------:|----------------------:|-------------:|----------:|
+| $10^2$ |        25 |       3.29 |    -4.00 |                 -4.08 |        -3.43 |     -0.66 |
+| $10^3$ |       168 |      23.24 |     0.00 |                 -8.56 |        -7.89 |     -0.36 |
+| $10^4$ |     1,229 |     143.26 |    -6.00 |                -16.09 |       -15.41 |      2.07 |
+| $10^5$ |     9,592 |     906.11 |     7.00 |                -36.76 |       -36.08 |      4.57 |
+| $10^6$ |    78,498 |   6,115.59 |   -16.00 |               -128.50 |      -127.82 |    -29.40 |
+| $10^7$ |   664,579 |  44,158.31 |   230.00 |               -338.36 |      -337.67 |    -88.45 |
+| $10^8$ | 5,761,455 | 332,773.98 | 1,297.00 |               -753.33 |      -752.64 |    -96.87 |
+
+**Table 4.** Decade-specific RMSE on common evaluation grids. The final two intervals use the square-band sample rather than every integer site.
+
+| Upper $x$ |   Sites | $x/\log x$ |  VF 2017 | $\operatorname{Li}_2$ | Canonical VF | Riemann R |
+|----------:|--------:|-----------:|---------:|----------------------:|-------------:|----------:|
+|    $10^2$ |      97 |       2.51 |     2.51 |                  2.45 |         1.88 |      0.40 |
+|    $10^3$ |     900 |      15.61 |     2.45 |                  6.59 |         5.94 |      0.74 |
+|    $10^4$ |   9,000 |      92.77 |     5.50 |                 14.64 |        13.98 |      1.80 |
+|    $10^5$ |  90,000 |     585.62 |    17.77 |                 32.83 |        32.16 |      4.43 |
+|    $10^6$ | 900,000 |   3,950.06 |    68.64 |                 77.76 |        77.10 |     11.73 |
+|    $10^7$ |  69,192 |  25,273.98 |   264.19 |                183.03 |       182.37 |     28.90 |
+|    $10^8$ | 218,808 | 188,673.69 | 1,209.67 |                485.76 |       485.10 |     80.11 |
+
+![Figure 9](figures/rmse_scale.png)
+
+**Figure 9.** Decade-specific RMSE on the common grid, shown on logarithmic axes. The historical estimator’s finite advantage over canonical VF reverses at the upper decades.
+
+The old function has a favorable finite-range error through the decade ending at $10^6$. In the decade $(10^7,10^8]$, canonical VF’s grid RMSE is $485.10$ versus $1209.67$ for the old VF, a reduction of roughly 60%. The normalized Li error is $485.75$, reflecting the bounded difference between the two. Riemann’s R is substantially more accurate on these grids (RMSE $80.11$ in the last decade), as expected from its prime-power correction. The last endpoint alone tells a similar but not identical story: at $10^8$ canonical VF overcounts by $752.64$ and Riemann’s R overcounts by $96.87$. The magnitude of the canonical discrepancy is less than the normalized Li discrepancy here, but that is not a theorem of universal pointwise superiority. For real estimates $V$ and $L$, 
+
+$$
+(\pi-V)^2-(\pi-L)^2=(L-V)(2\pi-V-L).
+$$
+
+Its sign depends on the genuine prime count. Indeed at $x=4$, $\operatorname{Li}_2(4)$ is closer to the count 2 than canonical VF is.
+
+### 4.4. Intersection and the square-block staircase
+
+The original paper anticipated a crossing of the prime-count staircase in each square band. Since the canonical VF is continuous, we explicitly test the weak capture of its left integer level $K_R=\lfloor\operatorname{VF}_{\rm can}(R^2)\rfloor$ by the actual prime-count range: 
+
+$$
+\pi(R^2)\le K_R\le\pi((R+1)^2).
+$$
+
+The condition holds in 9,993 of 9,998 complete blocks, or 99.950%, but it is not universal. If it holds, the count attains that integer level somewhere in the closed band, as each prime increases $\pi$ by one. It need not cross the actual continuous VF curve. The five failures are listed in Table 5. Four of the five also fail the weaker overlap of the count range and the interval $[K_R,K_{R+1}]$. The original canonical real endpoint defects have opposite signs only in the first block; same-sign endpoints alone do not exclude multiple interior crossings.
+
+**Table 5.** All failures of the weak left-level capture in the tested range.
+
+| $R$ | $\pi(R^2)$ |  $K_R$ | $\pi((R+1)^2)$ | $K_{R+1}$ |
+|----:|-----------:|-------:|---------------:|----------:|
+|   2 |          2 |      1 |              4 |         4 |
+| 119 |      1,667 |  1,687 |          1,686 |     1,712 |
+| 178 |      3,407 |  3,438 |          3,436 |     3,472 |
+| 547 |     25,936 | 26,022 |         26,020 |    26,109 |
+| 549 |     26,112 | 26,196 |         26,193 |    26,283 |
+
+In particular $R=549$ gives $K_R=26196$ but the terminal count is only $26193$. This is a finite counterexample to literal capture, not a counterexample to the asymptotic von Koch bound.
+
+## 5. Nonlinear nonparametric statistics in Python
+
+### 5.1. Partial moments for actual prime-count error
+
+For real observations $y_1,\ldots,y_N$ and targets $t_1,\ldots,t_N$, define residuals $e_i=y_i-t_i$. A fixed target is the special case $t_i=t$. For a degree $d>0$, the lower and upper partial moments of the signed residuals about zero are defined by
+
+$$
+\operatorname{LPM}_d(0;e)=\frac1N\sum_i\max(-e_i,0)^d,\qquad
+\operatorname{UPM}_d(0;e)=\frac1N\sum_i\max(e_i,0)^d.\tag{23}
+$$
+
+For the prime-count comparison take $y_i=\pi(x_i)$ and $t_i=g(x_i)$. Degree zero uses the NNS convention $\operatorname{LPM}_0=\#\{e_i\le0\}/N$ and $\operatorname{UPM}_0=\#\{e_i>0\}/N$, so ties belong to the lower side. Bias, mean absolute error and root mean square error can all be recovered from these quantities:
+
+$$
+\overline e=\operatorname{UPM}_1-\operatorname{LPM}_1,\qquad \mathrm{MAE}=\operatorname{LPM}_1+\operatorname{UPM}_1,\qquad
+\mathrm{RMSE}=\sqrt{\operatorname{LPM}_2+\operatorname{UPM}_2}.\tag{24}
+$$
+
+No symmetry, Gaussian residuals or independent sampling assumption is needed for these finite identities. The companion CSV records both partial moments, as well as the signed bias, for every model and decade. With `ovvo-nns`, the corresponding Python implementation is:
+
+```python
+from nns import lpm, upm
+error = actual_pi - vf_canonical_values
+L1, U1 = lpm(1, 0.0, error), upm(1, 0.0, error)
+L2, U2 = lpm(2, 0.0, error), upm(2, 0.0, error)
+bias, mae = U1 - L1, U1 + L1
+rmse = (L2 + U2)**0.5
+```
+
+**Table 6.** Signed error analysis on the final grid interval $(10^7,10^8]$. Degree-one and degree-two moments have units of counts and squared counts respectively.
+
+| Model                 |     Bias | LPM$_1$ |  UPM$_1$ |    LPM$_2$ |      UPM$_2$ |
+|:----------------------|---------:|--------:|---------:|-----------:|-------------:|
+| VF 2017               | 1,104.34 |    0.00 | 1,104.34 |       0.00 | 1,463,311.81 |
+| $\operatorname{Li}_2$ |  -462.76 |  462.76 |     0.00 | 235,958.17 |         0.00 |
+| Canonical VF          |  -462.07 |  462.07 |     0.00 | 235,321.22 |         0.00 |
+| Riemann R             |    -4.77 |   34.58 |    29.81 |   3,530.83 |     2,886.46 |
+
+The directional distinction is important: the historical estimator is biased downward in prime counts at these scales, whereas the canonical and Li reference curves are biased upward. Riemann’s R has much less bias, but still has substantial fluctuations on both sides. These are descriptive finite-grid measures, not statistical confidence intervals.
+
+### 5.2. Exact partial moments over odd integers
+
+Let $O_R=\{n\in\mathbb Z:R^2<n<(R+1)^2,\ n\text{ odd}\}$. The endpoints have opposite parity; there are exactly $R$ odd integers strictly between them. For $R\ge2$, every prime in the block belongs to $O_R$. Thus $\sum_{n\in O_R}y_n=P_R$ with the genuine indicator $y_n=\mathbf1_{n\ {\rm prime}}$. Define the common deterministic target $w_R=V_R/R$ and residual $a_n=y_n-w_R$. For $R\ge4$ we have $0<w_R<1$, since $(2+1/R)<\log(R^2+R+1/2)$. Exactly $P_R$ residuals equal $1-w_R$ and $R-P_R$ equal $-w_R$. Therefore the degree-one partial moments, each averaged over $O_R$, are exactly
+
+$$
+\begin{aligned}
+\operatorname{LPM}_1(0;a)&=\frac{R-P_R}{R}w_R,& \operatorname{UPM}_1(0;a)&=\frac{P_R}{R}(1-w_R),
+\end{aligned}\tag{25}
+$$
+
+$$
+\begin{aligned}
+R(\operatorname{UPM}_1-\operatorname{LPM}_1)&=P_R-Rw_R=P_R-V_R.
+\end{aligned}\tag{26}
+$$
+
+This is the signed increment in the block recurrence, Equation (20). It is not a randomization of prime sites; each $y_n$ is the actual sieve indicator. Degree two gives $\operatorname{LPM}_2=(R-P_R)w_R^2/R$ and $\operatorname{UPM}_2=P_R(1-w_R)^2/R$. In particular the squared sum of signed errors is not interchangeable with a sum of local squared errors. For $A<R$, 
+
+$$
+(D_R-D_A)^2=\sum_{r=A}^{R-1}(P_r-V_r)^2+2\sum_{A\le r<s<R}(P_r-V_r)(P_s-V_s).
+$$
+
+A proof must control the cross terms or an equivalent bound on the complete signed sum. Partial moments expose the positive and negative contributions but do not, by definition, control their chronology.
+
+**Table 7.** Partial moments over the odd integers in selected blocks, computed from the actual sieve. The final column equals the degree-one net mass in Equation (26).
+
+|  $R$ | $P_R$ |    $w_R$ |  LPM$_1$ |  UPM$_1$ | $P_R-V_R$ |
+|-----:|------:|---------:|---------:|---------:|----------:|
+|   18 |     6 | 0.352204 | 0.234802 | 0.215932 | -0.339664 |
+|   56 |    12 | 0.250089 | 0.196498 | 0.160695 | -2.004978 |
+|  317 |    54 | 0.173870 | 0.144252 | 0.140729 | -1.116944 |
+|  549 |    81 | 0.158648 | 0.135241 | 0.124134 | -6.097670 |
+| 1027 |   144 | 0.144269 | 0.124040 | 0.119986 | -4.163977 |
+| 3161 |   399 | 0.124108 | 0.108442 | 0.110560 |  6.696027 |
+| 9999 |  1077 | 0.108580 | 0.096884 | 0.096016 | -8.687812 |
+
+### 5.3. NNS regression: faithful Python port
+
+The distribution package `ovvo-nns` imports as `nns`; its repository’s current `pyproject.toml` specifies version 2.4.0 and the public regression API preserves the original R result keys \[10\]. For the historical VF levels, the direct Python counterpart to `NNS.reg(...,order='max')` is:
+
+```python
+from nns import nns_reg
+x = np.arange(4, 10_001)
+old = vf_2017(x)
+level, inv = np.unique(old, return_inverse=True)
+mx = np.bincount(inv, weights=x) / np.bincount(inv)
+k = np.argsort(mx)
+fit = nns_reg(mx[k], level[k], order="max",
+              point_est=x, plot=False)
+prediction = np.asarray(fit["Point.est"]).reshape(-1)
+errors = actual_pi - prediction
+```
+
+The supplied script also uses order 5 and repeats both orders at $10^3$ and $10^4$, reporting $R^2$ on historical model anchors and MAE/RMSE against actual prime counts. This is an interpolation/shape comparison; it is not an out-of-sample prediction claim. No NNS regression output is asserted for this revision because the package could not be installed in the execution environment. The canonical VF does not require a regression: its analytic live term is already defined for all real $x\ge4$.
+
+## 6. Square-block residuals and signed accumulation
+
+### 6.1. Finite-scale normalized defect
+
+The arithmetic target is not the deterministic quadrature gap. It is the genuine accumulation of the signed block innovations. Define
+
+$$
+H(R)=\frac{|D_R|}{R\log R},\qquad H_{[A,B]}=\max_{A\le R\le B}H(R).\tag{27}
+$$
+
+Table 8 records the decade-wise square-endpoint maxima and block innovation RMSE, both relevant to the RH criterion in Equation (21).
+
+**Table 8.** Finite square-block diagnostics by terminal square. The first interval includes the initial endpoint for $H(R)$; innovation metrics exclude an incomplete block.
+
+| Upper square | Blocks | Mean $P_R$ | RMSE$(P_R-V_R)$ |   Lag-1 | Max $H(R)$ |
+|-------------:|-------:|-----------:|----------------:|--------:|-----------:|
+|       $10^2$ |      8 |     2.8750 |          0.7757 | -0.7870 |     0.4226 |
+|       $10^3$ |     21 |     6.5238 |          0.7792 | -0.2876 |     0.1268 |
+|       $10^4$ |     69 |    15.4638 |          1.9295 | -0.3409 |     0.0754 |
+|       $10^5$ |    216 |    38.6620 |          3.2766 | -0.1612 |     0.0466 |
+|       $10^6$ |    684 |   100.7573 |          5.9435 | -0.1413 |     0.0271 |
+|       $10^7$ |  2,162 |   271.0356 |          9.6894 | -0.1325 |     0.0200 |
+|       $10^8$ |  6,838 |   745.3902 |         16.8847 | -0.0949 |     0.0142 |
+
+![Figure 10](figures/block_residual.png)
+
+**Figure 10.** The actual block innovation $P_R-V_R$ in the full set of complete square bands. Its signed accumulation, rather than its unsigned size alone, controls the endpoint defect.
+
+![Figure 11](figures/normalized_defect.png)
+
+**Figure 11.** Canonical $|D_R|/(R\log R)$ over all integer square indices $2\le R\le10000$. A finite declining profile cannot establish a uniform bound beyond the tested range.
+
+For $1000\le R\le10000$, the maximum of $H$ is $0.01998279$ at $R=1031$; at $R=10000$ it is $0.00817170$. The first endpoint $R=2$ gives $0.422556$, the maximum over the full finite range. These small normalized values motivate the bound, but the existence of one constant valid for all $R$ is the substantive mathematical problem.
+
+### 6.2. Variance-normalized signed path and maximum-entropy bootstrap
+
+Following the RH_Lean NNS experiments \[11\], for $r\ge56$ define
+
+$$
+b_r=r w_r(1-w_r),\qquad z_r=\frac{P_r-V_r}{\sqrt{b_r}},\qquad
+C_R=\sum_{r=56}^{R-1}(P_r-V_r),\quad B_R^*=\sum_{r=56}^{R-1}b_r.\tag{28}
+$$
+
+The nominal Bernoulli scale $b_r$ is used only for standardization; the actual prime indicators are not modeled as independent Bernoulli trials. Note that $B_R^*$ denotes a variance scale here, not the set of block sites $B_R$. The exact anchor reconstruction is $D_R=D_{56}+C_R$. One useful finite diagnostic is
+
+$$
+K_{\rm req}=\max_{57\le R\le10000}\frac{C_R^2}{(\log R)^3 B_R^*}.\tag{29}
+$$
+
+It is phase-independent. Since $V_r\sim r/\log r$ and $w_r\to0$, the scale $B_R^*=O(R^2/\log R)$. A uniform bound on this ratio, if proved for actual primes at every $R$, would imply the required $O(R\log R)$ bound after taking square roots and adding the fixed anchor. The diagnostic does not provide that theorem.
+
+In the extended actual path $r=56,\ldots,9999$, the standardized lag-1 and lag-2 correlations are $-0.107956$ and $-0.056146$, and $K_{\rm req}=0.00579161$. These finite values suggest cancellation rather than positive serial persistence, but the sample autocorrelations do not bound the whole signed covariance structure.
+
+The earlier, separately recorded RH_Lean study used the unshifted raw VF and the NNS maximum-entropy bootstrap (source commit `55d15c9d6412...`). It ran 4,611 synthetic paths through the square endpoint $R=3162$ ($x=9,998,244$): 3,582 correlation-targeted paths and 1,029 serial-persistence stress paths. The recorded largest normalized raw-defect ratios were 0.216552 and 0.477751 respectively. Of the serial-stress paths, 1,025 of 1,029 had $K_{\rm req}\le1$. These are quoted repository results, not new runs, and the raw anchor differs by $\sqrt2$ from the canonical anchor. The phase-independent innovation and $K_{\rm req}$ definitions are the same. The bootstrap investigates tolerance to finite manufactured dependence, not the validity of a uniform prime-distribution theorem.
+
+For the new range, the companion script creates AR(1) templates with $\phi\in\{0,0.5,0.9,0.97,0.99\}$, rank-reorders the observed $z_r$ onto each template, and invokes the documented Python API with 49 replicates per template and a fixed seed:
+
+```python
+from nns import nns_meboot
+boot = nns_meboot(seed_series, reps=49, rho=0.95,
+                  type="spearman", drift=False,
+                  expand_sd=True, force_clt=True,
+                  random_seed=20261124)
+paths = np.asarray(boot["replicates"])
+D_sim = D_56 + np.cumsum(paths * np.sqrt(b)[:, None], axis=0)
+```
+
+The actual script varies the seed deterministically with $\phi$, retains the canonical anchor and reports the achieved lag-1 correlation and normalized path maximum. This 245-path extension is specified but not executed in the present environment. It should be run with `--require-nns` to ensure the package is available, rather than replacing the experiment with a different bootstrap or pretending a result.
+
+## 7. Proof-status and evidence ledger
+
+| Claim                                                                                            | Status and supporting evidence                                                                                                                                     |
+|:-------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Native square-prefix prime number theorem; $\pi(x)\sim\operatorname{VF}_{\rm can}(x)$ | Unconditional repository PNT in merged PRs #311–313; canonical relative-error consequence derived in Section 3.5. |
+| Exact wheel, half-phase and signed endpoint recurrence                                           | Proven by finite integer identities (Sections 1 and 3); independently checked on the archived sieve.                                                               |
+| Canonical VF is continuous; Li difference is uniformly bounded, monotone and has tail asymptotic | Theorem 1, unconditional ordinary-mathematical proof; RH_Lean independently contains an all-real $O(1)$ bound, not necessarily this constant or the limit theorem. |
+| $0<\operatorname{Li}_2-\operatorname{VF}_{\rm can}<0.7$ and limit enclosure                      | Corollary 1, analytic inequalities plus executed outward-rounded integer certificate (Appendix B); no new Lean claim.                                              |
+| Square-endpoint, real VF, and Li von Koch bounds equivalent                                      | Theorem 2, proof of both directions; also formalized in RH_Lean. Connection to RH invokes classical theorem explicitly.                                            |
+| Uniform $\vert D_R\vert \le CR\log R$ for actual primes                                                    | Open; equivalent to RH by Theorem 2 and von Koch. Not inferred from finite fits, phase balance or quadrature.                                                      |
+| Uniform prime phase in each band; universal capture                                              | Exact equal half-counts fail and universal weak capture is refuted by listed finite examples. No asymptotic local phase theorem is asserted.                       |
+| Empirical error, phase and partial moments through $10^8$                                        | Executed, raw data archived; counts and bin assignments exact, other numerical results double precision.                                                           |
+| New NNS regression and bootstrap                                                                 | Specified with the real package API; unavailable locally, not executed. Previously recorded RH_Lean results are separately attributed.                             |
+
+## 8. Limits and comments
+
+The original paper argued for a convergence perspective on prime-counting approximations. That theme is retained in a more precise form. Euler’s product is an exact identity for $\Re s>1$, 
+
+$$
+\zeta(s)=\sum_{n=1}^{\infty}n^{-s}=\prod_p (1-p^{-s})^{-1}.
+$$
+
+A finite truncation of the Dirichlet series is generally different from the corresponding finite prime product because the latter contains all powers of the included primes. This does not invalidate the infinite identity, nor does the irrationality of $e$ account for the systematic difference between $x/\log x$ and $\pi(x)$. The logarithm is a real function, not a decimal truncation of its base. Littlewood proved that the difference between the prime count and logarithmic integral changes sign infinitely often \[3\]; the bounded canonical quadrature displacement cannot remove the unbounded oscillations in that result. Thus finite-range accuracy and the universal arithmetic question must be treated independently.
+
+The principal mathematical advance from the historical VF is not a claim that its newest version always predicts primes better. It is the exact decomposition into square-block midpoint mass, a live interval and one constant, with a uniformly bounded Li difference, an explicit limiting quadrature gap, and a native signed actual-prime recurrence. The extended computations show that the canonical estimate improves upon the historical estimator at larger tested scales while preserving the original square-root partition. Riemann’s R offers an important independent numerical benchmark. Partial moments make the remaining problem explicit: control the signed accumulation of actual block prime-count residuals over arbitrarily many blocks, rather than assuming independence or treating the smooth approximation as the arithmetic count.
+
+The native square-prefix PNT establishes that the architecture already closes the qualitative prime-distribution problem. The next research objective is the uniform arithmetic bound on the right-hand side of Equation (21), equivalently a sufficiently strong uniform bound on the true signed history $C_R$. The finite wheel identities, location measurements, deterministic quadrature and conditional transports should be preserved as distinct mathematical objects. Neither a near-flat phase histogram, a high midpoint-regression $R^2$, a successful finite bootstrap, nor an exact algebraic recurrence proves the missing uniform inequality. This revision claims no solution of RH. As the precursor to the RH_Lean research program, it records the origins of the architecture and establishes the coordinates and unconditional results on which a subsequent proof paper could build, should the remaining estimate be discharged.
+
+## Appendix A. Reproduction instructions and implementation
+
+The accompanying `vf_analysis.py` generates every primary table and plot from scratch, including exact sieve counts, 80-term Gram-series values, the disjoint decade comparisons, all square endpoints, phase histograms, crossing failures and partial moments over odd integers. The model definitions are independent of the computed prime values. The key canonical implementation is:
+
+```python
+r = np.arange(2, max_root + 1, dtype=float)
+v = (2*r + 1) / np.log(r*r + r + 0.5)
+F = np.zeros(max_root + 2)
+F[3:] = np.cumsum(v)
+
+def vf_canonical(x, F):
+    x = np.asarray(x, dtype=float)
+    R = np.floor(np.sqrt(x)).astype(np.int64)
+    a = R*R
+    return np.sqrt(2) + F[R] + (x-a)/np.log((a+x)/2)
+```
+
+The executed run used Python 3.13.5, NumPy 2.3.5, SciPy 1.17.0 and Matplotlib 3.10.8. The primary numerical and certificate pipeline does not require NNS. To reproduce it locally:
+
+```bash
+python -m pip install -r requirements.txt
+python vf_analysis.py --limit 100000000 --out results
+python certify_gap.py
+python verify_data.py
+```
+
+Without `--require-nns`, the script uses the exact definitions of the partial moments when NNS is unavailable and marks regression and bootstrap as not run in `summary.json`. All primary numerical outputs in this manuscript were produced by that fallback mode. The companion bundle contains every one of the 5,761,455 primes in `raw_primes.npz`, and all 1,287,997 comparison locations, counts and six model values in `raw_model_grid.npz`, as well as executed CSVs, figures, summary, manuscript source and programs. Phase-bin assignments are certified by integer comparisons $(100R+j)^2\le10000p<(100R+j+1)^2$. The independent `verify_data.py` reproduces the prime list using an odd-only sieve, checks each grid count, the 42 model/decade error summaries, all square counts and half-blocks, and every phase histogram. The executed check is archived in `data_verification.txt`. Run `pdflatex paper.tex` twice after producing the figures to rebuild the manuscript. The pinned package installation was attempted again for this audit, but the local package index returned no matching distribution and the direct network routes did not resolve. The accessible PyPI release snapshot lists version 2.3.0 (November 14, 2026); repository metadata at the pinned source commit below specifies 2.4.0. Availability of a 2.4.0 wheel was not verified. No older release was silently substituted. The archive also contains `run_nns_only.py`, a strict optional replay using the archived prime list and model grid; it compares the package partial moments to their defining formulas before invoking the regression and bootstrap extensions. Run it in an environment with the actual 2.4.0 package, preferably built from the following pinned repository snapshot (requires network access and the package build toolchain). The source metadata was verified at this exact commit; neither the build nor the replay could be executed here.
+
+```bash
+git clone https://github.com/OVVO-Financial/NNS-python.git
+cd NNS-python
+git checkout d4bf8092e29f45393b33ac6563c2f56f03f1fbb6
+git submodule update --init --recursive
+python -m pip install .
+cd ..
+python run_nns_only.py
+```
+
+The final command is run from the extracted companion archive directory. The driver enforces the pinned distribution version and refuses to fall back. New package-specific results are saved to separate CSV and plot files and can be incorporated in a later editorial revision; they are not silently substituted for the printed results.
+
+## Appendix B. Integer-arithmetic certificate for Corollary 1
+
+All endpoints in `certify_gap.py` are integers scaled by $S=10^{50}$. Addition and subtraction use endpoint arithmetic; multiplication and division take the minimum and maximum of endpoint products or quotients (positive denominator), rounded down and up with integer division. This encloses every intermediate result. For a rational $z\ge1$, reduce by a power of 2 into $[1,2]$. With $u=(z-1)/(z+1)\in[0,1/3]$, 
+
+$$
+\log z=2\sum_{j=0}^{54}\frac{u^{2j+1}}{2j+1}+E,
+\qquad 0\le E\le \frac94\,3^{-111}.
+$$
+
+The remainder follows from a geometric-series bound after dropping the positive odd denominator. Evaluate $\log2$ in the same way and add its integer multiple for range reduction. For logarithms of enclosed positive intervals evaluate the rational endpoints monotonically. The square-root constant is enclosed by $\lfloor\sqrt{2S^2}\rfloor/S$ and the next scaled integer. These operations certify every term of the finite $F_{10000}$ sum.
+
+For the normalized integral, substitute $v=\log t$ and expand $e^v/v$ on the finite positive interval, which gives the convergent expression 
+
+$$
+\operatorname{Li}_2(x)=\log\frac{\log x}{\log2}+\sum_{k=1}^\infty\frac{(\log x)^k-(\log2)^k}{k\,k!}.
+$$
+
+At $x=10^8$, the code verifies $\log x<19$ by integer bounds. After 128 terms, the remainder is positive and at most $6/5$ times $(\log x)^{129}/(129\cdot129!)$ because the positive tail is bounded termwise by the series with the lower-endpoint powers omitted, and successive terms of that dominating series have ratio less than $19/130<1/6$. This yields an enclosed $\operatorname{Li}_2(10^8)$ without relying on any special-function library. Subtracting the enclosed $F_{10000}$ and $\sqrt2$ gives an interval for the finite endpoint. Add the lower and upper bounds of (19) using the same arithmetic; the resulting exact scaled integer endpoints are printed below and in `results/gap_certificate.json`.
+
+```bash
+python certify_gap.py
+python verify_data.py
+```
+
+The first command uses only Python’s standard library; the second uses NumPy. Both were executed. The certificate establishes the stated enclosure given the elementary analytic remainder bounds; it is not a Lean kernel proof. SHA-256 hashes in the companion bundle permit verification of file integrity.
+
+### B.1. Exact executed certificate output
+
+The integer endpoints below are divided by $S=10^{50}$ to obtain the enclosures. Endpoint and tail intervals add exactly to the limit interval. The strict upper bound follows by comparing the upper limit integer with $7S/10$; no floating-point comparison is involved.
+
+```
+endpoint lower 68917268552640389033457561827598765684152915523651
+endpoint upper 68917268552640389033457561827598765684170426110083
+tail lower       953600801779196567494715070264629235491911209302
+tail upper       954051783621498685569088939023836714438823908974
+limit lower    69870869354419585600952276897863394919644826732953
+limit upper    69871320336261887719026650766622602398609250019057
+```
+
+The certificate was rerun after adding the direct assertion of $7/10$, and all assertions passed. The full output is archived in `results/gap_certificate_run.txt`.
+
+### B.2. Complete executable certificate source
+
+The following listing is the entire file `certify_gap.py`, not pseudocode or a selected excerpt. Save it under that name and run `python certify_gap.py` (without Python’s optimization flag, which disables assertions). No third-party package, external data or prime table is required.
+
+```python
+#!/usr/bin/env python3
+"""Exact integer-arithmetic enclosure of the canonical VF quadrature limit.
+
+All intervals are [lo/S, hi/S], S=10**50; every division is outward rounded.
+No floating-point or external numerical library participates in the certificate.
+Logarithms: log z = 2 sum t^(2j+1)/(2j+1), t=(z-1)/(z+1),
+1<=z<=2, and tail <= (9/4)*3^(-2J-1). Range reduction uses powers of 2.
+Li2(x) uses the convergent exponential-integral series and a geometric tail.
+"""
+import argparse
+import json
+import math
+from pathlib import Path
+
+S = 10**50
+J = 55
+K = 128
+
+
+def ceildiv(a, b):
+    return -((-a) // b)
+
+
+def rat(n, d=1):
+    assert d > 0
+    return n*S//d, ceildiv(n*S, d)
+
+
+def add(a, b):
+    return a[0]+b[0], a[1]+b[1]
+
+
+def sub(a, b):
+    return a[0]-b[1], a[1]-b[0]
+
+
+def mul(a, b):
+    v = [i*j for i in a for j in b]
+    return min(v)//S, ceildiv(max(v), S)
+
+
+def div(a, b):
+    assert b[0] > 0
+    lo = min(i*S//j for i in a for j in b)
+    hi = max(ceildiv(i*S,j) for i in a for j in b)
+    return lo, hi
+
+
+def log_unit(n, d):
+    assert d <= n <= 2*d
+    t = rat(n-d, n+d)
+    t2 = mul(t, t)
+    term = t
+    accum = rat(0)
+    for j in range(J):
+        accum = add(accum, div(term, rat(2*j+1)))
+        term = mul(term, t2)
+    accum = mul(rat(2), accum)
+    return accum[0], accum[1] + ceildiv(9*S, 4*3**(2*J+1))
+
+
+LOG2 = log_unit(2, 1)
+
+
+def log_rat(n, d=1):
+    assert n >= d > 0
+    k = n.bit_length()-d.bit_length()
+    if n < d*(1 << k):
+        k -= 1
+    den = d*(1 << k)
+    assert den <= n < 2*den
+    return add(mul(rat(k), LOG2), log_unit(n, den))
+
+
+def log_interval(a):
+    assert a[0] >= S
+    return log_rat(a[0], S)[0], log_rat(a[1], S)[1]
+
+
+def square(a):
+    return mul(a,a)
+
+
+def cube(a):
+    return mul(a,square(a))
+
+
+def sqrt2():
+    n = math.isqrt(2*S*S)
+    return n,n+1
+
+
+def li2(x):
+    t=log_rat(x); u=LOG2
+    assert t[1] < 19*S  # range of the 1e8 certificate
+    ans=log_interval(div(t,u))
+    a=b=rat(1)
+    for k in range(1,K+1):
+        a=div(mul(a,t),rat(k)); b=div(mul(b,u),rat(k))
+        ans=add(ans,div(sub(a,b),rat(k)))
+    # First omitted positive term bounded by t^(K+1)/((K+1)!*(K+1)).
+    # Ratios of the dominating t-only series are < 19/(K+2) < 1/6.
+    first=div(div(mul(a,t),rat(K+1)),rat(K+1))
+    tail=mul(first,rat(6,5))
+    return ans[0],ans[1]+tail[1]
+
+
+def tail_bounds(R):
+    # g_j(s)=1/(s log(s)^j); integrate decreasing g_2,g_3.
+    L=log_rat(R); M=log_rat(R+1)
+    def integrals(t):
+        return add(div(rat(1),t),div(rat(1),mul(rat(2),square(t))))
+    lower=mul(div(cube(rat(R,R+1)),rat(12)),integrals(M))
+    sample=add(div(rat(1,R),square(L)),div(rat(1,R),cube(L)))
+    upper=mul(div(cube(rat(2*R+1,R)),rat(96)),add(sample,integrals(L)))
+    return lower[0], upper[1]
+
+
+def display(a, places=12):
+    step=10**(50-places)
+    lo=a[0]//step; hi=ceildiv(a[1],step)
+    def fmt(n):
+        sign='-' if n<0 else ''; n=abs(n)
+        return f'{sign}{n//10**places}.{n%10**places:0{places}d}'
+    return [fmt(lo),fmt(hi)]
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument('--out', type=Path,
+                   default=Path('results/gap_certificate.json'))
+    args = p.parse_args()
+    R=10000; F=rat(0)
+    for r in range(2,R):
+        F=add(F,div(rat(2*r+1),log_rat(2*r*r+2*r+1,2)))
+    endpoint=sub(sub(li2(R*R),F),sqrt2())
+    tail=tail_bounds(R); limit=add(endpoint,tail)
+    record = {
+        'method': ('fixed-point integer intervals with outward rounding; '
+                   'analytic series remainders'),
+        'scale': str(S), 'log_terms': J, 'li_series_terms': K, 'R': R,
+        'strict_upper_bound': '7/10',
+        'delta_at_square': display(endpoint),
+        'tail': display(tail), 'delta_infinity': display(limit),
+        'raw_scaled_integer_bounds': {
+            'endpoint': list(map(str, endpoint)),
+            'tail': list(map(str, tail)),
+            'limit': list(map(str, limit)),
+        },
+    }
+    assert 0 < endpoint[0] < endpoint[1] < S
+    assert tail[0] >= 0
+    assert limit[0] <= limit[1] < 7*S//10
+    assert endpoint[0] + tail[0] == limit[0]
+    assert endpoint[1] + tail[1] == limit[1]
+    assert limit[1]-limit[0] < S//100000
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(record, indent=2)+'\n')
+    print(json.dumps(record, indent=2))
+
+if __name__=='__main__': main()
+```
+
+## Appendix C. Executable RStudio replication report
+
+This appendix is generated at knit time. The preceding manuscript, printed tables and historical execution disclosures describe the archived November 24, 2026 editorial snapshot. They are not overwritten by this session. The live receipt below is separate evidence. The ordinary Python fences in the preceding sections are explanatory code listings, not independent chunks with undefined variables; the following reticulate chunk calls the complete, tested entry point. The default `full` mode requires the genuine `ovvo-nns` 2.4.0 public API, not a replacement implementation. The primary rebuild reproduces the archived NumPy-definition baseline, while the strict NNS replay compares the real package's moments on the same observations and then runs regression and maximum-entropy bootstrapping. `core` and `render` are explicit opt-outs, not fallbacks. Reticulate declares the dependencies before initializing Python; the Python workers use the very same resolved executable, saving separate logs and preserving the original archive. The first knit may need network access and a native build toolchain; see the included README for alternatives.
+
+```{python live-replay, eval=run_python, echo=TRUE, results='hide'}
+import sys
+from pathlib import Path
+sys.path.insert(0, vf_root)
+import replay
+receipt = replay.run(mode=vf_mode, rebuild=vf_rebuild, python=vf_python)
+```
+
+```{r live-receipt, echo=FALSE, results='asis'}
+if (!run_python) {
+  cat("**Render-only mode.** No new Python computation was performed.\n\n")
+} else {
+  result <- reticulate::py_to_r(reticulate::import_main(convert = FALSE)$receipt)
+  stopifnot(identical(result$status, "pass"))
+  cat("**Knit-time replay status:** PASS (", result$mode, " mode).\n\n", sep="")
+  env <- data.frame(Component = names(result$versions),
+                    Version = unlist(result$versions, use.names=FALSE))
+  print(knitr::kable(env, row.names=FALSE, caption="Resolved Python environment"))
+  cat("\n\n", result$data_verification, "\n\n", sep="")
+  cat("Archive files verified: ", result$archive_files_verified,
+      "; CSV tables rebuilt and compared: ", result$reproduced_csv_tables,
+      ".\n\n", sep="")
+  lim <- unlist(result$certificate$delta_infinity, use.names=FALSE)
+  cat("Certified limiting gap: ", lim[1], " to ", lim[2],
+      ". The exact integer upper endpoint is strictly below 7/10.\n\n", sep="")
+  if (identical(result$mode, "full")) {
+    stopifnot(identical(result$nns$status, "executed"),
+              result$nns$partial_moment_rows_verified == 42,
+              result$nns$regression_rows == 4,
+              result$nns$bootstrap_paths == 245)
+    cat("**NNS:** all 42 model/decade partial-moment parity rows, four fits and 245 paths executed successfully.\n\n")
+    reg <- read.csv(file.path(result$output_dir, "nns", "nns_regression.csv"),
+                    check.names=FALSE)
+    print(knitr::kable(reg[c("xmax", "order", "r2_midpoints", "bias", "mae", "rmse", "max_abs")],
+                       digits=6, row.names=FALSE, caption="Knit-time NNS regression results"))
+    cat("\n\n")
+    boot <- read.csv(file.path(result$output_dir, "nns", "nns_meboot.csv"))
+    tab <- do.call(rbind, lapply(split(boot, boot$phi), function(z) {
+      data.frame(phi=z$phi[1], paths=nrow(z), median_lag1=median(z$lag1),
+                 q95_path_max=unname(quantile(z$max_normalized, 0.95)),
+                 largest_path_max=max(z$max_normalized))
+    }))
+    print(knitr::kable(tab, digits=6, row.names=FALSE,
+                       caption="Knit-time NNS persistence stress (finite diagnostics, not an RH bound)"))
+    cat("\n\n")
+  } else {
+    cat("**NNS not run:** core-only mode was explicitly selected.\n\n")
+  }
+  cat("Machine-readable receipt, worker logs and generated numerical files are in `replay/",
+      basename(result$output_dir), "/`.\n\n", sep="")
+}
+```
+
+## References
+
+1.  Viole, F. (2017). *On the Distribution of Prime Numbers*. Original manuscript, April 25, 2017, 16 pp. Sections 1–3 and Limits & Comments.
+
+2.  von Koch, H. (1901). Sur la distribution des nombres premiers. *Acta Mathematica*, 24, 159–182. [doi:10.1007/BF02403071](https://doi.org/10.1007/BF02403071).
+
+3.  Pintz, J. (1977). On the sign changes of $\pi(x)-\operatorname{li}x$. *Astérisque*, 41–42, 255–265. Review of Littlewood’s 1914 oscillation theorem. [Available text](https://personal.math.ubc.ca/~gerg/teaching/592-Fall2018/papers/1977.Pintz_0.pdf).
+
+4.  Weisstein, E. W. Riemann Prime Counting Function. MathWorld. <https://mathworld.wolfram.com/RiemannPrimeCountingFunction.html>.
+
+5.  OVVO Financial, RH_Lean (2026). Canonical VF: original square-band midpoint path plus fixed $\sqrt2$ phase. [PR \#932](https://github.com/OVVO-Financial/RH_Lean/pull/932), merged October 12. [Lean source](https://github.com/OVVO-Financial/RH_Lean/blob/main/research/VF_CANONICAL_SQRT_TWO.lean); blob `3ced39671cff51579a8009a6ea059890368ca05a`. [Definition and migration record](https://github.com/OVVO-Financial/RH_Lean/blob/main/research/VF_CANONICAL_SQRT_TWO_AUTOPSY_2026_10_12.md).
+
+6.  OVVO Financial, RH_Lean (2026). [Uniform VF/Li midpoint quadrature](https://github.com/OVVO-Financial/RH_Lean/blob/main/research/VF_MID_LI_UNIFORM_QUADRATURE.lean); blob `1e2fd9bc72dc5dfcfca5610524bc592b3fe630ba`. [All-real uniform bound](https://github.com/OVVO-Financial/RH_Lean/blob/main/research/VF_CANONICAL_ALL_REAL_LI_O_ONE.lean).
+
+7.  OVVO Financial, RH_Lean (2026). [Canonical von Koch bridge](https://github.com/OVVO-Financial/RH_Lean/blob/main/research/VF_CANONICAL_SQRT_TWO_VON_KOCH.lean); [Original midpoint bridge](https://github.com/OVVO-Financial/RH_Lean/blob/main/research/VF_MID_VON_KOCH_BRIDGE.lean); canonical von Koch source blob `79030d70e8d3e0d08eef9bac53fef95c36eca2fb`; original bridge blob `32d4b0d74ecadc9780b9841d40357f6ff02369f0`.
+
+8.  OVVO Financial, RH_Lean. [README, canonical VF and formalization status](https://github.com/OVVO-Financial/RH_Lean/blob/main/README.md); [Canonical coordinate atlas](https://github.com/OVVO-Financial/RH_Lean/blob/main/docs/search/coordinates/COORD-VF-CAN.md). Accessed November 24, 2026.
+
+9.  OVVO Financial, RH_Lean (2026). [Prime-location ancestry across the moving square-root wheel](https://github.com/OVVO-Financial/RH_Lean/blob/main/research/VF_MID_PRIME_LOCATION_ANCESTRY_DICHOTOMY_20261108.md), November 8; blob `3fa12b46cdc49242ec417e57ec249a1c6ed61553`.
+
+10. Viole, F. and contributors (2026). *NNS Python*, OVVO-Financial/NNS-python. [Package metadata](https://github.com/OVVO-Financial/NNS-python/blob/main/pyproject.toml); [Regression API](https://github.com/OVVO-Financial/NNS-python/blob/main/src/nns/_public_reg.py); [Partial-moment API](https://github.com/OVVO-Financial/NNS-python/blob/main/src/nns/core.py). Version 2.4.0 source metadata at commit [`d4bf8092e29f...`](https://github.com/OVVO-Financial/NNS-python/blob/d4bf8092e29f45393b33ac6563c2f56f03f1fbb6/pyproject.toml), inspected November 24, 2026; accessible PyPI snapshot version 2.3.0. <https://pypi.org/project/ovvo-nns/>.
+
+11. OVVO Financial, RH_Lean (2026). [VF-mid NNS.meboot dependence stress numerics](https://github.com/OVVO-Financial/RH_Lean/blob/main/numerics/vf_mid_meboot/README.md), separately recorded finite results and reproduction command. README blob `0556b7abfb0d28b786f0ac9664b7d07bf65315de`.
+
+12. OVVO Financial, RH_Lean (2026). *Native square-prefix Möbius rederivation of the prime number theorem*, August 12. [PR #311](https://github.com/OVVO-Financial/RH_Lean/pull/311), [PR #312](https://github.com/OVVO-Financial/RH_Lean/pull/312), and [PR #313](https://github.com/OVVO-Financial/RH_Lean/pull/313), all merged. [Square-prefix Chebyshev PNT](https://github.com/OVVO-Financial/RH_Lean/blob/ab0616da18449254b348b3508ce409360f3087dc/RHLean/Analysis/NativePNTSquarePrefixPNT.lean); [prime-counting transfer](https://github.com/OVVO-Financial/RH_Lean/blob/ab0616da18449254b348b3508ce409360f3087dc/RHLean/Analysis/NativePNTSquarePrefixTransfer.lean). Inspected source snapshot `ab0616da18449254b348b3508ce409360f3087dc`; final PR #312 head `e22bbf67a66558d49e9c0917fc1ab40bf29582ad`.
