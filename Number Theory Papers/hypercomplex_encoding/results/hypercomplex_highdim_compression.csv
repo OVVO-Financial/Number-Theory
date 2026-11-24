@@ -1,0 +1,8 @@
+dataset,original_bytes,zlib9_bytes,brotli9_bytes,lzma6_bytes,best_conventional,best_conventional_bytes,best_cd_dimension,best_cd_bytes,pct_cd_minus_conventional,exact_reconstruction
+paper_text,17582,5910,5636,5764,brotli9,5636,65536,7485,32.807,True
+python_source,17634,5537,5395,5432,brotli9,5395,65536,6843,26.84,True
+paper_PDF,355787,314898,311547,312636,brotli9,311547,1048576,313340,0.576,True
+document_bitmap,23808,2349,2297,2284,lzma6,2284,65536,2328,1.926,True
+repeated_pattern,65536,85,13,140,brotli9,13,1048576,52,300.0,True
+random_control,65536,65562,65540,65600,brotli9,65540,65536,65590,0.076,True
+sparse_binary,8192,31,15,104,brotli9,15,256,38,153.333,True

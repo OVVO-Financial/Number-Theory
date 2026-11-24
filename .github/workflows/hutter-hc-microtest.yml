@@ -1,0 +1,41 @@
+name: Hutter Wikipedia hypercomplex microtest
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/hutter-hc-microtest.yml'
+      - 'Number Theory Papers/hypercomplex_encoding/hutter_microtest/**'
+  workflow_dispatch:
+
+jobs:
+  enwik8-quaternion-context:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install brotli
+      - name: Fetch official enwik8 and verify full-corpus digest
+        run: |
+          curl --retry 3 -fsSL --connect-timeout 30 --max-time 240 https://mattmahoney.net/dc/enwik8.zip -o /tmp/enwik8.zip
+          unzip -p /tmp/enwik8.zip enwik8 > /tmp/enwik8
+          echo '57b8363b814821dc9d47aa4d41f58733519076b2  /tmp/enwik8' | sha1sum -c -
+          test "$(wc -c </tmp/enwik8)" -eq 100000000
+      - name: Quaternion algebra and predictor regression
+        working-directory: Number Theory Papers/hypercomplex_encoding/hutter_microtest
+        run: python -m unittest -v test_benchmark
+      - name: Causal held-out prediction with matched controls
+        working-directory: Number Theory Papers/hypercomplex_encoding/hutter_microtest
+        run: |
+          python benchmark.py --input /tmp/enwik8 --output results
+          cat results/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: enwik8-hypercomplex-microtest
+          path: Number Theory Papers/hypercomplex_encoding/hutter_microtest/results/
+          if-no-files-found: warn

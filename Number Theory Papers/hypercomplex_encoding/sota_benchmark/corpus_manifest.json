@@ -1,0 +1,48 @@
+{
+  "protocol": "V1-file-disjoint-calibration-and-heldout",
+  "calibration": [
+    {
+      "id": "paper_extract_dev",
+      "path": "realpair_text.txt",
+      "family": "real_text"
+    },
+    {
+      "id": "factor_python_dev",
+      "path": "real_pair_factor_test.py",
+      "family": "source_code"
+    }
+  ],
+  "heldout": [
+    {
+      "id": "hypercomplex_algebra_source",
+      "path": "hypercomplex_highdim_test.py",
+      "family": "source_code"
+    },
+    {
+      "id": "hypercomplex_cascade_source",
+      "path": "hypercomplex_cascade_test.py",
+      "family": "source_code"
+    },
+    {
+      "id": "hybrid_cpp_source",
+      "path": "../../julia/complex_space_factorization.cpp",
+      "family": "source_code"
+    },
+    {
+      "id": "hybrid_research_notes",
+      "path": "../../Prime Factorization/hybrid_research/README.md",
+      "family": "real_text"
+    },
+    {
+      "id": "complex_space_method_notes",
+      "path": "../../Prime Factorization/Unified Complex Space Factorization.md",
+      "family": "real_text"
+    },
+    {
+      "id": "fermat_sieve_pdf",
+      "path": "../Complete_Fermat_Sieve_Verified.pdf",
+      "family": "binary_pdf"
+    }
+  ],
+  "synthetic_diagnostics": "The separately generated basis-family data are NOT part of the held-out natural corpus."
+}

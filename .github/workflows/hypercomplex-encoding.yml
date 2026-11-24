@@ -1,0 +1,159 @@
+name: Hypercomplex encoding research
+
+on:
+  pull_request:
+    paths:
+      - 'Number Theory Papers/hypercomplex_encoding/**'
+      - '.github/workflows/hypercomplex-encoding.yml'
+  push:
+    paths:
+      - 'Number Theory Papers/hypercomplex_encoding/**'
+      - '.github/workflows/hypercomplex-encoding.yml'
+  workflow_dispatch:
+    inputs:
+      run_full_sota:
+        description: Run the complete file-disjoint SOTA corpus with three timing repetitions
+        type: boolean
+        default: false
+      run_full_predictive:
+        description: Run full causal prediction and dimension comparisons
+        type: boolean
+        default: false
+
+jobs:
+  algebra-codec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: 'Number Theory Papers/hypercomplex_encoding'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Verify Cayley-Dickson algebra and lossless codecs
+        run: python -m unittest -v hypercomplex_suite_tests
+      - name: Reproduce million-dimensional constructed codeword
+        run: python hypercomplex_million_dim_demo.py
+      - name: CLI round trip
+        run: |
+          printf 'real-pair hypercomplex encoding CI sample\n' > /tmp/hc-input.bin
+          python hypercomplex_codec_cli.py encode /tmp/hc-input.bin /tmp/hc-output.hcb --mode cascade --dimension 256 --coefficient bipolar --compress brotli
+          python hypercomplex_codec_cli.py decode /tmp/hc-output.hcb /tmp/hc-recovered.bin
+          cmp /tmp/hc-input.bin /tmp/hc-recovered.bin
+
+  compression-sota-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: 'Number Theory Papers/hypercomplex_encoding'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install libzstd and benchmark dependencies
+        run: |
+          sudo apt-get install -y libzstd1
+          python -m pip install -r requirements.txt
+      - name: Verify framed hybrid, classical compressors, dictionary, and split protocol
+        run: python -m unittest -v sota_benchmark.test_codec sota_benchmark.test_protocol
+      - name: Freeze hyperparameters using calibration files only
+        run: python -m sota_benchmark.benchmark calibrate --smoke --config sota_benchmark/.artifacts/smoke-config.json
+      - name: Compare all held-out repository files and synthetic controls
+        run: python -m sota_benchmark.benchmark evaluate --smoke --config sota_benchmark/.artifacts/smoke-config.json --output sota_benchmark/.artifacts/smoke-results --synthetic --repeats 2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hypercomplex-sota-smoke
+          path: 'Number Theory Papers/hypercomplex_encoding/sota_benchmark/.artifacts/'
+          include-hidden-files: true
+          if-no-files-found: error
+
+  compression-sota-full:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_full_sota == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: 'Number Theory Papers/hypercomplex_encoding'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install libzstd and benchmark dependencies
+        run: |
+          sudo apt-get install -y libzstd1
+          python -m pip install -r requirements.txt
+      - name: Calibrate complete development corpus
+        run: python -m sota_benchmark.benchmark calibrate --config sota_benchmark/.artifacts/full-config.json
+      - name: Evaluate complete held-out corpus
+        run: python -m sota_benchmark.benchmark evaluate --config sota_benchmark/.artifacts/full-config.json --output sota_benchmark/.artifacts/full-results --synthetic --repeats 3
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hypercomplex-sota-full
+          path: 'Number Theory Papers/hypercomplex_encoding/sota_benchmark/.artifacts/'
+          include-hidden-files: true
+          if-no-files-found: error
+
+  compression-predictive-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: 'Number Theory Papers/hypercomplex_encoding'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install predictive benchmark dependencies
+        run: |
+          sudo apt-get install -y libzstd1
+          python -m pip install -r requirements.txt
+      - name: Verify causal CD predictor, all codecs, no future-data leakage
+        run: python -m unittest -v predictive_lab.test_predictor
+      - name: Bounded causal compression comparison and synthetic controls
+        run: python -m predictive_lab.benchmark --smoke --out predictive_lab/.artifacts/smoke --backend zstd9 --repeats 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hypercomplex-predictive-smoke
+          path: 'Number Theory Papers/hypercomplex_encoding/predictive_lab/.artifacts/'
+          if-no-files-found: error
+          include-hidden-files: true
+
+  compression-predictive-full:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_full_predictive == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: 'Number Theory Papers/hypercomplex_encoding'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install predictive benchmark dependencies
+        run: |
+          sudo apt-get install -y libzstd1
+          python -m pip install -r requirements.txt
+      - name: Full same-backend and dimension comparisons
+        run: |
+          python -m predictive_lab.benchmark --out predictive_lab/.artifacts/full-brotli --backend brotli11 --repeats 2
+          python -m predictive_lab.benchmark --out predictive_lab/.artifacts/full-zstd --backend zstd9 --repeats 2
+          python -m predictive_lab.sensitivity --out predictive_lab/.artifacts/dimensions
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hypercomplex-predictive-full
+          path: 'Number Theory Papers/hypercomplex_encoding/predictive_lab/.artifacts/'
+          if-no-files-found: error
+          include-hidden-files: true

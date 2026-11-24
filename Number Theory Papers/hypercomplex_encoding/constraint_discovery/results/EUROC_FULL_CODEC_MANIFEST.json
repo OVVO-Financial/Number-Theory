@@ -1,0 +1,30 @@
+[
+  {
+    "name": "MH_01_mono",
+    "path": "results/euroc_mono_stereo/laptop/vio_mono/laptop_vio_mono_MH_01/stamped_traj_estimate.txt",
+    "csv_sha256": "7a72b266bf097ae949a4a1cdd90d4c446472cbbfc4200d52fca13fe72759339f",
+    "total_rows": 3660,
+    "heldout_rows": 2745
+  },
+  {
+    "name": "MH_03_mono",
+    "path": "results/euroc_mono_stereo/laptop/vio_mono/laptop_vio_mono_MH_03/stamped_traj_estimate.txt",
+    "csv_sha256": "cc828b93d41efd086db906e954917c438f42de524daddad52459746f76d36c56",
+    "total_rows": 2565,
+    "heldout_rows": 1924
+  },
+  {
+    "name": "MH_05_mono",
+    "path": "results/euroc_mono_stereo/laptop/vio_mono/laptop_vio_mono_MH_05/stamped_traj_estimate.txt",
+    "csv_sha256": "231f710761894f3ab20b26db9a68b731052cf03cd3b1f5b2ff66d3dec8733d7d",
+    "total_rows": 2245,
+    "heldout_rows": 1684
+  },
+  {
+    "name": "MH_05_stereo",
+    "path": "results/euroc_mono_stereo/laptop/vio_stereo/laptop_vio_stereo_MH_05/stamped_traj_estimate.txt",
+    "csv_sha256": "86e74db285854e86b18665dfd9bcb4064253e9b079a36e8bae4a712533435420",
+    "total_rows": 2273,
+    "heldout_rows": 1705
+  }
+]

@@ -1,0 +1,5 @@
+numpy>=1.24
+numba>=0.59
+brotli>=1.0
+Pillow>=10
+psutil>=5.9
